@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.eraneos.com/oet/transformation-cockpit/steerco-report/1.0.0",
+  "title": "Governed Steering Committee report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "revision",
+    "status",
+    "period",
+    "generatedAt",
+    "generatedBy",
+    "sourceRevision",
+    "dataFreshness",
+    "rag",
+    "executiveSummary",
+    "sections",
+    "publication",
+    "audit"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "in_review",
+        "rejected",
+        "approved",
+        "published",
+        "revoked"
+      ]
+    },
+    "period": {
+      "type": "object"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generatedBy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedWith": {
+      "type": "object"
+    },
+    "sourceRevision": {
+      "type": "object",
+      "required": [
+        "pmo",
+        "modules"
+      ]
+    },
+    "dataFreshness": {
+      "type": "object"
+    },
+    "rag": {
+      "type": "object"
+    },
+    "executiveSummary": {
+      "type": "array"
+    },
+    "sections": {
+      "type": "object",
+      "required": [
+        "milestones",
+        "deliverables",
+        "risks",
+        "decisions",
+        "overdueActions",
+        "upcoming",
+        "changes",
+        "moduleHighlights",
+        "governance",
+        "automation"
+      ]
+    },
+    "publication": {
+      "type": "object"
+    },
+    "audit": {
+      "type": "array"
+    }
+  }
+}

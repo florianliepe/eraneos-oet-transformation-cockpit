@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.eraneos.com/oet/transformation-cockpit/pmo-document/1.0.0",
+  "title": "Transformation Cockpit PMO document",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "revision",
+    "project",
+    "workstreams",
+    "milestones",
+    "deliverables",
+    "risks",
+    "meetings",
+    "activity"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "phase",
+        "startDate",
+        "endDate",
+        "overallRag",
+        "progress",
+        "updatedAt"
+      ]
+    },
+    "workstreams": {
+      "type": "array"
+    },
+    "milestones": {
+      "type": "array"
+    },
+    "deliverables": {
+      "type": "array"
+    },
+    "risks": {
+      "type": "array"
+    },
+    "meetings": {
+      "type": "array"
+    },
+    "activity": {
+      "type": "array"
+    }
+  }
+}
+
