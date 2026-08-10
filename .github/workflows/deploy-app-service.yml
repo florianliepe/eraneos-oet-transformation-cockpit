@@ -1,0 +1,86 @@
+name: Validate and deploy frontend to Azure App Service
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Verify governed product contracts and neutrality
+        run: npm run verify:governance-artifacts
+
+      - name: Build standalone frontend
+        run: npm run build
+
+      - name: Assemble App Service artifact
+        shell: bash
+        run: |
+          mkdir -p deploy/.next/static
+          cp -R .next/standalone/. deploy/
+          cp -R .next/static/. deploy/.next/static/
+          cp -R public deploy/public
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-app-service
+          path: deploy
+          if-no-files-found: error
+
+  deploy_frontend:
+    if: github.event_name == 'workflow_dispatch' && vars.AZURE_FRONTEND_APP_NAME != ''
+    needs: build
+    runs-on: ubuntu-latest
+    environment: integration
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-app-service
+          path: deploy
+
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy frontend
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_FRONTEND_APP_NAME }}
+          package: deploy
