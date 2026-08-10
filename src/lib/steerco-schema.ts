@@ -27,8 +27,12 @@ const sections = z.object({
   milestones: z.array(SteercoClaimSchema),
   deliverables: z.array(SteercoClaimSchema),
   risks: z.array(SteercoClaimSchema),
+  issues: z.array(SteercoClaimSchema),
   decisions: z.array(SteercoClaimSchema),
   overdueActions: z.array(SteercoClaimSchema),
+  dependencies: z.array(SteercoClaimSchema),
+  assumptions: z.array(SteercoClaimSchema),
+  changeRequests: z.array(SteercoClaimSchema),
   upcoming: z.array(SteercoClaimSchema),
   changes: z.array(SteercoClaimSchema),
   moduleHighlights: z.array(SteercoClaimSchema),
@@ -104,21 +108,27 @@ export function buildSteercoEvidence(envelope: SteercoEvidenceEnvelope, actor: s
   const criticalRisks = openRisks.filter((item) => item.probability * item.impact >= 16);
   const blockedDeliverables = pmo.deliverables.filter((item) => item.status === "blocked");
   const overdueDeliverables = pmo.deliverables.filter((item) => item.status !== "done" && item.dueDate < isoDate(now));
-  const overdueActions = pmo.meetings.flatMap((meeting) => meeting.actions.map((action, index) => ({ ...action, id: `${meeting.id}:action:${index + 1}`, meetingId: meeting.id }))).filter((item) => item.dueDate < isoDate(now));
+  const overdueActions = pmo.actions.filter((item) => !["done", "cancelled"].includes(item.status) && item.dueDate < isoDate(now));
+  const criticalIssues = pmo.issues.filter((item) => !["resolved", "closed"].includes(item.status) && item.severity >= 4);
+  const atRiskDependencies = pmo.dependencies.filter((item) => ["at_risk", "blocked"].includes(item.status));
+  const invalidAssumptions = pmo.assumptions.filter((item) => item.status === "invalidated");
   const missingEvidence = modules.flatMap((module) => module.missingEvidence);
   const stale = now.getTime() - new Date(pmo.project.updatedAt).getTime() > 7 * 86_400_000;
   const signals: SteercoSnapshot["rag"]["signals"] = [];
-  const insufficient = !pmo.milestones.length && !pmo.deliverables.length && !pmo.risks.length && !pmo.meetings.length;
+  const insufficient = !pmo.milestones.length && !pmo.deliverables.length && !pmo.risks.length && !pmo.issues.length && !pmo.actions.length && !pmo.decisions.length;
   if (insufficient) signals.push({ id: "insufficient-evidence", severity: "unknown", label: "Insufficient governed project evidence for a defensible status", sourceIds: [pmo.project.id] });
   if (criticalRisks.length) signals.push({ id: "critical-risks", severity: "red", label: `${criticalRisks.length} critical unresolved risk(s)`, sourceIds: criticalRisks.map((item) => item.id) });
   if (blockedDeliverables.length) signals.push({ id: "blocked-deliverables", severity: "red", label: `${blockedDeliverables.length} blocked deliverable(s)`, sourceIds: blockedDeliverables.map((item) => item.id) });
+  if (criticalIssues.length) signals.push({ id: "critical-issues", severity: "red", label: `${criticalIssues.length} critical unresolved issue(s)`, sourceIds: criticalIssues.map((item) => item.id) });
+  if (atRiskDependencies.length) signals.push({ id: "at-risk-dependencies", severity: "red", label: `${atRiskDependencies.length} at-risk or blocked dependency/dependencies`, sourceIds: atRiskDependencies.map((item) => item.id) });
+  if (invalidAssumptions.length) signals.push({ id: "invalid-assumptions", severity: "amber", label: `${invalidAssumptions.length} invalid assumption(s)`, sourceIds: invalidAssumptions.map((item) => item.id) });
   if (overdueDeliverables.length) signals.push({ id: "overdue-deliverables", severity: "amber", label: `${overdueDeliverables.length} overdue deliverable(s)`, sourceIds: overdueDeliverables.map((item) => item.id) });
   if (missingEvidence.length) signals.push({ id: "module-evidence-gaps", severity: "unknown", label: `${missingEvidence.length} module evidence gap(s)`, sourceIds: modules.map((module) => module.moduleId) });
   if (stale) signals.push({ id: "stale-data", severity: "amber", label: "Project source is older than seven days", sourceIds: [pmo.project.id] });
   if (!signals.length) signals.push({ id: "within-tolerance", severity: "green", label: "No critical delivery or governance signals detected", sourceIds: [pmo.project.id] });
   const calculated: SteercoRag = insufficient ? "unknown" : signals.some((item) => item.severity === "red") ? "red" : signals.some((item) => item.severity === "amber") ? "amber" : signals.some((item) => item.severity === "unknown") ? "unknown" : "green";
   const section = (items: SteercoClaim[], empty: string) => items.length ? items : [claim(`missing-${empty.toLowerCase().replaceAll(" ", "-")}`, empty, "missing")];
-  const decisions = pmo.meetings.filter((item) => inPeriod(item.date)).flatMap((meeting, index) => meeting.decisions.map((text, decisionIndex) => claim(`decision-${index}-${decisionIndex}`, text, "fact", [meeting.id])));
+  const decisions = pmo.decisions.filter((item) => inPeriod(item.decisionDate)).map((item) => claim(item.id, `${item.title}: ${item.decision}`, "fact", [item.id]));
 
   return SteercoSnapshotSchema.parse({
     schemaVersion: "1.0.0", id: `STEERCO-${Date.now()}`, revision: 1, status: "draft", period, generatedAt: envelope.generatedAt, generatedBy: actor,
@@ -131,12 +141,16 @@ export function buildSteercoEvidence(envelope: SteercoEvidenceEnvelope, actor: s
       milestones: section(pmo.milestones.filter((item) => inPeriod(item.date)).map((item) => claim(item.id, `${item.title}: ${item.status.replaceAll("_", " ")} on ${item.date}.`, "fact", [item.id])), "No milestone changes in this period."),
       deliverables: section(pmo.deliverables.filter((item) => inPeriod(item.dueDate)).map((item) => claim(item.id, `${item.title}: ${item.progress}% complete, ${item.status.replaceAll("_", " ")}.`, "fact", [item.id])), "No deliverables fall in this period."),
       risks: section(openRisks.slice(0, 5).map((item) => claim(item.id, `${item.title}: exposure ${item.probability * item.impact}, ${item.state}.`, "fact", [item.id])), "No open risks recorded."),
+      issues: section(pmo.issues.filter((item) => !["resolved", "closed"].includes(item.status)).slice(0, 5).map((item) => claim(item.id, `${item.title}: severity ${item.severity}, ${item.status}.`, "fact", [item.id])), "No open issues recorded."),
       decisions: section(decisions, "No decisions captured in this period."),
-      overdueActions: section(overdueActions.map((item) => claim(item.id, `${item.text} — ${item.owner}, due ${item.dueDate}.`, "fact", [item.meetingId])), "No overdue actions detected."),
+      overdueActions: section(overdueActions.map((item) => claim(item.id, `${item.title} — ${item.owner}, due ${item.dueDate}.`, "fact", [item.id])), "No overdue actions detected."),
+      dependencies: section(atRiskDependencies.map((item) => claim(item.id, `${item.title}: ${item.status}, needed by ${item.neededBy}.`, "fact", [item.id])), "No at-risk dependencies recorded."),
+      assumptions: section(pmo.assumptions.filter((item) => item.status !== "validated").map((item) => claim(item.id, `${item.title}: ${item.status}, validate by ${item.validationDueDate}.`, "fact", [item.id])), "No assumptions awaiting validation."),
+      changeRequests: section(pmo.changeRequests.filter((item) => !["approved", "rejected", "withdrawn"].includes(item.status)).map((item) => claim(item.id, `${item.title}: ${item.status}, ${item.priority}.`, "fact", [item.id])), "No pending change requests."),
       upcoming: section(pmo.milestones.filter((item) => item.status !== "complete" && item.date > period.to).slice(0, 5).map((item) => claim(item.id, `${item.title} on ${item.date}.`, "fact", [item.id])), "No upcoming milestone recorded."),
-      changes: section(pmo.activity.filter((item) => inPeriod(item.timestamp)).slice(0, 8).map((item) => claim(item.id, item.message, "fact", [item.entityId || item.id])), "No recorded project changes in this period."),
+      changes: section(pmo.audit.filter((item) => inPeriod(item.timestamp)).slice(0, 8).map((item) => claim(item.id, item.message, "fact", [item.object.id])), "No recorded project changes in this period."),
       moduleHighlights: section(modules.flatMap((module) => module.metrics.map((metric) => claim(`${module.moduleId}:${metric.id}`, `${module.label} — ${metric.label}: ${metric.value}.`, "metric", metric.sourceIds))), "No reporting module summaries supplied."),
-      governance: missingEvidence.length ? missingEvidence.map((text, index) => claim(`module-gap-${index + 1}`, text, "missing")) : [claim("module-governance", `${modules.length} versioned reporting module(s) supplied.`, "metric", modules.map((module) => module.moduleId))],
+      governance: missingEvidence.length ? missingEvidence.map((text, index) => claim(`module-gap-${index + 1}`, text, "missing")) : [claim("domain-governance", `${pmo.evidence.length} evidence record(s), ${pmo.reviews.length} review(s), ${pmo.audit.length} audit event(s), and ${pmo.objectVersions.length} immutable object version(s) available.`, "metric", [...pmo.evidence.map((item) => item.id), ...pmo.reviews.map((item) => item.id)])],
       automation: [claim("automation-evidence", "Runtime automation health requires evidence from the protected orchestration boundary.", "missing")],
     },
     publication: { classification: "steerco_read_only" },

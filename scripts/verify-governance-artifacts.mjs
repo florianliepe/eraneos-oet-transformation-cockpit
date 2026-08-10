@@ -4,10 +4,18 @@ import { extname, join, relative, resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const requiredJson = [
   "data/schemas/pmo-document.schema.json",
+  "data/schemas/evidence-record.schema.json",
+  "data/schemas/review-record.schema.json",
+  "data/schemas/audit-event.schema.json",
+  "data/schemas/object-version.schema.json",
   "data/schemas/reporting-module-summary.schema.json",
   "data/schemas/steerco-report.schema.json",
 ];
 for (const path of requiredJson) JSON.parse(readFileSync(join(root, path), "utf8"));
+const pmoSchema = JSON.parse(readFileSync(join(root, "data/schemas/pmo-document.schema.json"), "utf8"));
+for (const key of ["issues", "actions", "decisions", "dependencies", "assumptions", "changeRequests", "evidence", "reviews", "audit", "objectVersions"]) {
+  if (!pmoSchema.required.includes(key)) throw new Error(`PMO schema is missing required contract: ${key}`);
+}
 
 const ignored = new Set([".git", ".next", "node_modules", "test-results", "playwright-report"]);
 const textExtensions = new Set([".css", ".html", ".js", ".json", ".jsx", ".md", ".mjs", ".ts", ".tsx", ".yaml", ".yml"]);

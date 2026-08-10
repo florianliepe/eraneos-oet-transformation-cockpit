@@ -9,7 +9,7 @@ A product-neutral project and transformation cockpit for governed delivery data,
 - Policy API: protected workflow/API boundary on a separate Azure App Service
 - Source control: private GitHub repository with a credential-free deployment workflow
 - Authentication: temporary workspace credential seam; Microsoft Entra ID is the production target
-- Data: versioned PMO document plus neutral reporting-module summaries
+- Data: PMO document v2.0 with first-class issues, actions, decisions, dependencies, assumptions, and change requests; linked evidence, reviews, audit events, immutable object versions; and neutral reporting-module summaries
 - Reporting: evidence-backed Steering Committee snapshots with approval and publication states
 
 SharePoint and Teams integrations are intentionally deferred. Azure infrastructure-as-code is also deferred for the current delivery slice.

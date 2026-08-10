@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.eraneos.com/oet/transformation-cockpit/object-version/1.0.0",
+  "title": "Object version",
+  "type": "object",
+  "required": ["id", "object", "version", "createdAt", "createdBy", "changeSummary", "snapshot", "evidenceIds"],
+  "properties": { "id": { "type": "string", "minLength": 1 }, "object": { "type": "object", "required": ["type", "id"] }, "version": { "type": "integer", "minimum": 1 }, "createdAt": { "type": "string", "format": "date-time" }, "createdBy": { "type": "string", "minLength": 1 }, "changeSummary": { "type": "string", "minLength": 1 }, "reviewId": { "type": "string" }, "snapshot": { "type": "object" }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+}

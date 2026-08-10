@@ -32,7 +32,7 @@ test("opens the product-neutral executive workspace without client errors", asyn
 
 test("navigates through the retained core delivery views", async ({ page }) => {
   const navigation = page.getByRole("navigation", { name: "Primary navigation" });
-  for (const name of ["Workbench intake", "Plan & deliverables", "Risks & issues", "Meeting hub", "Activity log", "SteerCo summary"]) {
+  for (const name of ["Workbench intake", "Plan & deliverables", "Risk register", "PMO registers", "Meeting hub", "Activity log", "SteerCo summary"]) {
     await navigation.getByRole("button", { name }).click();
   }
   await expect(page.getByRole("heading", { name: "SteerCo summary", level: 1 })).toBeVisible();
@@ -45,7 +45,24 @@ test("captures a governed risk update", async ({ page }) => {
   await page.getByLabel("Mitigation").fill("Pre-wire decisions before the gate review.");
   await page.getByLabel("Description").fill("Open decisions are not closing within the agreed cadence.");
   await page.getByRole("button", { name: "Add to workspace" }).click();
-  await page.getByRole("button", { name: "Risks & issues" }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: /Risk register/ }).click();
   await expect(page.getByText("Decision latency threatens the next gate")).toBeVisible();
   await expect(page.getByRole("button", { name: "Publish changes" })).toBeEnabled();
+});
+
+test("creates a governed first-class issue and exposes governance records", async ({ page }) => {
+  await page.getByRole("button", { name: "PMO registers" }).click();
+  await expect(page.getByRole("heading", { name: "Governed registers" })).toBeVisible();
+  await page.getByRole("button", { name: "Add issue" }).click();
+  await page.getByLabel("Title").fill("Cross-workstream design conflict");
+  await page.getByLabel("Description").fill("Two workstreams require incompatible interface assumptions.");
+  await page.getByRole("textbox", { name: "Owner" }).fill("PMO Lead");
+  await page.getByLabel("Resolution").fill("Convene a design authority decision.");
+  await page.getByRole("button", { name: "Add to workbench" }).click();
+  await expect(page.getByText("Cross-workstream design conflict")).toBeVisible();
+  await page.getByRole("tab", { name: "Evidence & governance" }).click();
+  await expect(page.getByRole("heading", { name: "Evidence register" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review queue" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Object versions" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Audit events" })).toBeVisible();
 });
