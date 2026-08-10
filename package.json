@@ -8,12 +8,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && node scripts/verify-public-bundle.mjs",
+    "build:pages": "next build && node scripts/verify-public-bundle.mjs && node scripts/verify-pages-export.mjs",
     "verify:public-bundle": "node scripts/verify-public-bundle.mjs",
     "verify:governance-artifacts": "node scripts/verify-governance-artifacts.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:pages": "playwright test tests/pages-export.spec.ts --config=playwright.pages.config.ts"
   },
   "dependencies": {
     "gray-matter": "^4.0.3",

@@ -10,12 +10,12 @@ export type IntakeSubmission = {
 };
 
 const specialistAgents = [
-  { id: "evidence", title: "Evidence verifier", copy: "Checks sources, ambiguity and confidence." },
-  { id: "delivery", title: "Delivery planner", copy: "Maps commitments to milestones and deliverables." },
-  { id: "risk", title: "Risk analyst", copy: "Extracts exposure, scoring and mitigations." },
-  { id: "meeting", title: "Meeting synthesizer", copy: "Separates summaries, decisions and actions." },
-  { id: "controls", title: "PMO controls analyst", copy: "Classifies issues, actions, dependencies, assumptions and changes." },
-  { id: "governance", title: "Governance reviewer", copy: "Links evidence, reviews and audit-ready object versions." },
+  { id: "evidence", workflow: "evidence.verify", title: "Evidence verifier", copy: "Checks sources, ambiguity and confidence." },
+  { id: "delivery", workflow: "delivery.plan", title: "Delivery planner", copy: "Maps commitments to milestones and deliverables." },
+  { id: "risk", workflow: "risk.analyse", title: "Risk analyst", copy: "Extracts exposure, scoring and mitigations." },
+  { id: "meeting", workflow: "meeting.synthesise", title: "Meeting synthesizer", copy: "Separates summaries, decisions and actions." },
+  { id: "controls", workflow: "controls.classify", title: "PMO controls analyst", copy: "Classifies issues, actions, dependencies, assumptions and changes." },
+  { id: "governance", workflow: "governance.review", title: "Governance reviewer", copy: "Links evidence, reviews and audit-ready object versions." },
 ];
 
 function intakeId() {
@@ -67,6 +67,8 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
           rag: "amber",
           routing,
           agents: agents.join(","),
+          agent_workflows: specialistAgents.filter((agent) => agents.includes(agent.id)).map((agent) => agent.workflow).join(","),
+          domain_schema: "pmo-2.0",
         },
       });
     }}>

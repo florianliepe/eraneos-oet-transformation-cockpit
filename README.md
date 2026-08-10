@@ -1,4 +1,6 @@
 # eraneos Transformation Cockpit
+
+Live MVP: [florianliepe.github.io/eraneos-oet-transformation-cockpit](https://florianliepe.github.io/eraneos-oet-transformation-cockpit/)
 _part of OET AI Suite_
 
 A product-neutral project and transformation cockpit for governed delivery data, executive reporting, and controlled automation.

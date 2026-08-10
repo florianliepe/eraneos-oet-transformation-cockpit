@@ -1,4 +1,5 @@
 import { migratePmoDocument, type PmoDocument } from "@/lib/pmo-schema";
+import { defaultPmoWorkflowUrl, publicWorkflowEndpoint } from "@/lib/public-runtime";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
@@ -32,9 +33,7 @@ export type ExtractedEvidence = {
 };
 
 function webhookUrl() {
-  const configured = process.env.NEXT_PUBLIC_N8N_PMO_WEBHOOK_URL?.trim();
-  if (!configured) throw new Error("The Transformation Cockpit PMO endpoint is not configured.");
-  return configured;
+  return publicWorkflowEndpoint(process.env.NEXT_PUBLIC_N8N_PMO_WEBHOOK_URL, defaultPmoWorkflowUrl);
 }
 
 function extension(name: string) {

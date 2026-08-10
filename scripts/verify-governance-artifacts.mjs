@@ -10,6 +10,7 @@ const requiredJson = [
   "data/schemas/object-version.schema.json",
   "data/schemas/reporting-module-summary.schema.json",
   "data/schemas/steerco-report.schema.json",
+  "docs/n8n-pmo-orchestrator.workflow.json",
 ];
 for (const path of requiredJson) JSON.parse(readFileSync(join(root, path), "utf8"));
 const pmoSchema = JSON.parse(readFileSync(join(root, "data/schemas/pmo-document.schema.json"), "utf8"));
