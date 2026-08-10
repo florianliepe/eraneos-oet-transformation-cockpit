@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { PmoDocument } from "../src/lib/pmo-schema";
+import { bootstrapPmoData } from "../src/lib/pmo-fixtures";
 import { buildCorePmoSummary } from "../src/lib/reporting-schema";
 import {
   applySteercoApproval,
@@ -12,17 +12,19 @@ import {
   SteercoSnapshotSchema,
 } from "../src/lib/steerco-schema";
 
-const pmo: PmoDocument = {
-  schemaVersion: "1.0",
-  revision: 12,
-  project: { id: "TRANSFORM-01", name: "Operating Model Transformation", subtitle: "Governed programme", phase: "Delivery", startDate: "2026-07-01", endDate: "2026-12-31", overallRag: "amber", progress: 62, updatedAt: "2026-08-08T10:00:00.000Z" },
-  workstreams: [{ id: "WS-1", name: "Programme delivery", shortName: "Delivery", owner: "PMO", progress: 62, rag: "amber" }],
-  milestones: [{ id: "M-1", title: "Design gate", phase: "Delivery", date: "2026-08-20", status: "at_risk", owner: "PMO", description: "Validate the target design." }],
-  deliverables: [{ id: "DEL-1", title: "Target operating model", workstream: "WS-1", dueDate: "2026-08-05", status: "blocked", owner: "Workstream Lead", progress: 70, priority: "P1" }],
-  risks: [{ id: "R-1", title: "Decision latency", description: "Sponsor decision is pending.", probability: 4, impact: 5, state: "open", owner: "Programme Lead", mitigation: "Pre-wire the decision.", updatedAt: "2026-08-01" }],
-  meetings: [{ id: "MTG-SC-1", title: "Steering Committee 7", date: "2026-08-01", type: "steering", participants: ["Sponsor"], summary: "Delivery review", decisions: ["Retain the current delivery sequence."], actions: [{ text: "Confirm design decision", owner: "Programme Lead", dueDate: "2026-08-03" }] }],
-  activity: [{ id: "ACT-1", timestamp: "2026-08-08T10:00:00.000Z", type: "automation", actor: "Workflow", message: "Validated governed project data.", entityId: "REV-11" }],
-};
+const pmo = structuredClone(bootstrapPmoData);
+pmo.revision = 12;
+pmo.project.updatedAt = "2026-08-08T10:00:00.000Z";
+pmo.meetings[0].date = "2026-08-01";
+pmo.meetings[0].type = "steering";
+pmo.milestones[0].date = "2026-08-20";
+pmo.milestones[0].status = "at_risk";
+pmo.deliverables[0].dueDate = "2026-08-05";
+pmo.deliverables[0].status = "blocked";
+pmo.risks[0].probability = 4;
+pmo.risks[0].impact = 5;
+pmo.actions[0].dueDate = "2026-08-03";
+pmo.issues[0].severity = 5;
 
 const envelope = (period = resolveSteercoPeriod("current_month", pmo, new Date("2026-08-10T12:00:00Z"))) =>
   buildSteercoEnvelope(pmo, [buildCorePmoSummary(pmo)], period, new Date("2026-08-10T12:00:00Z"));

@@ -1,58 +1,41 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.eraneos.com/oet/transformation-cockpit/pmo-document/1.0.0",
+  "$id": "https://schemas.eraneos.com/oet/transformation-cockpit/pmo-document/2.0.0",
   "title": "Transformation Cockpit PMO document",
   "type": "object",
-  "required": [
-    "schemaVersion",
-    "revision",
-    "project",
-    "workstreams",
-    "milestones",
-    "deliverables",
-    "risks",
-    "meetings",
-    "activity"
-  ],
+  "required": ["schemaVersion", "revision", "project", "workstreams", "milestones", "deliverables", "risks", "issues", "actions", "decisions", "dependencies", "assumptions", "changeRequests", "meetings", "evidence", "reviews", "audit", "objectVersions"],
   "properties": {
-    "schemaVersion": {
-      "const": "1.0"
-    },
-    "revision": {
-      "type": "integer",
-      "minimum": 1
-    },
-    "project": {
-      "type": "object",
-      "required": [
-        "id",
-        "name",
-        "phase",
-        "startDate",
-        "endDate",
-        "overallRag",
-        "progress",
-        "updatedAt"
-      ]
-    },
-    "workstreams": {
-      "type": "array"
-    },
-    "milestones": {
-      "type": "array"
-    },
-    "deliverables": {
-      "type": "array"
-    },
-    "risks": {
-      "type": "array"
-    },
-    "meetings": {
-      "type": "array"
-    },
-    "activity": {
-      "type": "array"
-    }
+    "schemaVersion": { "const": "2.0" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "project": { "$ref": "#/$defs/project" },
+    "workstreams": { "type": "array", "items": { "$ref": "#/$defs/governedObject" } },
+    "milestones": { "type": "array", "items": { "$ref": "#/$defs/governedObject" } },
+    "deliverables": { "type": "array", "items": { "$ref": "#/$defs/governedObject" } },
+    "risks": { "type": "array", "items": { "$ref": "#/$defs/governedObject" } },
+    "issues": { "type": "array", "items": { "$ref": "#/$defs/issue" } },
+    "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+    "decisions": { "type": "array", "items": { "$ref": "#/$defs/decision" } },
+    "dependencies": { "type": "array", "items": { "$ref": "#/$defs/dependency" } },
+    "assumptions": { "type": "array", "items": { "$ref": "#/$defs/assumption" } },
+    "changeRequests": { "type": "array", "items": { "$ref": "#/$defs/changeRequest" } },
+    "meetings": { "type": "array", "items": { "$ref": "#/$defs/meeting" } },
+    "evidence": { "type": "array", "items": { "$ref": "evidence-record.schema.json" } },
+    "reviews": { "type": "array", "items": { "$ref": "review-record.schema.json" } },
+    "audit": { "type": "array", "items": { "$ref": "audit-event.schema.json" } },
+    "objectVersions": { "type": "array", "items": { "$ref": "object-version.schema.json" } }
+  },
+  "$defs": {
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "objectRef": { "type": "object", "required": ["type", "id"], "properties": { "type": { "enum": ["project", "workstream", "milestone", "deliverable", "risk", "issue", "action", "decision", "dependency", "assumption", "change_request", "meeting", "evidence"] }, "id": { "type": "string", "minLength": 1 } } },
+    "governance": { "type": "object", "required": ["version", "reviewStatus", "evidenceIds", "reviewIds", "createdAt", "createdBy", "updatedAt", "updatedBy"], "properties": { "version": { "type": "integer", "minimum": 1 }, "reviewStatus": { "enum": ["not_requested", "pending", "approved", "changes_requested", "rejected"] }, "evidenceIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }, "reviewIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }, "createdAt": { "type": "string", "format": "date-time" }, "createdBy": { "type": "string", "minLength": 1 }, "updatedAt": { "type": "string", "format": "date-time" }, "updatedBy": { "type": "string", "minLength": 1 } } },
+    "governedObject": { "type": "object", "required": ["id", "governance"], "properties": { "id": { "type": "string", "minLength": 1 }, "governance": { "$ref": "#/$defs/governance" } } },
+    "project": { "allOf": [{ "$ref": "#/$defs/governedObject" }, { "required": ["name", "phase", "startDate", "endDate", "overallRag", "progress", "updatedAt"] }] },
+    "issue": { "allOf": [{ "$ref": "#/$defs/governedObject" }, { "required": ["title", "description", "owner", "status", "priority", "severity", "raisedAt", "resolution", "relatedRiskIds"], "properties": { "status": { "enum": ["open", "in_progress", "blocked", "resolved", "closed"] }, "severity": { "type": "integer", "minimum": 1, "maximum": 5 } } }] },
+    "action": { "allOf": [{ "$ref": "#/$defs/governedObject" }, { "required": ["title", "description", "owner", "status", "priority", "dueDate", "relatedObjects"], "properties": { "status": { "enum": ["open", "in_progress", "blocked", "done", "cancelled"] }, "relatedObjects": { "type": "array", "items": { "$ref": "#/$defs/objectRef" } } } }] },
+    "decision": { "allOf": [{ "$ref": "#/$defs/governedObject" }, { "required": ["title", "context", "decision", "owner", "status", "decisionDate", "impact", "relatedObjects"], "properties": { "status": { "enum": ["proposed", "pending_approval", "approved", "rejected", "superseded"] }, "relatedObjects": { "type": "array", "items": { "$ref": "#/$defs/objectRef" } } } }] },
+    "dependency": { "allOf": [{ "$ref": "#/$defs/governedObject" }, { "required": ["title", "description", "owner", "provider", "type", "direction", "status", "criticality", "neededBy", "relatedObjects"], "properties": { "status": { "enum": ["open", "confirmed", "at_risk", "blocked", "satisfied", "cancelled"] }, "relatedObjects": { "type": "array", "items": { "$ref": "#/$defs/objectRef" } } } }] },
+    "assumption": { "allOf": [{ "$ref": "#/$defs/governedObject" }, { "required": ["title", "statement", "owner", "status", "criticality", "validationDueDate", "validationMethod", "impactIfFalse"], "properties": { "status": { "enum": ["active", "validated", "invalidated", "retired"] } } }] },
+    "changeRequest": { "allOf": [{ "$ref": "#/$defs/governedObject" }, { "required": ["title", "description", "requester", "owner", "status", "priority", "submittedAt", "scopeImpact", "scheduleImpact", "costImpact", "benefitImpact", "riskImpact"], "properties": { "status": { "enum": ["draft", "submitted", "under_review", "approved", "rejected", "implemented", "withdrawn"] } } }] },
+    "meeting": { "allOf": [{ "$ref": "#/$defs/governedObject" }, { "required": ["title", "date", "type", "participants", "summary", "decisionIds", "actionIds"], "properties": { "decisionIds": { "type": "array", "items": { "type": "string" } }, "actionIds": { "type": "array", "items": { "type": "string" } } } }] }
   }
 }
-

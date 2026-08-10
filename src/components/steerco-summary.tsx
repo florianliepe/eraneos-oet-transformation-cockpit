@@ -8,8 +8,8 @@ import { approveSteercoSnapshot, generateSteercoDraft, publishSteercoSnapshot, r
 import { applySteercoApproval, applySteercoRagOverride, assertSteercoSourcesCurrent, buildSteercoEnvelope, buildSteercoEvidence, rejectSteercoDraft, resolveSteercoPeriod, type SteercoClaim, type SteercoPeriod, type SteercoRag, type SteercoSnapshot } from "@/lib/steerco-schema";
 
 const sectionLabels: Record<keyof SteercoSnapshot["sections"], string> = {
-  milestones: "Milestones", deliverables: "Deliverables", risks: "Top risks & issues", decisions: "Decisions required",
-  overdueActions: "Overdue actions", upcoming: "Upcoming milestones & meetings", changes: "Changes in period",
+  milestones: "Milestones", deliverables: "Deliverables", risks: "Top risks", issues: "Issues", decisions: "Decisions required",
+  overdueActions: "Overdue actions", dependencies: "Dependencies", assumptions: "Assumptions", changeRequests: "Change requests", upcoming: "Upcoming milestones & meetings", changes: "Changes in period",
   moduleHighlights: "Module highlights", governance: "Governance & evidence gaps", automation: "AI & workflow health",
 };
 const presets: Array<{ value: SteercoPeriod["preset"]; label: string }> = [

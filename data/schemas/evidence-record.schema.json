@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.eraneos.com/oet/transformation-cockpit/evidence-record/1.0.0",
+  "title": "Evidence record",
+  "type": "object",
+  "required": ["id", "title", "kind", "source", "classification", "status", "capturedAt", "capturedBy", "relatedObjects"],
+  "properties": { "id": { "type": "string", "minLength": 1 }, "title": { "type": "string", "minLength": 1 }, "kind": { "enum": ["document", "meeting_note", "data_extract", "image", "correspondence", "system_record", "other"] }, "source": { "type": "string", "minLength": 1 }, "uri": { "type": "string" }, "classification": { "enum": ["public", "internal", "confidential", "restricted"] }, "status": { "enum": ["proposed", "verified", "rejected"] }, "capturedAt": { "type": "string", "format": "date-time" }, "capturedBy": { "type": "string", "minLength": 1 }, "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "relatedObjects": { "type": "array" } }
+}

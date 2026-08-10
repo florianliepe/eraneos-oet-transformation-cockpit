@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.eraneos.com/oet/transformation-cockpit/audit-event/1.0.0",
+  "title": "Audit event",
+  "type": "object",
+  "required": ["id", "timestamp", "actor", "action", "object", "message", "changes", "evidenceIds"],
+  "properties": { "id": { "type": "string", "minLength": 1 }, "timestamp": { "type": "string", "format": "date-time" }, "actor": { "type": "string", "minLength": 1 }, "action": { "enum": ["create", "update", "delete", "submit_review", "approve", "reject", "link", "unlink", "import", "publish", "migrate"] }, "object": { "type": "object", "required": ["type", "id"] }, "message": { "type": "string", "minLength": 1 }, "correlationId": { "type": "string" }, "changes": { "type": "array" }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+}

@@ -1,4 +1,4 @@
-import type { PmoDocument } from "@/lib/pmo-schema";
+import { migratePmoDocument, type PmoDocument } from "@/lib/pmo-schema";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
@@ -77,12 +77,16 @@ async function callWorkflow<T>(secret: string, body: unknown): Promise<T> {
   return payload;
 }
 
-export function loadPmoDocument(secret: string) {
-  return callWorkflow<PmoApiResponse>(secret, { mode: "pmo.read" });
+async function normalizeDocument<T extends { document?: unknown }>(payload: T): Promise<Omit<T, "document"> & { document?: PmoDocument }> {
+  return payload.document ? { ...payload, document: migratePmoDocument(payload.document) } : payload as Omit<T, "document"> & { document?: PmoDocument };
 }
 
-export function savePmoDocument(secret: string, document: PmoDocument) {
-  return callWorkflow<PmoApiResponse>(secret, { mode: "pmo.save", document });
+export async function loadPmoDocument(secret: string) {
+  return normalizeDocument(await callWorkflow<PmoApiResponse>(secret, { mode: "pmo.read" }));
+}
+
+export async function savePmoDocument(secret: string, document: PmoDocument) {
+  return normalizeDocument(await callWorkflow<PmoApiResponse>(secret, { mode: "pmo.save", document }));
 }
 
 export async function extractEvidence(files: File[]): Promise<ExtractedEvidence[]> {
@@ -178,5 +182,5 @@ export async function ingestEvidence(
     extracted.unshift({ name: "workbench-update.md", type: "text_update", content: textUpdate.trim() });
   }
   if (extracted.length === 0) throw new Error("Add at least one document or written update.");
-  return callWorkflow<WorkflowIntakeResponse>(secret, { mode: "pmo.ingest", meta, extracted });
+  return normalizeDocument(await callWorkflow<WorkflowIntakeResponse>(secret, { mode: "pmo.ingest", meta, extracted }));
 }
