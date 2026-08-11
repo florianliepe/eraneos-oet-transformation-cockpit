@@ -48,3 +48,29 @@ test("keeps critical brand and status text above WCAG AA contrast", async ({ pag
   expect(contrast(colours.ink, colours.canvas)).toBeGreaterThanOrEqual(4.5);
   expect(contrast(colours.action, "#ffffff")).toBeGreaterThanOrEqual(4.5);
 });
+
+test("focuses navigated headings and provides keyboard-safe contextual help", async ({ page }) => {
+  await page.getByRole("button", { name: "PMO registers" }).click();
+  await expect(page.getByRole("heading", { name: "PMO registers", level: 1 })).toBeFocused();
+  const help = page.getByRole("button", { name: "Help" });
+  await help.click();
+  const dialog = page.getByRole("dialog", { name: "Understand this workspace" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Stale object versions fail closed")).toBeVisible();
+  await expect(dialog.getByText("Unknown", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close contextual help" }).last()).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(help).toBeFocused();
+});
+
+test("honours reduced-motion preferences and keeps first-use guidance dismissible", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const durations = await page.locator(".sidebar").evaluate((element) => ({ transition: parseFloat(getComputedStyle(element).transitionDuration), animation: parseFloat(getComputedStyle(element).animationDuration) || 0 }));
+  expect(durations.transition).toBeLessThanOrEqual(.001);
+  expect(durations.animation).toBeLessThanOrEqual(.001);
+  await expect(page.getByRole("heading", { name: "Three controls keep the cockpit trustworthy." })).toBeVisible();
+  await page.getByRole("button", { name: "Dismiss guide" }).click();
+  await expect(page.getByRole("heading", { name: "Three controls keep the cockpit trustworthy." })).toBeHidden();
+  expect(await page.evaluate(() => localStorage.getItem("oet-cockpit-first-use-dismissed"))).toBe("true");
+});
