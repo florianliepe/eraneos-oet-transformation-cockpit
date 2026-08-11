@@ -35,6 +35,10 @@ test("provides self-registration, sign-out and sign-in on static-compatible rout
   await page.getByLabel("Local demonstration password").fill("public-local-password");
   await page.getByLabel(/I accept the applicable terms/).check();
   await page.getByRole("button", { name: "Create local account" }).click();
+  await expect(page.getByRole("heading", { name: "Create the place where your transformation portfolio lives." })).toBeVisible();
+  await page.getByLabel("Organisation name").fill("Public Journey Office");
+  await page.getByRole("button", { name: "Create organisation" }).click();
+  await page.getByRole("button", { name: "Open neutral demo project" }).click();
   await expect(page.getByLabel("Temporary workspace credential")).toBeVisible();
   await expect(page.getByText("Public Journey · local demonstration identity")).toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();
@@ -42,7 +46,7 @@ test("provides self-registration, sign-out and sign-in on static-compatible rout
   await page.getByLabel("Email").fill("public@example.com");
   await page.getByLabel("Local demonstration password").fill("public-local-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page.getByLabel("Temporary workspace credential")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Public Journey Office" })).toBeVisible();
 });
 
 test("supports public skip navigation and named visible controls", async ({ page }) => {

@@ -22,6 +22,9 @@ test.beforeEach(async ({ page }) => {
   await page.getByLabel("Local demonstration password").fill("control-tower-local-password");
   await page.getByLabel(/I accept the applicable terms/).check();
   await page.getByRole("button", { name: "Create local account" }).click();
+  await page.getByLabel("Organisation name").fill("Control Tower Test Office");
+  await page.getByRole("button", { name: "Create organisation" }).click();
+  await page.getByRole("button", { name: "Open neutral demo project" }).click();
   await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
 });
@@ -78,6 +81,7 @@ test("searches across governed records, saves filters and configures register co
   await expect(page.getByText("Columns (3)")).toBeVisible();
   await expect(page.locator(".register-card").first().getByText("Evidence", { exact: true })).toHaveCount(0);
   await page.reload();
+  await page.getByRole("button", { name: "Open neutral demo project" }).click();
   await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(page.getByRole("heading", { name: "Executive overview" })).toBeVisible();
@@ -156,6 +160,7 @@ test("reviews field-level agent proposals before governed publication", async ({
     return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: false, document: bootstrapPmoData }) });
   });
   await page.reload();
+  await page.getByRole("button", { name: "Open neutral demo project" }).click();
   await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake", exact: true }).click();
@@ -181,6 +186,7 @@ test("shows immutable run history and replays the original input with lineage", 
   await page.getByLabel("Write a project update").fill("A traced dependency update for operations testing.");
   await page.getByRole("button", { name: "Analyse and update workbench" }).click();
   await page.reload();
+  await page.getByRole("button", { name: "Open neutral demo project" }).click();
   await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Agent operations" }).click();

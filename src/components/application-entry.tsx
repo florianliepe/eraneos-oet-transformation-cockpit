@@ -5,6 +5,9 @@ import { BrandMark } from "./brand-mark";
 import { IdentityEntry } from "./identity-entry";
 import { LocalIdentityProvider } from "@/lib/local-identity-provider";
 import type { IdentityProvider, IdentityResult } from "@/lib/identity-provider";
+import { LocalWorkspaceRepository } from "@/lib/local-workspace-repository";
+import type { WorkspaceRepository } from "@/lib/workspace-repository";
+import { WorkspaceHome } from "./workspace-home";
 
 type PublicView = "landing" | "signin" | "register" | "invite";
 
@@ -20,7 +23,9 @@ export default function ApplicationEntry() {
   const [view, setView] = useState<PublicView>("landing");
   const [provider, setProvider] = useState<IdentityProvider | null>(null);
   const [identity, setIdentity] = useState<IdentityResult | null>(null);
+  const [workspaceRepository, setWorkspaceRepository] = useState<WorkspaceRepository | null>(null);
   const [identityReady, setIdentityReady] = useState(false);
+  const [cockpitOpen, setCockpitOpen] = useState(false);
 
   useEffect(() => {
     const syncView = () => setView(viewFromLocation());
@@ -30,8 +35,9 @@ export default function ApplicationEntry() {
   }, []);
 
   useEffect(() => {
-    const localProvider = new LocalIdentityProvider(window.localStorage);
-    queueMicrotask(() => setProvider(localProvider));
+    const localWorkspace = new LocalWorkspaceRepository(window.localStorage);
+    const localProvider = new LocalIdentityProvider(window.localStorage, () => new Date(), localWorkspace);
+    queueMicrotask(() => { setProvider(localProvider); setWorkspaceRepository(localWorkspace); });
     void localProvider.currentSession().then(setIdentity).finally(() => setIdentityReady(true));
   }, []);
 
@@ -44,25 +50,27 @@ export default function ApplicationEntry() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  if (view !== "landing" && (!provider || !identityReady)) return <EntryLoading />;
+  if (view !== "landing" && (!provider || !workspaceRepository || !identityReady)) return <EntryLoading />;
 
   if (view === "invite" && provider) return <IdentityEntry provider={provider} mode="invite" onAuthenticated={(result) => { setIdentity(result); navigate("signin"); }} onNavigate={navigate} onBack={() => navigate("landing")} />;
 
-  if (view !== "landing" && identity && provider) {
+  if (view !== "landing" && identity && provider && workspaceRepository && !cockpitOpen) return <WorkspaceHome account={identity.account} repository={workspaceRepository} onOpenCockpit={() => setCockpitOpen(true)} onAcceptInvitation={() => navigate("invite")} onSignOut={() => void provider.signOut().then(() => { setIdentity(null); navigate("signin"); })} />;
+
+  if (view !== "landing" && identity && provider && cockpitOpen) {
     return (
       <Suspense fallback={<EntryLoading />}>
         <div className="authenticated-entry-bar">
-          <button type="button" onClick={() => navigate("landing")} aria-label="Back to public landing page">← Back to overview</button>
+          <button type="button" onClick={() => setCockpitOpen(false)} aria-label="Back to organisation workspace">← Organisation workspace</button>
           <span>{identity.account.displayName} · local demonstration identity</span>
           <button type="button" onClick={() => navigate("invite")}>Accept invitation</button>
-          <button type="button" onClick={() => void provider.signOut().then(() => { setIdentity(null); navigate("signin"); })}>Sign out</button>
+          <button type="button" onClick={() => void provider.signOut().then(() => { setIdentity(null); setCockpitOpen(false); navigate("signin"); })}>Sign out</button>
         </div>
         <AuthenticatedCockpit />
       </Suspense>
     );
   }
 
-  if (view !== "landing" && provider) return <IdentityEntry provider={provider} mode={view} onAuthenticated={setIdentity} onNavigate={navigate} onBack={() => navigate("landing")} />;
+  if (view !== "landing" && provider) return <IdentityEntry provider={provider} mode={view} onAuthenticated={(result) => { setIdentity(result); setCockpitOpen(false); }} onNavigate={navigate} onBack={() => navigate("landing")} />;
 
   return (
     <div className="public-site">
