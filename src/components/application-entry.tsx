@@ -9,6 +9,7 @@ import { LocalWorkspaceRepository } from "@/lib/local-workspace-repository";
 import type { WorkspaceRepository } from "@/lib/workspace-repository";
 import { WorkspaceHome } from "./workspace-home";
 import type { WorkspaceScope } from "@/lib/project-data-repository";
+import { browserWorkspaceMode } from "@/lib/workspace-runtime";
 
 type PublicView = "landing" | "signin" | "register" | "invite";
 
@@ -21,6 +22,7 @@ function viewFromLocation(): PublicView {
 }
 
 export default function ApplicationEntry() {
+  const workspaceMode = browserWorkspaceMode();
   const [view, setView] = useState<PublicView>("landing");
   const [provider, setProvider] = useState<IdentityProvider | null>(null);
   const [identity, setIdentity] = useState<IdentityResult | null>(null);
@@ -37,11 +39,15 @@ export default function ApplicationEntry() {
   }, []);
 
   useEffect(() => {
+    if (workspaceMode === "production") {
+      queueMicrotask(() => setIdentityReady(true));
+      return;
+    }
     const localWorkspace = new LocalWorkspaceRepository(window.localStorage);
     const localProvider = new LocalIdentityProvider(window.localStorage, () => new Date(), localWorkspace);
     queueMicrotask(() => { setProvider(localProvider); setWorkspaceRepository(localWorkspace); });
     void localProvider.currentSession().then(setIdentity).finally(() => setIdentityReady(true));
-  }, []);
+  }, [workspaceMode]);
 
   function navigate(next: PublicView) {
     const url = new URL(window.location.href);
@@ -52,7 +58,11 @@ export default function ApplicationEntry() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  if (view !== "landing" && (!provider || !workspaceRepository || !identityReady)) return <EntryLoading />;
+  if (view !== "landing" && !identityReady) return <EntryLoading />;
+
+  if (view !== "landing" && workspaceMode === "production") return <ProductionIdentityBoundary onBack={() => navigate("landing")} />;
+
+  if (view !== "landing" && (!provider || !workspaceRepository)) return <EntryLoading />;
 
   if (view === "invite" && provider) return <IdentityEntry provider={provider} mode="invite" onAuthenticated={(result) => { setIdentity(result); navigate("signin"); }} onNavigate={navigate} onBack={() => navigate("landing")} />;
 
@@ -105,6 +115,10 @@ export default function ApplicationEntry() {
       </footer>
     </div>
   );
+}
+
+function ProductionIdentityBoundary({ onBack }: { onBack: () => void }) {
+  return <main className="identity-shell"><section className="identity-card" aria-labelledby="production-identity-title"><BrandMark surface="light"/><span className="public-kicker">PRODUCTION IDENTITY BOUNDARY</span><h1 id="production-identity-title">Secure sign-in is not activated.</h1><p>This deployment is configured to reject browser-local accounts. Microsoft Entra External ID and the authorised App Service API must be connected before account access can be enabled.</p><div className="identity-notice" role="status"><b>Fail-closed production mode</b><span>No local identity, workspace repository or project data adapter has been started.</span></div><button className="public-outline-button" type="button" onClick={onBack}>Back to product overview</button></section></main>;
 }
 
 function LandingPage({ onSignIn, onRegister }: { onSignIn: () => void; onRegister: () => void }) {

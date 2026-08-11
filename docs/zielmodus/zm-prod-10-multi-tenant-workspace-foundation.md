@@ -164,6 +164,14 @@ Execution status: **implemented and validated** on 2026-08-11.
 4. Add migration, rollback, backup and tenant-isolation test plans.
 5. Keep Azure deployment deferred until credentials, subscription and target environment are available.
 
+Execution status: **implemented and validated** on 2026-08-11.
+
+- Entra External ID, App Service API and PostgreSQL responsibilities are documented against the replaceable identity, workspace and project-data interfaces, including server-derived scope, abuse controls and proposal-only agent execution.
+- Versioned runtime configuration accepts only explicit local-demo or production adapter profiles; malformed combinations fail closed in domain and build validation.
+- GitHub Pages builds remain visibly local-demo, while App Service artifacts are compiled in production mode and the browser refuses to instantiate local identity or persistence adapters.
+- Migration, reconciliation, encrypted backup/restore, rollback rehearsal and cross-tenant negative test gates are defined as mandatory production activation evidence.
+- Azure identity, persistence, API and deployment activation remain deferred until platform access and accountable security/operational approvals are available.
+
 ## Security and privacy requirements
 
 - Treat browser-local mode as a demonstrator, not production authentication.
