@@ -24,3 +24,13 @@ Persist agent execution history and recovery state so operations survive browser
 ## Deployment outcome
 
 Merge and deploy after persistence, recovery and redaction tests pass.
+
+## Implementation record
+
+- Added the versioned `agent-operations-1.0` run-index contract with immutable lineage, workflow-version snapshots, operator ownership, acknowledgement, resolution and append-only notes.
+- Persisted operational records in a dedicated IndexedDB database rather than the canonical PMO document.
+- Stored only filenames, media types, sizes, optional hashes and work-package references in the searchable run index.
+- Encrypted original recovery submissions with AES-256-GCM using a PBKDF2-derived workspace key; the credential and plaintext evidence are never persisted in the run index.
+- Added reload-safe retry and replay. Every recovery generates a new linked execution; replay shows recorded version differences and requires confirmation.
+- Added state and free-text filters, ten-row pagination, assignment, resolution/reopen and immutable note controls.
+- Added contract tests for redaction, lineage and append-only governance plus a browser test that reloads before replaying the encrypted original input.
