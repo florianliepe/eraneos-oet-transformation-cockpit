@@ -1,5 +1,6 @@
 import { migratePmoDocument, type PmoDocument } from "@/lib/pmo-schema";
 import { defaultPmoWorkflowUrl, publicWorkflowEndpoint } from "@/lib/public-runtime";
+import { AgentRunEnvelopeSchema, legacyAgentRun, type AgentRunEnvelope } from "@/lib/agent-contracts";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
@@ -21,6 +22,8 @@ export type WorkflowIntakeResponse = {
   needs_review?: string[];
   document?: PmoDocument;
   appliedChanges?: Array<{ entity: string; action: string; id?: string; summary?: string }>;
+  agentRun?: AgentRunEnvelope;
+  commit?: { sha?: string; url?: string };
 };
 
 export type ExtractedEvidence = {
@@ -181,5 +184,19 @@ export async function ingestEvidence(
     extracted.unshift({ name: "workbench-update.md", type: "text_update", content: textUpdate.trim() });
   }
   if (extracted.length === 0) throw new Error("Add at least one document or written update.");
-  return normalizeDocument(await callWorkflow<WorkflowIntakeResponse>(secret, { mode: "pmo.ingest", meta, extracted }));
+  const raw = await callWorkflow<WorkflowIntakeResponse & { agentRun?: unknown }>(secret, { mode: "pmo.ingest", meta, extracted });
+  const parsedRun = AgentRunEnvelopeSchema.safeParse(raw.agentRun);
+  const response: WorkflowIntakeResponse = {
+    ...raw,
+    agentRun: parsedRun.success ? parsedRun.data : legacyAgentRun({
+      meta,
+      evidence: extracted.map((item) => ({ name: item.name, contentHash: item.contentHash })),
+      appliedChanges: raw.appliedChanges,
+      needsReview: raw.needs_review,
+      revision: raw.document?.revision,
+      commitSha: raw.commit?.sha,
+      wpId: raw.wpId,
+    }),
+  };
+  return normalizeDocument(response);
 }
