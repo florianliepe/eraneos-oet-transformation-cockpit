@@ -264,7 +264,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
           {navigation.map((item) => { const NavIcon = Icons[item.icon]; return <button key={item.id} className={cx("nav-item", view === item.id && "active")} onClick={() => { setView(item.id); setMobileNav(false); }}><NavIcon/><span>{item.label}</span>{item.id === "risks" && <em>{data.risks.filter((risk) => risk.state !== "closed").length}</em>}</button>; })}
         </nav>
         <div className="sidebar-roadmap"><span>PRODUCT FOUNDATION</span><b>Governed transformation delivery</b><p>Evidence-backed project control with accountable AI assistance.</p><button onClick={() => setView("steerco")}>Open executive reporting <Icons.arrow/></button></div>
-        <div className="sidebar-foot"><span className="user-avatar">FL</span><div><b>Florian Liepe</b><small>Programme workspace</small></div><span className="online-dot"/></div>
+        <div className="sidebar-foot"><span className="user-avatar">PM</span><div><b>PMO Lead</b><small>Programme workspace</small></div><span className="online-dot"/></div>
       </aside>
 
       <main className="main-area">
