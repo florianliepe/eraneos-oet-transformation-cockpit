@@ -1,6 +1,16 @@
 import { migratePmoDocument, type PmoDocument } from "@/lib/pmo-schema";
 import { defaultPmoWorkflowUrl, publicWorkflowEndpoint } from "@/lib/public-runtime";
 import { AgentRunEnvelopeSchema, legacyAgentRun, type AgentRunEnvelope } from "@/lib/agent-contracts";
+import {
+  ProposalPublicationSchema,
+  ProposalSetSchema,
+  ReviewBundleSchema,
+  buildReviewBundle,
+  type DecisionInput,
+  type ProposalPublication,
+  type ProposalSet,
+  type ReviewBundle,
+} from "@/lib/governed-proposals";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
@@ -23,8 +33,12 @@ export type WorkflowIntakeResponse = {
   document?: PmoDocument;
   appliedChanges?: Array<{ entity: string; action: string; id?: string; summary?: string }>;
   agentRun?: AgentRunEnvelope;
+  proposalSet?: ProposalSet;
   commit?: { sha?: string; url?: string };
 };
+
+export type ProposalReviewResponse = { ok?: boolean; error?: string; reviewBundle?: ReviewBundle; commit?: { sha?: string; url?: string } };
+export type ProposalPublishResponse = ProposalPublication & { document?: PmoDocument };
 
 export type ExtractedEvidence = {
   name: string;
@@ -89,6 +103,24 @@ export async function loadPmoDocument(secret: string) {
 
 export async function savePmoDocument(secret: string, document: PmoDocument) {
   return normalizeDocument(await callWorkflow<PmoApiResponse>(secret, { mode: "pmo.save", document }));
+}
+
+export async function reviewAndPublishProposalSet(secret: string, proposalSet: ProposalSet, reviewer: string, decisions: DecisionInput[], expectedRevision: number) {
+  const reviewBundle = buildReviewBundle(proposalSet, reviewer, decisions);
+  const reviewed = await callWorkflow<ProposalReviewResponse>(secret, { mode: "pmo.review", proposalSetId: proposalSet.id, reviewBundle });
+  if (!reviewed.ok || !reviewed.reviewBundle) throw new Error(reviewed.error || "The governed review could not be recorded.");
+  const storedReview = ReviewBundleSchema.parse(reviewed.reviewBundle);
+  const idempotencyKey = storedReview.id.replace(/[^A-Za-z0-9-]/g, "-").slice(0, 80);
+  const published = await callWorkflow<ProposalPublishResponse>(secret, {
+    mode: "pmo.publish",
+    proposalSetId: proposalSet.id,
+    reviewBundleId: storedReview.id,
+    actor: reviewer,
+    expectedRevision,
+    idempotencyKey,
+  });
+  const parsed = ProposalPublicationSchema.parse(published);
+  return normalizeDocument({ ...published, ...parsed });
 }
 
 export async function extractEvidence(files: File[]): Promise<ExtractedEvidence[]> {
@@ -188,6 +220,7 @@ export async function ingestEvidence(
   const parsedRun = AgentRunEnvelopeSchema.safeParse(raw.agentRun);
   const response: WorkflowIntakeResponse = {
     ...raw,
+    proposalSet: raw.proposalSet ? ProposalSetSchema.parse(raw.proposalSet) : undefined,
     agentRun: parsedRun.success ? parsedRun.data : legacyAgentRun({
       meta,
       evidence: extracted.map((item) => ({ name: item.name, contentHash: item.contentHash })),

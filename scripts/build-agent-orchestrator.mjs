@@ -1,10 +1,11 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const workflowPath = resolve("docs/n8n-pmo-orchestrator.workflow.json");
 const manifestPath = resolve("docs/n8n/agents/manifest.json");
 const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+const governedPublisherPath = resolve("docs/n8n/agents/governed-publisher.workflow.json");
 
 const liveIds = Object.fromEntries(
   manifest.workflows.map((item) => [item.workflowId, item.liveWorkflowId || `UNBOUND:${item.workflowId}`]),
@@ -121,4 +122,8 @@ const smokeWorkflow = {
   tags: [],
 };
 writeFileSync(resolve("docs/n8n/agents/smoke-test.workflow.json"), `${JSON.stringify(smokeWorkflow, null, 2)}\n`);
+if (existsSync(governedPublisherPath)) {
+  console.log("Reapplying governed publisher protections after specialist bindings.");
+  await import(`./build-governed-publisher.mjs?build=${Date.now()}`);
+}
 console.log(`Built specialist orchestrator with ${workflowIds.length} workflow bindings.`);

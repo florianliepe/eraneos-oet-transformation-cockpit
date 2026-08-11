@@ -38,7 +38,7 @@ for (const node of workflow.nodes) {
 workflow.connections["Transformation-Cockpit-API"] = workflow.connections["PMO-API"];
 delete workflow.connections["PMO-API"];
 
-byName("PrepareSave").parameters.jsCode = String.raw`const document = structuredClone($json.body?.document ?? null);
+byName("PrepareSave").parameters.jsCode = String.raw`const document = JSON.parse(JSON.stringify($json.body?.document ?? null));
 const required = ['workstreams','milestones','deliverables','risks','issues','actions','decisions','dependencies','assumptions','changeRequests','meetings','evidence','reviews','audit','objectVersions'];
 if (!document || document.schemaVersion !== '2.0' || !document.project || required.some(key => !Array.isArray(document[key]))) {
   throw new Error('Invalid PMO document. Expected schemaVersion 2.0 and every governed collection.');

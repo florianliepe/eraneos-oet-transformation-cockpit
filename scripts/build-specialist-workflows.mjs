@@ -31,6 +31,12 @@ const manifest = {
     webhookPath: "a2126107-4e70-4717-8f1c-545d7f310741",
     ...(existingManifest.orchestrator?.liveWorkflowId ? { liveWorkflowId: existingManifest.orchestrator.liveWorkflowId } : {}),
   },
+  publisher: {
+    workflowId: "governed.publish",
+    workflowVersion: "1.0.0",
+    file: "governed-publisher.workflow.json",
+    ...(existingManifest.publisher?.liveWorkflowId ? { liveWorkflowId: existingManifest.publisher.liveWorkflowId } : {}),
+  },
   workflows: [],
 };
 

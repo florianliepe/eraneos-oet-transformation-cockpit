@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icons } from "./icons";
 import type { Deliverable, PmoDocument, Rag, Risk } from "@/lib/pmo-schema";
-import { ingestEvidence, loadPmoDocument, savePmoDocument } from "@/lib/n8n-client";
+import { ingestEvidence, loadPmoDocument, reviewAndPublishProposalSet, savePmoDocument } from "@/lib/n8n-client";
 import { DeleteDialog, EntityEditor, splitCsv, type EditableEntity, type EditorTarget } from "./entity-editor";
 import { IntakeWorkbench, type IntakeSubmission } from "./intake-workbench";
 import { DomainRegisters } from "./domain-registers";
@@ -13,13 +13,16 @@ import { loadSteercoShare } from "@/lib/steerco-client";
 import type { SteercoSnapshot } from "@/lib/steerco-schema";
 import { BrandMark } from "./brand-mark";
 import type { AgentRunEnvelope } from "@/lib/agent-contracts";
+import { ProposalReviewInbox } from "./proposal-review-inbox";
+import type { DecisionInput, ProposalSet } from "@/lib/governed-proposals";
 
-type View = "intake" | "overview" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
+type View = "intake" | "review" | "overview" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
 type DeleteTarget = { entity: Exclude<EditableEntity, "project">; id: string; label: string; blockedReason?: string };
 
 const navigation: Array<{ id: View; label: string; icon: keyof typeof Icons }> = [
   { id: "intake", label: "Workbench intake", icon: "upload" },
+  { id: "review", label: "Agent review inbox", icon: "activity" },
   { id: "overview", label: "Executive overview", icon: "dashboard" },
   { id: "plan", label: "Plan & deliverables", icon: "plan" },
   { id: "risks", label: "Risk register", icon: "risk" },
@@ -31,6 +34,7 @@ const navigation: Array<{ id: View; label: string; icon: keyof typeof Icons }> =
 
 const viewMeta: Record<View, { eyebrow: string; title: string; description: string }> = {
   intake: { eyebrow: "PMO workbench", title: "Ingest and orchestrate", description: "Convert project evidence into governed, reviewable updates." },
+  review: { eyebrow: "Human governance", title: "Agent review inbox", description: "Compare, accept or reject evidence-bound proposals before canonical publication." },
   overview: { eyebrow: "Control tower", title: "Executive overview", description: "One live view of delivery health, decisions and exposure." },
   plan: { eyebrow: "Delivery", title: "Plan & deliverables", description: "Track gate milestones and workstream commitments." },
   risks: { eyebrow: "RAID", title: "Risk register", description: "Prioritise exposure and keep mitigation ownership visible." },
@@ -102,6 +106,8 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
   const [saving, setSaving] = useState(false);
   const [workflowSaving, setWorkflowSaving] = useState(false);
   const [workflowResult, setWorkflowResult] = useState<AgentRunEnvelope | null>(null);
+  const [proposalSets, setProposalSets] = useState<ProposalSet[]>([]);
+  const [reviewBusy, setReviewBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [sharedSnapshot, setSharedSnapshot] = useState<SteercoSnapshot | null>(null);
   const [shareRequested, setShareRequested] = useState(false);
@@ -175,8 +181,23 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
       }
       if (!payload.agentRun) throw new Error("The workflow response did not contain a valid agent execution contract.");
       setWorkflowResult(payload.agentRun);
+      if (payload.proposalSet) setProposalSets((current) => [payload.proposalSet!, ...current.filter((item) => item.id !== payload.proposalSet!.id)]);
     } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Workflow intake failed."); }
     finally { setWorkflowSaving(false); }
+  }
+
+  async function reviewProposalSet(proposalSet: ProposalSet, reviewer: string, decisions: DecisionInput[]) {
+    if (!data) return;
+    setReviewBusy(true); setError("");
+    try {
+      const publication = await reviewAndPublishProposalSet(workspaceSecret, proposalSet, reviewer, decisions, data.revision);
+      if (!publication.ok) throw new Error("The governed publisher rejected the review bundle.");
+      if (publication.document) setData(publication.document);
+      const nextStatus = publication.acceptedProposalIds.length ? "published" : "rejected";
+      setProposalSets((current) => current.map((item) => item.id === proposalSet.id ? { ...item, status: nextStatus } : item));
+      setSource("github"); setStorageConfigured(true); setDirty(false);
+    } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Governed publication failed."); }
+    finally { setReviewBusy(false); }
   }
 
   function addRecord(type: IntakeType, values: Record<string, string>) {
@@ -257,7 +278,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
         <div className="project-switcher"><span className="project-monogram">TC</span><div><b>Transformation Workspace</b><small>OET AI Suite</small></div><Icons.chevron/></div>
         <nav aria-label="Primary navigation">
           <span className="nav-label">Project control</span>
-          {navigation.map((item) => { const NavIcon = Icons[item.icon]; return <button key={item.id} className={cx("nav-item", view === item.id && "active")} onClick={() => { setView(item.id); setMobileNav(false); }}><NavIcon/><span>{item.label}</span>{item.id === "risks" && <em>{data.risks.filter((risk) => risk.state !== "closed").length}</em>}</button>; })}
+          {navigation.map((item) => { const NavIcon = Icons[item.icon]; const count = item.id === "risks" ? data.risks.filter((risk) => risk.state !== "closed").length : item.id === "review" ? proposalSets.filter((set) => set.status === "pending_review").length : 0; return <button key={item.id} className={cx("nav-item", view === item.id && "active")} onClick={() => { setView(item.id); setMobileNav(false); }}><NavIcon/><span>{item.label}</span>{count > 0 && <em>{count}</em>}</button>; })}
         </nav>
         <div className="sidebar-roadmap"><span>PRODUCT FOUNDATION</span><b>Governed transformation delivery</b><p>Evidence-backed project control with accountable AI assistance.</p><button onClick={() => setView("steerco")}>Open executive reporting <Icons.arrow/></button></div>
         <div className="sidebar-foot"><span className="user-avatar">PM</span><div><b>PMO Lead</b><small>Programme workspace</small></div><span className="online-dot"/></div>
@@ -268,10 +289,11 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
 
         <div className="content-wrap">
           {error && <div className="error-banner"><span>{error}</span><button onClick={() => setError("")}><Icons.close/></button></div>}
-          {workflowResult && view !== "intake" && <div className="success-banner"><span>Agent execution {workflowResult.executionId} completed with {workflowResult.proposals.length} proposed change{workflowResult.proposals.length === 1 ? "" : "s"}.</span><button onClick={() => setWorkflowResult(null)}><Icons.close/></button></div>}
+          {workflowResult && view !== "intake" && <div className="success-banner"><span>Agent execution {workflowResult.executionId} completed with {workflowResult.proposals.length} proposed change{workflowResult.proposals.length === 1 ? "" : "s"}. Canonical state is unchanged pending review.</span><button onClick={() => setView("review")}>Review proposals</button><button onClick={() => setWorkflowResult(null)} aria-label="Dismiss agent result"><Icons.close/></button></div>}
           <div className="page-heading"><div><span className="eyebrow">{meta.eyebrow}</span><h1>{meta.title}</h1><p>{meta.description}</p></div><div className="heading-meta"><span>Last synced</span><b>{formatDateTime(data.project.updatedAt)}</b></div></div>
 
           {view === "intake" && <IntakeWorkbench saving={workflowSaving} result={workflowResult} onRun={(submission) => void runWorkflowIntake(submission)}/>}
+          {view === "review" && <ProposalReviewInbox proposalSets={proposalSets} busy={reviewBusy} onSubmit={reviewProposalSet}/>}
           {view === "overview" && <Overview data={data} exposure={exposure} openActions={openActions} completedDeliverables={completedDeliverables} setView={setView} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "plan" && <PlanView data={data} query={query} mutate={mutate} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "risks" && <RiskView data={data} query={query} onEdit={setEditor} onDelete={requestDelete}/>}

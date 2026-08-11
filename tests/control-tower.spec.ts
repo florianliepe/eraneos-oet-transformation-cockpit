@@ -80,3 +80,46 @@ test("shows a traceable agent execution contract for legacy workflow responses",
   await expect(result.getByText("Evidence verifier")).toBeVisible();
   await expect(result.getByText("Governance reviewer")).toBeVisible();
 });
+
+test("reviews field-level agent proposals before governed publication", async ({ page }) => {
+  const risk = bootstrapPmoData.risks[0];
+  const proposalSet = {
+    contractVersion: "proposal-set-1.0",
+    id: "PS-agent-browser-test",
+    sourceExecutionId: "agent:browser-test",
+    correlationId: "browser-test",
+    sourceRevision: bootstrapPmoData.revision,
+    status: "pending_review",
+    createdAt: "2026-08-11T11:00:00.000Z",
+    evidence: [{ id: "EVD-BROWSER-1", label: "Status update", verified: true }],
+    proposals: [{ id: "PROP-BROWSER-1", sourceExecutionId: "agent:browser-test", workflowId: "risk.analyse", entity: "risk", action: "update", objectId: risk.id, expectedObjectVersion: risk.governance.version, summary: "Increase risk impact", risk: "high", evidenceIds: ["EVD-BROWSER-1"], fieldChanges: [{ field: "impact", before: risk.impact, after: 5 }], proposedObject: { ...risk, impact: 5 } }],
+    audit: [{ id: "PAUD-BROWSER-1", event: "proposal.generated", actor: "PMO Orchestrator", at: "2026-08-11T11:00:00.000Z", sourceExecutionId: "agent:browser-test" }],
+  };
+  const modes: string[] = [];
+  await page.unroute("https://workflow.test/webhook/**");
+  await page.route("https://workflow.test/webhook/**", async (route) => {
+    const body = route.request().postDataJSON() as { mode?: string; reviewBundle?: unknown };
+    modes.push(body.mode || "");
+    if (body.mode === "pmo.ingest") return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "github", storageConfigured: true, document: bootstrapPmoData, proposalSet }) });
+    if (body.mode === "pmo.review") return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, reviewBundle: body.reviewBundle }) });
+    if (body.mode === "pmo.publish") return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, duplicate: false, proposalSetId: proposalSet.id, reviewBundleId: "REV-PS-agent-browser-test-20260811110000", idempotencyKey: "REV-PS-agent-browser-test-20260811110000", acceptedProposalIds: ["PROP-BROWSER-1"], rejectedProposalIds: [], revision: bootstrapPmoData.revision + 1, document: { ...bootstrapPmoData, revision: bootstrapPmoData.revision + 1 } }) });
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: false, document: bootstrapPmoData }) });
+  });
+  await page.reload();
+  await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake", exact: true }).click();
+  await page.getByLabel("Write a project update").fill("The verified status note increases the governed risk impact.");
+  await page.getByRole("button", { name: "Analyse and update workbench" }).click();
+  await page.getByRole("button", { name: /Agent review inbox/ }).click();
+  await expect(page.getByRole("heading", { name: "Review agent proposals" })).toBeVisible();
+  const card = page.getByRole("article");
+  await expect(card.getByText("Increase risk impact")).toBeVisible();
+  await expect(card.getByText(String(risk.impact), { exact: true })).toBeVisible();
+  await expect(card.getByText("5", { exact: true })).toBeVisible();
+  await card.getByRole("button", { name: "Accept" }).click();
+  await card.getByRole("textbox").fill("Verified status evidence supports this accountable risk update.");
+  await page.getByRole("button", { name: "Record review and publish accepted" }).click();
+  await expect(page.getByText("Published", { exact: true })).toBeVisible();
+  expect(modes).toEqual(expect.arrayContaining(["pmo.ingest", "pmo.review", "pmo.publish"]));
+});
