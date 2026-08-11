@@ -15,8 +15,10 @@ import { BrandMark } from "./brand-mark";
 import { AgentRunEnvelopeSchema, selectedAgentWorkflows, type AgentRunEnvelope } from "@/lib/agent-contracts";
 import { ProposalReviewInbox } from "./proposal-review-inbox";
 import type { DecisionInput, ProposalSet } from "@/lib/governed-proposals";
-import { AgentOperationsPanel, type AgentRunHistoryEntry } from "./agent-operations-panel";
+import { AgentOperationsPanel } from "./agent-operations-panel";
 import { OperationalHealth } from "./operational-health";
+import { buildAgentOperationRecord, updateAgentOperationRecord, type AgentOperationRecord } from "@/lib/agent-operations";
+import { listAgentOperationRecords, loadEncryptedRecoveryInput, saveAgentOperationRecord, saveEncryptedRecoveryInput } from "@/lib/agent-operations-store";
 
 type View = "intake" | "review" | "operations" | "health" | "overview" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
@@ -114,7 +116,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
   const [workflowResult, setWorkflowResult] = useState<AgentRunEnvelope | null>(null);
   const [proposalSets, setProposalSets] = useState<ProposalSet[]>([]);
   const [reviewBusy, setReviewBusy] = useState(false);
-  const [runHistory, setRunHistory] = useState<AgentRunHistoryEntry[]>([]);
+  const [runHistory, setRunHistory] = useState<AgentOperationRecord[]>([]);
   const [dirty, setDirty] = useState(false);
   const [sharedSnapshot, setSharedSnapshot] = useState<SteercoSnapshot | null>(null);
   const [shareRequested, setShareRequested] = useState(false);
@@ -140,6 +142,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
       if (!payload.ok || !payload.document) throw new Error(payload.error || "Unable to load project data.");
       setData(payload.document); setSource(payload.source || "bootstrap"); setStorageConfigured(Boolean(payload.storageConfigured)); setDirty(false);
       setWorkspaceSecret(secret); setAccessOpen(false); setAccessError("");
+      setRunHistory(await listAgentOperationRecords());
     } catch (reason: unknown) {
       const message = reason instanceof Error ? reason.message : "Unable to load project data.";
       if (accessOpen) setAccessError(message); else setError(message);
@@ -174,7 +177,24 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
     finally { setSaving(false); }
   }
 
-  async function runWorkflowIntake(submission: IntakeSubmission, recovery?: { mode: "retry" | "replay"; sourceExecutionId: string }) {
+  async function persistAgentRun(run: AgentRunEnvelope, submission: IntakeSubmission, recovery?: { mode: "retry" | "replay"; source: AgentOperationRecord }) {
+    const descriptor = {
+      workPackageId: submission.meta.wpId || "unassigned",
+      textUpdatePresent: Boolean(submission.textUpdate.trim()),
+      evidence: submission.files.map((file) => ({ name: file.name, mediaType: file.type || "application/octet-stream", size: file.size })),
+    };
+    const record = buildAgentOperationRecord({ run, descriptor, source: recovery?.source, recoveryMode: recovery?.mode });
+    setRunHistory((current) => [record, ...current.filter((item) => item.executionId !== record.executionId)]);
+    try {
+      await saveEncryptedRecoveryInput(workspaceSecret, record.input.ref, submission);
+      await saveAgentOperationRecord(record);
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? `Run completed, but persistent recovery storage failed: ${reason.message}` : "Run completed, but persistent recovery storage failed.");
+    }
+    return record;
+  }
+
+  async function runWorkflowIntake(submission: IntakeSubmission, recovery?: { mode: "retry" | "replay"; source: AgentOperationRecord }) {
     const { meta, files, textUpdate } = submission;
     setWorkflowSaving(true); setError(""); setWorkflowResult(null);
     try {
@@ -188,8 +208,9 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
         setDirty(false);
       }
       if (!payload.agentRun) throw new Error("The workflow response did not contain a valid agent execution contract.");
-      setWorkflowResult(payload.agentRun);
-      setRunHistory((current) => [{ run: payload.agentRun!, submission, recoveryMode: recovery?.mode, sourceExecutionId: recovery?.sourceExecutionId }, ...current]);
+      const recoveredRun = recovery ? AgentRunEnvelopeSchema.parse({ ...payload.agentRun, operations: { ...payload.agentRun.operations, attempt: recovery.source.run.operations.attempt + 1, ...(recovery.mode === "retry" ? { retryOf: recovery.source.executionId } : { replayOf: recovery.source.executionId }) } }) : payload.agentRun;
+      setWorkflowResult(recoveredRun);
+      await persistAgentRun(recoveredRun, submission, recovery);
       if (payload.proposalSet) setProposalSets((current) => [payload.proposalSet!, ...current.filter((item) => item.id !== payload.proposalSet!.id)]);
     } catch (reason: unknown) {
       const message = reason instanceof Error ? reason.message : "Workflow intake failed.";
@@ -197,7 +218,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
       const executionId = `failed:${Date.now()}`;
       const workflows = selectedAgentWorkflows(meta.agent_workflows);
       const failedRun = AgentRunEnvelopeSchema.parse({ contractVersion: "agent-run-1.0", executionId, correlationId: meta.correlation_id || executionId, status: "failed", requestedAt: meta.requested_at || timestamp, completedAt: timestamp, orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: "request-boundary" }, routing: { mode: meta.routing || "selected", selectedWorkflows: workflows }, steps: [{ workflowId: workflows[0], workflowVersion: "request-boundary", status: "failed", summary: message, confidence: "not_assessed", evidenceIds: [], proposalIds: [], startedAt: meta.requested_at || timestamp, completedAt: timestamp, error: message, safeRecovery: "Retry the original input; replay only after checking workflow release notes." }], evidence: [], proposals: [], warnings: [{ code: "AGENT_EXECUTION_FAILED", message, evidenceIds: [] }], persistence: { mode: "proposal_only" }, operations: { attempt: Number(meta.recovery_attempt || 1), latencyMs: Math.max(0, Date.now() - new Date(meta.requested_at || timestamp).getTime()), retryOf: meta.retry_of, replayOf: meta.replay_of, reviewOutcome: "pending" } });
-      setWorkflowResult(failedRun); setRunHistory((current) => [{ run: failedRun, submission, recoveryMode: recovery?.mode, sourceExecutionId: recovery?.sourceExecutionId }, ...current]); setError(message);
+      setWorkflowResult(failedRun); await persistAgentRun(failedRun, submission, recovery); setError(message);
     }
     finally { setWorkflowSaving(false); }
   }
@@ -211,16 +232,39 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
       if (publication.document) setData(publication.document);
       const nextStatus = publication.acceptedProposalIds.length ? "published" : "rejected";
       setProposalSets((current) => current.map((item) => item.id === proposalSet.id ? { ...item, status: nextStatus } : item));
-      setRunHistory((current) => current.map((entry) => entry.run.executionId === proposalSet.sourceExecutionId ? { ...entry, run: { ...entry.run, operations: { ...entry.run.operations, reviewOutcome: publication.acceptedProposalIds.length && publication.rejectedProposalIds.length ? "mixed" : publication.acceptedProposalIds.length ? "accepted" : "rejected" } } } : entry));
+      const reviewOutcome = publication.acceptedProposalIds.length && publication.rejectedProposalIds.length ? "mixed" : publication.acceptedProposalIds.length ? "accepted" : "rejected";
+      setRunHistory((current) => current.map((record) => {
+        if (record.executionId !== proposalSet.sourceExecutionId) return record;
+        const updated = { ...record, recordVersion: record.recordVersion + 1, run: { ...record.run, operations: { ...record.run.operations, reviewOutcome } }, updatedAt: new Date().toISOString() } as AgentOperationRecord;
+        void saveAgentOperationRecord(updated).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Review outcome persistence failed."));
+        return updated;
+      }));
       setSource("github"); setStorageConfigured(true); setDirty(false);
     } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Governed publication failed."); }
     finally { setReviewBusy(false); }
   }
 
-  function recoverRun(entry: AgentRunHistoryEntry, mode: "retry" | "replay") {
-    const attempt = entry.run.operations.attempt + 1;
-    const submission = { ...entry.submission, meta: { ...entry.submission.meta, correlation_id: entry.run.correlationId, requested_at: new Date().toISOString(), recovery_attempt: String(attempt), ...(mode === "retry" ? { retry_of: entry.run.executionId } : { replay_of: entry.run.executionId }) } };
-    void runWorkflowIntake(submission, { mode, sourceExecutionId: entry.run.executionId });
+  async function recoverRun(record: AgentOperationRecord, mode: "retry" | "replay") {
+    try {
+      const attempt = record.run.operations.attempt + 1;
+      const latestVersions = runHistory[0]?.versions.workflows || record.versions.workflows;
+      const differences = Object.entries(record.versions.workflows).filter(([workflowId, version]) => latestVersions[workflowId] && latestVersions[workflowId] !== version);
+      if (mode === "replay") {
+        const detail = differences.length ? differences.map(([workflowId, version]) => `${workflowId}: ${version} → ${latestVersions[workflowId]}`).join("\n") : "No version difference is visible in the local run index; live bindings will still be used.";
+        if (!window.confirm(`Replay against current workflow versions?\n\n${detail}\n\nThe original execution remains immutable.`)) return;
+      }
+      const original = await loadEncryptedRecoveryInput(workspaceSecret, record.input.ref);
+      const submission = { ...original, meta: { ...original.meta, correlation_id: record.run.correlationId, requested_at: new Date().toISOString(), recovery_attempt: String(attempt), recovery_version_policy: mode === "retry" ? "source_versions" : "current_versions", source_workflow_versions: JSON.stringify(record.versions), ...(mode === "retry" ? { retry_of: record.executionId } : { replay_of: record.executionId }) } };
+      await runWorkflowIntake(submission, { mode, source: record });
+    } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Recovery failed."); }
+  }
+
+  async function updateRun(record: AgentOperationRecord, update: Parameters<typeof updateAgentOperationRecord>[1]) {
+    try {
+      const next = updateAgentOperationRecord(record, update);
+      await saveAgentOperationRecord(next);
+      setRunHistory((current) => current.map((item) => item.executionId === next.executionId ? next : item));
+    } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Run ownership update failed."); }
   }
 
   function addRecord(type: IntakeType, values: Record<string, string>) {
@@ -317,8 +361,8 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
 
           {view === "intake" && <IntakeWorkbench saving={workflowSaving} result={workflowResult} onRun={(submission) => void runWorkflowIntake(submission)}/>}
           {view === "review" && <ProposalReviewInbox proposalSets={proposalSets} busy={reviewBusy} onSubmit={reviewProposalSet}/>}
-          {view === "operations" && <AgentOperationsPanel entries={runHistory} busy={workflowSaving} onRecover={recoverRun}/>}
-          {view === "health" && <OperationalHealth runs={runHistory} pendingReviews={proposalSets.filter((set) => set.status === "pending_review").length}/>}
+          {view === "operations" && <AgentOperationsPanel records={runHistory} busy={workflowSaving} onRecover={(record, mode) => void recoverRun(record, mode)} onUpdate={(record, update) => void updateRun(record, update)}/>}
+          {view === "health" && <OperationalHealth runs={runHistory.map((record) => ({ run: record.run }))} pendingReviews={proposalSets.filter((set) => set.status === "pending_review").length}/>}
           {view === "overview" && <Overview data={data} exposure={exposure} openActions={openActions} completedDeliverables={completedDeliverables} setView={setView} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "plan" && <PlanView data={data} query={query} mutate={mutate} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "risks" && <RiskView data={data} query={query} onEdit={setEditor} onDelete={requestDelete}/>}

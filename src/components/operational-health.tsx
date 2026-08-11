@@ -1,4 +1,4 @@
-import type { AgentRunHistoryEntry } from "./agent-operations-panel";
+import type { AgentRunEnvelope } from "@/lib/agent-contracts";
 
 const bindings = [
   ["Public orchestrator", "pEIhI533jPQvvSzs"],
@@ -6,7 +6,7 @@ const bindings = [
   ["Central error handler", "BkHWDRmPvXOepELU"],
 ] as const;
 
-export function OperationalHealth({ runs, pendingReviews }: { runs: AgentRunHistoryEntry[]; pendingReviews: number }) {
+export function OperationalHealth({ runs, pendingReviews }: { runs: Array<{ run: AgentRunEnvelope }>; pendingReviews: number }) {
   const failed = runs.filter((entry) => entry.run.status === "failed");
   const incidents = [
     ...(failed.length ? [{ severity: "critical", title: `${failed.length} failed agent execution${failed.length === 1 ? "" : "s"}`, action: "Open Agent operations, assign an owner and retry or replay only after inspecting the failed step." }] : []),
