@@ -1,0 +1,23 @@
+{
+  "contractVersion": "agent-run-1.0",
+  "executionId": "agent:test:05b",
+  "correlationId": "correlation:test:05b",
+  "requestedAt": "2026-08-11T10:00:00.000Z",
+  "meta": {
+    "wpId": "WP-05B",
+    "title": "Specialist workflow verification",
+    "agent_workflows": "evidence.verify,risk.analyse"
+  },
+  "evidence": [
+    {
+      "id": "evidence-1",
+      "name": "status-note.txt",
+      "type": "text/plain",
+      "content": "Milestone M1 is at risk because the supplier date remains unconfirmed."
+    }
+  ],
+  "expectedSelectedWorkflows": [
+    "evidence.verify",
+    "risk.analyse"
+  ]
+}
