@@ -1,0 +1,14 @@
+{
+  "contractVersion": "orchestration-evaluation-1.0",
+  "baseline": { "specialistsPerRun": 6, "tokensPerSpecialist": 1800, "costEurPerSpecialist": 0.018, "latencyMsPerSpecialist": 8000 },
+  "cases": [
+    { "id": "risk-update", "text": "A supplier risk has high impact and needs mitigation.", "evidenceCount": 1, "expected": ["evidence.verify", "risk.analyse", "governance.review"] },
+    { "id": "delivery-update", "text": "Milestone schedule progress is delayed.", "evidenceCount": 1, "expected": ["evidence.verify", "delivery.plan", "governance.review"] },
+    { "id": "meeting-update", "text": "Workshop minutes list attendees and discussion.", "evidenceCount": 1, "expected": ["evidence.verify", "meeting.synthesise", "governance.review"] },
+    { "id": "control-update", "text": "A dependency issue requires a change request decision.", "evidenceCount": 1, "expected": ["evidence.verify", "controls.classify", "governance.review"] },
+    { "id": "governance-update", "text": "Audit evidence requires compliance review.", "evidenceCount": 1, "expected": ["evidence.verify", "governance.review"] },
+    { "id": "risk-delivery", "text": "A high-impact risk may delay a milestone schedule.", "evidenceCount": 1, "expected": ["evidence.verify", "risk.analyse", "delivery.plan", "governance.review"] },
+    { "id": "meeting-controls", "text": "Meeting minutes contain a decision and action.", "evidenceCount": 1, "expected": ["evidence.verify", "meeting.synthesise", "controls.classify", "governance.review"] },
+    { "id": "empty", "text": "", "evidenceCount": 0, "expected": [] }
+  ]
+}

@@ -28,6 +28,8 @@ export function AgentRunPanel({ run }: { run: AgentRunEnvelope }) {
         <span><b>Review</b>{statusLabel(run.operations.reviewOutcome)}</span>
       </div>
 
+      {(run.routing.explanation.length > 0 || run.routing.budget) && <section className="agent-routing-receipt"><header><div><span className="section-kicker">ROUTING RECEIPT</span><h4>{run.routing.policyVersion || statusLabel(run.routing.mode)}</h4></div>{run.routing.manualOverride && <span>Override · {run.routing.manualOverride.actor}</span>}</header>{run.routing.explanation.map((item) => <p key={item.workflowId}><b>{item.sequence}. {titles.get(item.workflowId)}</b>{item.reason}</p>)}{run.routing.budget && <footer><span>{run.routing.budget.estimatedTokens.toLocaleString("en-GB")} / {run.routing.budget.maxTokens.toLocaleString("en-GB")} tokens</span><span>€{run.routing.budget.estimatedCostEur.toFixed(3)} / €{run.routing.budget.maxCostEur.toFixed(3)}</span><span>{Math.round(run.routing.budget.estimatedLatencyMs/1000)}s / {Math.round(run.routing.budget.maxLatencyMs/1000)}s</span>{run.routing.budget.limited && <strong>Budget-limited · human review</strong>}</footer>}</section>}
+
       <div className="agent-step-list">
         {run.steps.map((step) => (
           <article key={step.workflowId} className="agent-step">

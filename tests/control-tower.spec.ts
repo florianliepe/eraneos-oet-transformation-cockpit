@@ -198,11 +198,12 @@ test("shows immutable run history and replays the original input with lineage", 
 test("shows release-aligned operational health and ownership", async ({ page }) => {
   await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Operational health" }).click();
   await expect(page.getByRole("heading", { name: "Operational health", level: 1 })).toBeVisible();
-  await expect(page.getByText("2026-08-11-zm-prod-09a")).toBeVisible();
-  await expect(page.getByText("pEIhI533jPQvvSzs")).toBeVisible();
+  await expect(page.getByText("2026-08-11-zm-prod-05g")).toBeVisible();
+  await expect(page.getByText("IEv54E2lBQyd57hY")).toBeVisible();
   await expect(page.getByText("4czGSZtMjeGpKSFS")).toBeVisible();
   await expect(page.getByText("BkHWDRmPvXOepELU")).toBeVisible();
   await expect(page.getByText(/30 cases/)).toBeVisible();
+  await expect(page.getByText(/48% less execution/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Baseline versus candidate quality" })).toBeVisible();
   await expect(page.getByText("quality-expanded-1.1")).toBeVisible();
   await expect(page.getByText("None. Candidate meets every blocking and warning threshold.")).toBeVisible();

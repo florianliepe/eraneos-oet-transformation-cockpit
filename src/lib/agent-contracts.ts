@@ -88,7 +88,11 @@ export const AgentRunEnvelopeSchema = z.object({
   }),
   routing: z.object({
     mode: z.string().min(1),
-    selectedWorkflows: z.array(AgentWorkflowIdSchema).min(1),
+    selectedWorkflows: z.array(AgentWorkflowIdSchema),
+    policyVersion: z.string().optional(),
+    explanation: z.array(z.object({ workflowId: AgentWorkflowIdSchema, reason: z.string(), sequence: z.number().int().positive() })).default([]),
+    budget: z.object({ maxTokens: z.number().nonnegative(), maxCostEur: z.number().nonnegative(), maxLatencyMs: z.number().nonnegative(), estimatedTokens: z.number().nonnegative(), estimatedCostEur: z.number().nonnegative(), estimatedLatencyMs: z.number().nonnegative(), limited: z.boolean() }).optional(),
+    manualOverride: z.object({ actor: z.string(), reason: z.string() }).optional(),
   }),
   steps: z.array(AgentStepSchema),
   evidence: z.array(AgentEvidenceRefSchema).default([]),
@@ -111,6 +115,10 @@ export const AgentRunEnvelopeSchema = z.object({
 });
 
 export type AgentRunEnvelope = z.infer<typeof AgentRunEnvelopeSchema>;
+export type AgentConfidence = z.infer<typeof AgentConfidenceSchema>;
+export type AgentStep = z.infer<typeof AgentStepSchema>;
+export type AgentProposal = z.infer<typeof AgentProposalSchema>;
+export type AgentWarning = z.infer<typeof AgentWarningSchema>;
 
 type LegacyAppliedChange = { entity: string; action: string; id?: string; summary?: string };
 

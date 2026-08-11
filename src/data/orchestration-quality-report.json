@@ -1,0 +1,135 @@
+{
+  "contractVersion": "orchestration-evaluation-1.0",
+  "evaluatedAt": "2026-08-11T14:08:09.621Z",
+  "cases": 8,
+  "precision": 1,
+  "recall": 1,
+  "missedSpecialistRate": 0,
+  "baseline": {
+    "calls": 42,
+    "tokens": 75600,
+    "costEur": 0.7559999999999999,
+    "latencyMs": 336000
+  },
+  "candidate": {
+    "calls": 22,
+    "tokens": 39600,
+    "costEur": 0.39599999999999996,
+    "latencyMs": 176000
+  },
+  "improvements": {
+    "callReduction": 0.47619047619047616,
+    "tokenReduction": 0.47619047619047616,
+    "costReduction": 0.47619047619047616,
+    "latencyReduction": 0.47619047619047616
+  },
+  "qualityGatePassed": true,
+  "results": [
+    {
+      "id": "risk-update",
+      "expected": [
+        "evidence.verify",
+        "risk.analyse",
+        "governance.review"
+      ],
+      "actual": [
+        "evidence.verify",
+        "risk.analyse",
+        "governance.review"
+      ],
+      "pass": true
+    },
+    {
+      "id": "delivery-update",
+      "expected": [
+        "evidence.verify",
+        "delivery.plan",
+        "governance.review"
+      ],
+      "actual": [
+        "evidence.verify",
+        "delivery.plan",
+        "governance.review"
+      ],
+      "pass": true
+    },
+    {
+      "id": "meeting-update",
+      "expected": [
+        "evidence.verify",
+        "meeting.synthesise",
+        "governance.review"
+      ],
+      "actual": [
+        "evidence.verify",
+        "meeting.synthesise",
+        "governance.review"
+      ],
+      "pass": true
+    },
+    {
+      "id": "control-update",
+      "expected": [
+        "evidence.verify",
+        "controls.classify",
+        "governance.review"
+      ],
+      "actual": [
+        "evidence.verify",
+        "controls.classify",
+        "governance.review"
+      ],
+      "pass": true
+    },
+    {
+      "id": "governance-update",
+      "expected": [
+        "evidence.verify",
+        "governance.review"
+      ],
+      "actual": [
+        "evidence.verify",
+        "governance.review"
+      ],
+      "pass": true
+    },
+    {
+      "id": "risk-delivery",
+      "expected": [
+        "evidence.verify",
+        "risk.analyse",
+        "delivery.plan",
+        "governance.review"
+      ],
+      "actual": [
+        "evidence.verify",
+        "risk.analyse",
+        "delivery.plan",
+        "governance.review"
+      ],
+      "pass": true
+    },
+    {
+      "id": "meeting-controls",
+      "expected": [
+        "evidence.verify",
+        "meeting.synthesise",
+        "controls.classify",
+        "governance.review"
+      ],
+      "actual": [
+        "evidence.verify",
+        "meeting.synthesise",
+        "controls.classify",
+        "governance.review"
+      ],
+      "pass": true
+    },
+    {
+      "id": "empty",
+      "expected": [],
+      "actual": [],
+      "pass": true
+    }
+  ]
+}
