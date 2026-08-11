@@ -38,6 +38,35 @@ test("navigates through the retained core delivery views", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "SteerCo summary", level: 1 })).toBeVisible();
 });
 
+test("searches across governed records, saves filters and configures register columns", async ({ page }) => {
+  const risk = bootstrapPmoData.risks[0];
+  await page.getByLabel("Search project").fill(risk.title);
+  const result = page.getByRole("option").filter({ hasText: risk.title });
+  await expect(result).toBeVisible();
+  await page.getByRole("button", { name: "Save filter" }).click();
+  await result.click();
+  await expect(page.getByRole("heading", { name: "Risk register", level: 1 })).toBeVisible();
+  await expect(page.getByText(risk.title)).toBeVisible();
+
+  await page.getByLabel("Search project").fill("");
+  await expect(page.getByRole("button", { name: risk.title, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Clear and close" }).click();
+  await page.getByRole("button", { name: "PMO registers" }).click();
+  await page.getByText("Columns (4)").click();
+  await page.getByLabel("Evidence", { exact: true }).uncheck();
+  await expect(page.getByText("Columns (3)")).toBeVisible();
+  await expect(page.locator(".register-card").first().getByText("Evidence", { exact: true })).toHaveCount(0);
+  await page.reload();
+  await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await expect(page.getByRole("heading", { name: "Executive overview" })).toBeVisible();
+  await page.keyboard.press("Control+k");
+  await expect(page.getByRole("button", { name: risk.title, exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "PMO registers" }).click();
+  await expect(page.getByText("Columns (3)")).toBeVisible();
+});
+
 test("captures a governed risk update", async ({ page }) => {
   await page.getByRole("button", { name: "Quick add" }).click();
   await page.getByLabel("Title").fill("Decision latency threatens the next gate");
