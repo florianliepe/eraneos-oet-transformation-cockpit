@@ -1,0 +1,175 @@
+{
+  "name": "OET PMO Agent - Non-destructive Contract Smoke Test",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        0
+      ],
+      "id": "smoke-manual-trigger",
+      "name": "Run Non-destructive Smoke Test"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fixture={\"contractVersion\":\"agent-run-1.0\",\"executionId\":\"agent:test:05b\",\"correlationId\":\"correlation:test:05b\",\"requestedAt\":\"2026-08-11T10:00:00.000Z\",\"meta\":{\"wpId\":\"WP-05B\",\"title\":\"Specialist workflow verification\",\"agent_workflows\":\"evidence.verify,risk.analyse\"},\"evidence\":[{\"id\":\"evidence-1\",\"name\":\"status-note.txt\",\"type\":\"text/plain\",\"content\":\"Milestone M1 is at risk because the supplier date remains unconfirmed.\"}],\"expectedSelectedWorkflows\":[\"evidence.verify\",\"risk.analyse\"]};\nconst bindings={\"evidence.verify\":\"3rSnPc7C7SRiEZTN\",\"delivery.plan\":\"h7hBgpJVvYw7OkRH\",\"risk.analyse\":\"2CSsVRm9MOSnEKR6\",\"meeting.synthesise\":\"qKA4LTEBJ9qHI9KD\",\"controls.classify\":\"eFGI7KCYLnFEaqGl\",\"governance.review\":\"TOqEW8UyOFNCP7W4\"};\nreturn fixture.expectedSelectedWorkflows.map(workflowId=>({json:{contractVersion:fixture.contractVersion,executionId:fixture.executionId,correlationId:fixture.correlationId,requestedAt:fixture.requestedAt,meta:fixture.meta,evidence:fixture.evidence,workflowId,liveWorkflowId:bindings[workflowId]}}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        0
+      ],
+      "id": "smoke-build-inputs",
+      "name": "Build Checked-in Fixture"
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $json.liveWorkflowId }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contractVersion": "={{ $json.contractVersion }}",
+            "executionId": "={{ $json.executionId }}",
+            "correlationId": "={{ $json.correlationId }}",
+            "requestedAt": "={{ $json.requestedAt }}",
+            "meta": "={{ $json.meta }}",
+            "evidence": "={{ $json.evidence }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contractVersion",
+              "displayName": "contractVersion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "executionId",
+              "displayName": "executionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "correlationId",
+              "displayName": "correlationId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "requestedAt",
+              "displayName": "requestedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "meta",
+              "displayName": "meta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            },
+            {
+              "id": "evidence",
+              "displayName": "evidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "smoke-execute-specialists",
+      "name": "Execute Selected Specialists"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results=$input.all().map(item=>item.json);\nconst expected=[\"evidence.verify\",\"risk.analyse\"];\nif(results.length!==expected.length) throw new Error('Smoke test returned '+results.length+' specialists; expected '+expected.length+'.');\nfor(const workflowId of expected){const result=results.find(item=>item.workflowId===workflowId);if(!result) throw new Error('Missing '+workflowId+' result.');if(result.contractVersion!=='agent-run-1.0'||result.workflowVersion!=='1.0.0'||result.promptVersion!=='1.0.0'||result.executionId!=='agent:test:05b'||result.correlationId!=='correlation:test:05b') throw new Error('Contract mismatch for '+workflowId+'.');}\nreturn [{json:{ok:true,test:'ZM-PROD-05B non-destructive specialist contract',selectedWorkflows:expected,unselectedWorkflows:[\"delivery.plan\",\"meeting.synthesise\",\"controls.classify\",\"governance.review\"],steps:results.map(item=>({workflowId:item.workflowId,workflowVersion:item.workflowVersion,promptVersion:item.promptVersion,status:item.status,confidence:item.confidence,evidenceIds:item.evidenceIds,warnings:item.warnings}))}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "smoke-validate-contract",
+      "name": "Validate Live Contract"
+    }
+  ],
+  "connections": {
+    "Run Non-destructive Smoke Test": {
+      "main": [
+        [
+          {
+            "node": "Build Checked-in Fixture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Checked-in Fixture": {
+      "main": [
+        [
+          {
+            "node": "Execute Selected Specialists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Selected Specialists": {
+      "main": [
+        [
+          {
+            "node": "Validate Live Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "specialist-contract-smoke-v1",
+  "tags": []
+}

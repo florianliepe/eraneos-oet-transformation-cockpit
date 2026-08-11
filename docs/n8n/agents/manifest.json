@@ -1,0 +1,62 @@
+{
+  "contractVersion": "agent-run-1.0",
+  "workflowSetVersion": "1.0.0",
+  "generatedBy": "scripts/build-specialist-workflows.mjs",
+  "orchestrator": {
+    "workflowId": "pmo.orchestrate",
+    "workflowVersion": "1.1.0",
+    "file": "../../n8n-pmo-orchestrator.workflow.json",
+    "webhookPath": "a2126107-4e70-4717-8f1c-545d7f310741",
+    "liveWorkflowId": "H8V3RtTWTTeApR7J"
+  },
+  "workflows": [
+    {
+      "workflowId": "evidence.verify",
+      "title": "Evidence Verifier",
+      "workflowVersion": "1.0.0",
+      "promptVersion": "1.0.0",
+      "file": "evidence-verify.workflow.json",
+      "liveWorkflowId": "3rSnPc7C7SRiEZTN"
+    },
+    {
+      "workflowId": "delivery.plan",
+      "title": "Delivery Planner",
+      "workflowVersion": "1.0.0",
+      "promptVersion": "1.0.0",
+      "file": "delivery-plan.workflow.json",
+      "liveWorkflowId": "h7hBgpJVvYw7OkRH"
+    },
+    {
+      "workflowId": "risk.analyse",
+      "title": "Risk Analyst",
+      "workflowVersion": "1.0.0",
+      "promptVersion": "1.0.0",
+      "file": "risk-analyse.workflow.json",
+      "liveWorkflowId": "2CSsVRm9MOSnEKR6"
+    },
+    {
+      "workflowId": "meeting.synthesise",
+      "title": "Meeting Synthesizer",
+      "workflowVersion": "1.0.0",
+      "promptVersion": "1.0.0",
+      "file": "meeting-synthesise.workflow.json",
+      "liveWorkflowId": "qKA4LTEBJ9qHI9KD"
+    },
+    {
+      "workflowId": "controls.classify",
+      "title": "PMO Controls Classifier",
+      "workflowVersion": "1.0.0",
+      "promptVersion": "1.0.0",
+      "file": "controls-classify.workflow.json",
+      "liveWorkflowId": "eFGI7KCYLnFEaqGl"
+    },
+    {
+      "workflowId": "governance.review",
+      "title": "Governance Reviewer",
+      "workflowVersion": "1.0.0",
+      "promptVersion": "1.0.0",
+      "file": "governance-review.workflow.json",
+      "liveWorkflowId": "TOqEW8UyOFNCP7W4"
+    }
+  ]
+}
