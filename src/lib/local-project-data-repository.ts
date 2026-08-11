@@ -11,12 +11,16 @@ export function scopeDocument(document: PmoDocument, scope: WorkspaceScope): Pmo
 
 export class LocalProjectDataRepository implements ProjectDataRepository {
   constructor(private readonly storage: StorageBoundary) {}
-  async load(scope: WorkspaceScope, seed: PmoDocument) {
+  async inspect(scope: WorkspaceScope) {
     const raw = this.storage.getItem(projectDataKey(scope));
-    if (!raw) return scopeDocument(seed, scope);
+    if (!raw) return { state: "missing" as const };
     const envelope = JSON.parse(raw) as ScopedEnvelope;
     if (envelope.contractVersion !== "project-data-1.0" || envelope.organisationId !== scope.organisationId || envelope.projectId !== scope.projectId) throw new Error("Project data scope mismatch.");
-    return scopeDocument(migratePmoDocument(envelope.document), scope);
+    return { state: "stored" as const, document: scopeDocument(migratePmoDocument(envelope.document), scope) };
+  }
+  async load(scope: WorkspaceScope, seed: PmoDocument) {
+    const result = await this.inspect(scope);
+    return result.state === "stored" ? result.document : scopeDocument(seed, scope);
   }
   async save(scope: WorkspaceScope, document: PmoDocument) {
     if (document.project.id !== scope.projectId) throw new Error("Project data cannot be written outside the selected workspace.");

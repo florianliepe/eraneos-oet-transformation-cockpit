@@ -75,6 +75,16 @@ Turn the organisation home into a decision-oriented multi-project command centre
 - Filters and drill-down retain organisation/project context across reloads.
 - Portfolio calculations and isolation have deterministic tests.
 
+### Implementation record
+
+Implemented and validated on 2026-08-11.
+
+- A versioned portfolio command-centre contract derives health, delivery, RAID, decision, action, review and agent-incident signals only from authorised project-scoped repositories.
+- Organisation, status, owner, reporting-period and attention filters persist locally; missing or invalid project documents remain explicitly unavailable instead of inheriting demonstration data.
+- Recent work, onboarding completeness, stale updates, cross-project dependencies and constrained resource pools retain source-project and source-record references.
+- Signal drill-down records the authorised organisation, project and target cockpit view in the route and restores that context after reload; sign-out clears it.
+- Deterministic and browser tests cover two-project aggregation, cross-organisation rejection, partial data, filters, dependency/capacity lineage and reload-safe drill-down.
+
 ## ZM-PROD-13 — Project delivery workbench
 
 ### Goal

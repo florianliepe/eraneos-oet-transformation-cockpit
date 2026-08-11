@@ -6,10 +6,12 @@ import { IdentityEntry } from "./identity-entry";
 import { LocalIdentityProvider } from "@/lib/local-identity-provider";
 import type { IdentityProvider, IdentityResult } from "@/lib/identity-provider";
 import { LocalWorkspaceRepository } from "@/lib/local-workspace-repository";
+import { LocalProjectDataRepository } from "@/lib/local-project-data-repository";
 import type { WorkspaceRepository } from "@/lib/workspace-repository";
 import { WorkspaceHome } from "./workspace-home";
-import type { WorkspaceScope } from "@/lib/project-data-repository";
+import type { ProjectDataRepository, WorkspaceScope } from "@/lib/project-data-repository";
 import { browserWorkspaceMode } from "@/lib/workspace-runtime";
+import { isCockpitView, type CockpitView } from "@/lib/cockpit-navigation";
 
 type PublicView = "landing" | "signin" | "register" | "invite";
 
@@ -27,9 +29,11 @@ export default function ApplicationEntry() {
   const [provider, setProvider] = useState<IdentityProvider | null>(null);
   const [identity, setIdentity] = useState<IdentityResult | null>(null);
   const [workspaceRepository, setWorkspaceRepository] = useState<WorkspaceRepository | null>(null);
+  const [projectDataRepository, setProjectDataRepository] = useState<ProjectDataRepository | null>(null);
   const [identityReady, setIdentityReady] = useState(false);
   const [cockpitOpen, setCockpitOpen] = useState(false);
   const [workspaceScope, setWorkspaceScope] = useState<WorkspaceScope | null>(null);
+  const [initialCockpitView, setInitialCockpitView] = useState<CockpitView>("overview");
 
   useEffect(() => {
     const syncView = () => setView(viewFromLocation());
@@ -45,9 +49,19 @@ export default function ApplicationEntry() {
     }
     const localWorkspace = new LocalWorkspaceRepository(window.localStorage);
     const localProvider = new LocalIdentityProvider(window.localStorage, () => new Date(), localWorkspace);
-    queueMicrotask(() => { setProvider(localProvider); setWorkspaceRepository(localWorkspace); });
+    queueMicrotask(() => { setProvider(localProvider); setWorkspaceRepository(localWorkspace); setProjectDataRepository(new LocalProjectDataRepository(window.localStorage)); });
     void localProvider.currentSession().then(setIdentity).finally(() => setIdentityReady(true));
   }, [workspaceMode]);
+
+  useEffect(() => {
+    if (!identity || !workspaceRepository || cockpitOpen) return;
+    const query = new URLSearchParams(window.location.search); const organisationId = query.get("organisation"); const projectId = query.get("project");
+    if (!organisationId || !projectId) return;
+    void workspaceRepository.listProjects(organisationId, identity.account.id).then((projects) => {
+      const project = projects.find((item) => item.id === projectId); if (!project) return;
+      const requestedView = query.get("cockpit"); setWorkspaceScope({ organisationId, projectId, projectName: project.name }); setInitialCockpitView(isCockpitView(requestedView) ? requestedView : "overview"); setCockpitOpen(true);
+    }).catch(() => undefined);
+  }, [cockpitOpen, identity, workspaceRepository]);
 
   function navigate(next: PublicView) {
     const url = new URL(window.location.href);
@@ -58,26 +72,30 @@ export default function ApplicationEntry() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function clearCockpitContext() {
+    const url = new URL(window.location.href); url.searchParams.delete("organisation"); url.searchParams.delete("project"); url.searchParams.delete("cockpit"); window.history.replaceState({}, "", url);
+  }
+
   if (view !== "landing" && !identityReady) return <EntryLoading />;
 
   if (view !== "landing" && workspaceMode === "production") return <ProductionIdentityBoundary onBack={() => navigate("landing")} />;
 
-  if (view !== "landing" && (!provider || !workspaceRepository)) return <EntryLoading />;
+  if (view !== "landing" && (!provider || !workspaceRepository || !projectDataRepository)) return <EntryLoading />;
 
   if (view === "invite" && provider) return <IdentityEntry provider={provider} mode="invite" onAuthenticated={(result) => { setIdentity(result); navigate("signin"); }} onNavigate={navigate} onBack={() => navigate("landing")} />;
 
-  if (view !== "landing" && identity && provider && workspaceRepository && !cockpitOpen) return <WorkspaceHome account={identity.account} session={identity.session} identityProvider={provider} repository={workspaceRepository} onOpenCockpit={(scope) => { setWorkspaceScope(scope); setCockpitOpen(true); }} onAcceptInvitation={() => navigate("invite")} onSignOut={() => void provider.signOut().then(() => { setIdentity(null); navigate("signin"); })} onReset={() => { setIdentity(null); setCockpitOpen(false); navigate("register"); }} />;
+  if (view !== "landing" && identity && provider && workspaceRepository && projectDataRepository && !cockpitOpen) return <WorkspaceHome account={identity.account} session={identity.session} identityProvider={provider} repository={workspaceRepository} projectDataRepository={projectDataRepository} onOpenCockpit={(scope, cockpitView = "overview") => { const url = new URL(window.location.href); url.searchParams.set("organisation", scope.organisationId); url.searchParams.set("project", scope.projectId); url.searchParams.set("cockpit", cockpitView); window.history.replaceState({}, "", url); setWorkspaceScope(scope); setInitialCockpitView(cockpitView); setCockpitOpen(true); }} onAcceptInvitation={() => navigate("invite")} onSignOut={() => void provider.signOut().then(() => { clearCockpitContext(); setIdentity(null); navigate("signin"); })} onReset={() => { clearCockpitContext(); setIdentity(null); setCockpitOpen(false); navigate("register"); }} />;
 
   if (view !== "landing" && identity && provider && cockpitOpen && workspaceScope) {
     return (
       <Suspense fallback={<EntryLoading />}>
         <div className="authenticated-entry-bar">
-          <button type="button" onClick={() => setCockpitOpen(false)} aria-label="Back to organisation workspace">← Organisation workspace</button>
+          <button type="button" onClick={() => { clearCockpitContext(); setCockpitOpen(false); }} aria-label="Back to organisation workspace">← Organisation workspace</button>
           <span>{identity.account.displayName} · local demonstration identity</span>
           <button type="button" onClick={() => navigate("invite")}>Accept invitation</button>
-          <button type="button" onClick={() => void provider.signOut().then(() => { setIdentity(null); setCockpitOpen(false); navigate("signin"); })}>Sign out</button>
+          <button type="button" onClick={() => void provider.signOut().then(() => { clearCockpitContext(); setIdentity(null); setCockpitOpen(false); navigate("signin"); })}>Sign out</button>
         </div>
-        <AuthenticatedCockpit scope={workspaceScope} />
+        <AuthenticatedCockpit scope={workspaceScope} initialView={initialCockpitView} />
       </Suspense>
     );
   }

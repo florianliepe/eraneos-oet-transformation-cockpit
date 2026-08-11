@@ -23,8 +23,9 @@ import { buildAgentOperationRecord, updateAgentOperationRecord, type AgentOperat
 import { listAgentOperationRecords, loadEncryptedRecoveryInput, saveAgentOperationRecord, saveEncryptedRecoveryInput } from "@/lib/agent-operations-store";
 import type { WorkspaceScope } from "@/lib/project-data-repository";
 import { scopeDocument } from "@/lib/local-project-data-repository";
+import type { CockpitView } from "@/lib/cockpit-navigation";
 
-type View = "intake" | "review" | "operations" | "health" | "overview" | "portfolio" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
+type View = CockpitView;
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
 type DeleteTarget = { entity: Exclude<EditableEntity, "project">; id: string; label: string; blockedReason?: string };
 
@@ -101,8 +102,8 @@ function StatusPill({ status }: { status: string }) {
   return <span className={`status-pill status-${tone}`}>{titleCase(status)}</span>;
 }
 
-export default function ControlTower({ initialData, workspaceScope }: { initialData: PmoDocument; workspaceScope: WorkspaceScope }) {
-  const [view, setView] = useState<View>("overview");
+export default function ControlTower({ initialData, workspaceScope, initialView = "overview" }: { initialData: PmoDocument; workspaceScope: WorkspaceScope; initialView?: CockpitView }) {
+  const [view, setView] = useState<View>(initialView);
   const [data, setData] = useState<PmoDocument | null>(initialData);
   const [source, setSource] = useState<"github" | "bootstrap">("bootstrap");
   const [storageConfigured, setStorageConfigured] = useState(false);
