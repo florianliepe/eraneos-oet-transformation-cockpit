@@ -13,6 +13,8 @@ test("serves the static cockpit under the GitHub project path with working asset
   await page.getByLabel("Temporary workspace credential").fill("pages-test-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(page.getByRole("heading", { name: "Executive overview" })).toBeVisible();
-  expect(await page.locator("body").innerText()).not.toMatch(/[âÂÃ]/);
+  const publicText = await page.locator("body").innerText();
+  expect(publicText).not.toMatch(/[âÂÃ]/);
+  expect(publicText).not.toContain("Florian Liepe");
   expect(failedAssets).toEqual([]);
 });
