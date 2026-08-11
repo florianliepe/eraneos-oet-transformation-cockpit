@@ -62,3 +62,27 @@ test("covers the branded operational workbenches and keyboard focus", async ({ p
   const outline = await focused.evaluate((element) => getComputedStyle(element).outlineStyle);
   expect(outline).not.toBe("none");
 });
+
+test("captures empty, loading, error and recovery states", async ({ page }, testInfo) => {
+  await openCockpit(page);
+  await page.getByRole("button", { name: "Agent review inbox" }).click();
+  await expect(page.getByRole("heading", { name: "No proposal sets waiting" })).toBeVisible();
+  await testInfo.attach("state-empty-review", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+
+  await page.getByRole("button", { name: "Workbench intake", exact: true }).click();
+  await page.getByLabel("Write a project update").fill("Recovery-state visual verification.");
+  await page.getByRole("button", { name: "Analyse and update workbench" }).click();
+  await page.getByRole("button", { name: "Agent operations" }).click();
+  await expect(page.getByText(/attempt 1/).first()).toBeVisible();
+  await testInfo.attach("state-recovery-ready", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+
+  await page.reload();
+  await page.unroute("https://workflow.test/webhook/**");
+  await page.route("https://workflow.test/webhook/**", async (route) => { await new Promise((resolve) => setTimeout(resolve, 450)); await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Controlled visual failure" }) }); });
+  await page.getByLabel("Temporary workspace credential").fill("visual-test-credential");
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await expect(page.getByRole("status")).toContainText("Connecting to the project control tower");
+  await testInfo.attach("state-loading", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+  await expect(page.getByRole("alert").filter({ hasText: "Controlled visual failure" })).toBeVisible();
+  await testInfo.attach("state-error", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+});

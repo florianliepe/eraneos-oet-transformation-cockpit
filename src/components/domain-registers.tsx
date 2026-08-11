@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icons } from "./icons";
 import type { EditableEntity, EditorTarget } from "./entity-editor";
 import type { PmoDocument } from "@/lib/pmo-schema";
 
 type RegisterType = "issue" | "action" | "decision" | "dependency" | "assumption" | "change_request" | "governance";
 type DeletableRegisterType = Exclude<RegisterType, "governance">;
+type RegisterColumn = "owner" | "date" | "version" | "evidence";
+const columnLabels: Record<RegisterColumn, string> = { owner: "Owner", date: "Control date", version: "Version", evidence: "Evidence" };
+const COLUMN_STORAGE_KEY = "transformation-cockpit:register-columns";
 
 const labels: Record<RegisterType, string> = {
   issue: "Issues", action: "Actions", decision: "Decisions", dependency: "Dependencies",
@@ -38,6 +41,29 @@ export function DomainRegisters({ data, query, onEdit, onDelete }: {
   onDelete: (entity: Exclude<EditableEntity, "project">, id: string, label: string) => void;
 }) {
   const [active, setActive] = useState<RegisterType>("issue");
+  const [columns, setColumns] = useState<RegisterColumn[]>(() => {
+    if (typeof window === "undefined") return ["owner", "date", "version", "evidence"];
+    try {
+      const stored = JSON.parse(localStorage.getItem(COLUMN_STORAGE_KEY) || "[]") as RegisterColumn[];
+      const valid = stored.filter((item) => item in columnLabels);
+      return valid.length ? valid : ["owner", "date", "version", "evidence"];
+    } catch { return ["owner", "date", "version", "evidence"]; }
+  });
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(COLUMN_STORAGE_KEY) || "[]") as RegisterColumn[];
+        const valid = stored.filter((item) => item in columnLabels);
+        if (valid.length) setColumns(valid);
+      } catch { /* Keep the accessible default columns. */ }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+  function toggleColumn(column: RegisterColumn) {
+    const next = columns.includes(column) ? columns.filter((item) => item !== column) : [...columns, column];
+    if (!next.length) return;
+    setColumns(next); localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(next));
+  }
   const records: Record<DeletableRegisterType, Array<Record<string, unknown> & { id: string; title: string }>> = {
     issue: data.issues,
     action: data.actions,
@@ -66,14 +92,14 @@ export function DomainRegisters({ data, query, onEdit, onDelete }: {
     </div>
 
     {active !== "governance" && <section className="panel register-panel">
-      <header className="panel-heading"><div><span className="section-kicker">{active.replaceAll("_", " ").toUpperCase()}</span><h3>{labels[active]}</h3></div><button className="button primary" onClick={() => onEdit({ entity: active })}><Icons.plus/>Add {labels[active].slice(0, -1).toLowerCase()}</button></header>
+      <header className="panel-heading"><div><span className="section-kicker">{active.replaceAll("_", " ").toUpperCase()}</span><h3>{labels[active]}</h3></div><div className="register-toolbar"><details><summary>Columns ({columns.length})</summary><fieldset><legend>Visible record fields</legend>{(Object.keys(columnLabels) as RegisterColumn[]).map((column) => <label key={column}><input type="checkbox" checked={columns.includes(column)} onChange={() => toggleColumn(column)}/>{columnLabels[column]}</label>)}</fieldset></details><button className="button primary" onClick={() => onEdit({ entity: active })}><Icons.plus/>Add {labels[active].slice(0, -1).toLowerCase()}</button></div></header>
       <div className="register-grid">{filtered.map((item) => {
         const record = item as Record<string, unknown> & { id: string; title: string; governance: { version: number; reviewStatus: string; evidenceIds: string[] } };
         return <article className="register-card" key={record.id}>
           <header><span>{record.id}</span><span className={`status-pill status-${["approved", "resolved", "done", "implemented", "validated"].includes(statusOf(record)) ? "success" : "neutral"}`}>{titleCase(statusOf(record))}</span></header>
           <h4>{record.title}</h4>
           <p>{String(record.description ?? record.statement ?? record.context ?? record.decision ?? "")}</p>
-          <div className="register-meta"><span><b>Owner</b>{String(record.owner ?? record.requester ?? "Unassigned")}</span><span><b>Control date</b>{dueOf(active, record)}</span><span><b>Version</b>{record.governance.version}</span><span><b>Evidence</b>{record.governance.evidenceIds.length}</span></div>
+          <div className="register-meta" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>{columns.includes("owner") && <span><b>Owner</b>{String(record.owner ?? record.requester ?? "Unassigned")}</span>}{columns.includes("date") && <span><b>Control date</b>{dueOf(active, record)}</span>}{columns.includes("version") && <span><b>Version</b>{record.governance.version}</span>}{columns.includes("evidence") && <span><b>Evidence</b>{record.governance.evidenceIds.length}</span>}</div>
           <footer><span>Review: {titleCase(record.governance.reviewStatus)}</span><div className="record-actions"><button onClick={() => onEdit({ entity: active, id: record.id })} aria-label={`Edit ${record.title}`}><Icons.edit/></button><button onClick={() => onDelete(active, record.id, record.title)} aria-label={`Delete ${record.title}`}><Icons.trash/></button></div></footer>
         </article>;
       })}{filtered.length === 0 && <div className="empty-state">No {labels[active].toLowerCase()} match the current filter.</div>}</div>

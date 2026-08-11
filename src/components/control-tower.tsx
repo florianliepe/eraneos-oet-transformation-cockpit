@@ -17,6 +17,7 @@ import { ProposalReviewInbox } from "./proposal-review-inbox";
 import type { DecisionInput, ProposalSet } from "@/lib/governed-proposals";
 import { AgentOperationsPanel } from "./agent-operations-panel";
 import { OperationalHealth } from "./operational-health";
+import { GlobalSearch } from "./global-search";
 import { buildAgentOperationRecord, updateAgentOperationRecord, type AgentOperationRecord } from "@/lib/agent-operations";
 import { listAgentOperationRecords, loadEncryptedRecoveryInput, saveAgentOperationRecord, saveEncryptedRecoveryInput } from "@/lib/agent-operations-store";
 
@@ -332,32 +333,34 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
   const query = search.trim().toLowerCase();
 
   if (shareRequested && sharedSnapshot) return <SteercoReadOnly snapshot={sharedSnapshot}/>;
-  if (shareRequested && !shareError) return <div className="app-loading"><BrandMark/><div className="loading-line"/><p>Loading approved SteerCo snapshot...</p></div>;
-  if (shareRequested && shareError) return <div className="app-loading"><BrandMark/><p>{shareError}</p><small>The link may have expired or been revoked. Request a new approved link from the PMO.</small></div>;
-  if (loading) return <div className="app-loading"><BrandMark/><div className="loading-line"/><p>Connecting to the project control tower...</p></div>;
-  if (!data) return <div className="app-loading"><BrandMark/><p>{error || "Project data is unavailable."}</p><button className="button primary" onClick={() => void loadData()}>Try again</button></div>;
+  if (shareRequested && !shareError) return <div className="app-loading" role="status" aria-live="polite"><BrandMark/><div className="loading-line"/><p>Loading approved SteerCo snapshot...</p></div>;
+  if (shareRequested && shareError) return <div className="app-loading" role="alert"><BrandMark/><p>{shareError}</p><small>The link may have expired or been revoked. Request a new approved link from the PMO.</small></div>;
+  if (loading) return <div className="app-loading" role="status" aria-live="polite"><BrandMark/><div className="loading-line"/><p>Connecting to the project control tower...</p></div>;
+  if (!data) return <div className="app-loading" role="alert"><BrandMark/><p>{error || "Project data is unavailable."}</p><button className="button primary" onClick={() => void loadData()}>Try again</button></div>;
 
   const meta = viewMeta[view];
   return (
     <div className="app-shell">
-      <aside className={cx("sidebar", mobileNav && "sidebar-open")}>
+      <a className="skip-link" href="#cockpit-content">Skip to cockpit content</a>
+      {mobileNav && <button className="nav-scrim mobile-only" aria-label="Close navigation" onClick={() => setMobileNav(false)}/>}
+      <aside className={cx("sidebar", mobileNav && "sidebar-open")} aria-label="Project navigation">
         <div className="sidebar-head"><BrandMark/><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Close navigation"><Icons.close/></button></div>
         <div className="project-switcher"><span className="project-monogram">TC</span><div><b>Transformation Workspace</b><small>OET AI Suite</small></div><Icons.chevron/></div>
         <nav aria-label="Primary navigation">
           <span className="nav-label">Project control</span>
-          {navigation.map((item) => { const NavIcon = Icons[item.icon]; const count = item.id === "risks" ? data.risks.filter((risk) => risk.state !== "closed").length : item.id === "review" ? proposalSets.filter((set) => set.status === "pending_review").length : 0; return <button key={item.id} className={cx("nav-item", view === item.id && "active")} onClick={() => { setView(item.id); setMobileNav(false); }}><NavIcon/><span>{item.label}</span>{count > 0 && <em>{count}</em>}</button>; })}
+          {navigation.map((item) => { const NavIcon = Icons[item.icon]; const count = item.id === "risks" ? data.risks.filter((risk) => risk.state !== "closed").length : item.id === "review" ? proposalSets.filter((set) => set.status === "pending_review").length : 0; return <button key={item.id} className={cx("nav-item", view === item.id && "active")} aria-current={view === item.id ? "page" : undefined} onClick={() => { setView(item.id); setMobileNav(false); }}><NavIcon/><span>{item.label}</span>{count > 0 && <em>{count}</em>}</button>; })}
         </nav>
         <div className="sidebar-roadmap"><span>PRODUCT FOUNDATION</span><b>Governed transformation delivery</b><p>Evidence-backed project control with accountable AI assistance.</p><button onClick={() => setView("steerco")}>Open executive reporting <Icons.arrow/></button></div>
         <div className="sidebar-foot"><span className="user-avatar">PM</span><div><b>PMO Lead</b><small>Programme workspace</small></div><span className="online-dot"/></div>
       </aside>
 
-      <main className="main-area">
-        <header className="topbar"><button className="icon-button mobile-only" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Icons.menu/></button><div className="search-box"><Icons.search/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search risks, deliverables, meetings..." aria-label="Search project"/><kbd>Ctrl K</kbd></div><div className="top-actions"><button className="sync-state" onClick={() => void loadData()}><span className={source === "github" ? "sync-live" : "sync-seed"}/>{source === "github" ? "GitHub live" : "Starter data"}<Icons.refresh/></button><button className="button secondary" onClick={() => setView("intake")}><span className="n8n-button-mark">n8n</span>Workbench intake</button><button className="button secondary" onClick={() => setPublishOpen(true)} disabled={!dirty}><Icons.github/>{dirty ? "Publish changes" : "All changes saved"}</button><button className="button primary" onClick={() => setIntakeOpen(true)}><Icons.plus/>Quick add</button></div></header>
+      <main className="main-area" id="cockpit-content" tabIndex={-1}>
+        <header className="topbar"><button className="icon-button mobile-only" aria-expanded={mobileNav} onClick={() => setMobileNav(true)} aria-label="Open navigation"><Icons.menu/></button><GlobalSearch data={data} value={search} onChange={setSearch} onNavigate={(target, resultQuery) => { setView(target); setSearch(resultQuery); }}/><div className="top-actions"><button className="sync-state" onClick={() => void loadData()} aria-label="Refresh project data"><span className={source === "github" ? "sync-live" : "sync-seed"}/>{source === "github" ? "GitHub live" : "Starter data"}<Icons.refresh/></button><button className="button secondary" onClick={() => setView("intake")}><span className="n8n-button-mark">n8n</span>Workbench intake</button><button className="button secondary" onClick={() => setPublishOpen(true)} disabled={!dirty}><Icons.github/>{dirty ? "Publish changes" : "All changes saved"}</button><button className="button primary" onClick={() => setIntakeOpen(true)}><Icons.plus/>Quick add</button></div></header>
 
         <div className="content-wrap">
-          {error && <div className="error-banner"><span>{error}</span><button onClick={() => setError("")}><Icons.close/></button></div>}
+          {error && <div className="error-banner" role="alert"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><Icons.close/></button></div>}
           {workflowResult && view !== "intake" && <div className="success-banner"><span>Agent execution {workflowResult.executionId} completed with {workflowResult.proposals.length} proposed change{workflowResult.proposals.length === 1 ? "" : "s"}. Canonical state is unchanged pending review.</span><button onClick={() => setView("review")}>Review proposals</button><button onClick={() => setWorkflowResult(null)} aria-label="Dismiss agent result"><Icons.close/></button></div>}
-          <div className="page-heading"><div><span className="eyebrow">{meta.eyebrow}</span><h1>{meta.title}</h1><p>{meta.description}</p></div><div className="heading-meta"><span>Last synced</span><b>{formatDateTime(data.project.updatedAt)}</b></div></div>
+          <div className="page-heading"><div><span className="eyebrow">{meta.eyebrow}</span><h1 tabIndex={-1}>{meta.title}</h1><p>{meta.description}</p></div><div className="heading-meta"><span>Last synced</span><b>{formatDateTime(data.project.updatedAt)}</b></div></div>
 
           {view === "intake" && <IntakeWorkbench saving={workflowSaving} result={workflowResult} onRun={(submission) => void runWorkflowIntake(submission)}/>}
           {view === "review" && <ProposalReviewInbox proposalSets={proposalSets} busy={reviewBusy} onSubmit={reviewProposalSet}/>}
@@ -451,5 +454,5 @@ function PublishDialog({ saving, revision, onClose, onPublish }: { saving: boole
 
 function AccessDialog({ loading, error, onUnlock }: { loading: boolean; error: string; onUnlock: (secret: string) => void }) {
   const [secret, setSecret] = useState("");
-  return <div className="modal-backdrop"><form className="modal publish-modal" onSubmit={(event) => { event.preventDefault(); onUnlock(secret); }}><header><div><span className="section-kicker">MVP ACCESS</span><h2>Open the Transformation Cockpit</h2></div></header><p>The frontend and policy API are prepared for independent Azure App Service deployments. Microsoft Entra authentication replaces this temporary bootstrap seam in the identity slice.</p>{error && <div className="error-banner"><span>{error}</span></div>}<label><span>Temporary workspace credential</span><input type="password" autoFocus required value={secret} onChange={(event) => setSecret(event.target.value)} autoComplete="current-password"/><small>Kept in memory only. Refreshing or closing the page clears it.</small></label><footer><button className="button primary" disabled={loading}>{loading ? "Connecting..." : "Open workspace"}</button></footer></form></div>;
+  return <div className="modal-backdrop"><form className="modal publish-modal" onSubmit={(event) => { event.preventDefault(); onUnlock(secret); }}><header><div><span className="section-kicker">MVP ACCESS</span><h2>Open the Transformation Cockpit</h2></div></header><p>The frontend and policy API are prepared for independent Azure App Service deployments. Microsoft Entra authentication replaces this temporary bootstrap seam in the identity slice.</p>{error && <div className="error-banner" role="alert"><span>{error}</span></div>}<label><span>Temporary workspace credential</span><input type="password" autoFocus required value={secret} onChange={(event) => setSecret(event.target.value)} autoComplete="current-password"/><small>Kept in memory only. Refreshing or closing the page clears it.</small></label><footer><button className="button primary" disabled={loading}>{loading ? "Connecting..." : "Open workspace"}</button></footer></form></div>;
 }
