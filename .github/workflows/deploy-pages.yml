@@ -56,9 +56,19 @@ jobs:
 
       - name: Test accessibility contract
         run: npm run test:accessibility
+        env:
+          GITHUB_PAGES: "false"
+          NEXT_PUBLIC_N8N_PMO_WEBHOOK_URL: https://workflow.test/webhook/pmo
+          NEXT_PUBLIC_N8N_STEERCO_WEBHOOK_URL: https://workflow.test/webhook/steerco
+          NEXT_PUBLIC_N8N_STEERCO_READ_WEBHOOK_URL: https://workflow.test/webhook/steerco-read
 
       - name: Test browser compatibility
         run: npm run test:compatibility
+        env:
+          GITHUB_PAGES: "false"
+          NEXT_PUBLIC_N8N_PMO_WEBHOOK_URL: https://workflow.test/webhook/pmo
+          NEXT_PUBLIC_N8N_STEERCO_WEBHOOK_URL: https://workflow.test/webhook/steerco
+          NEXT_PUBLIC_N8N_STEERCO_READ_WEBHOOK_URL: https://workflow.test/webhook/steerco-read
 
       - name: Test exported project path and runtime boundary
         run: npm run test:pages

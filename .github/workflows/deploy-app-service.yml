@@ -55,11 +55,17 @@ jobs:
         run: npm run test:accessibility
         env:
           NEXT_PUBLIC_WORKSPACE_RUNTIME_MODE: local_demo
+          NEXT_PUBLIC_N8N_PMO_WEBHOOK_URL: https://workflow.test/webhook/pmo
+          NEXT_PUBLIC_N8N_STEERCO_WEBHOOK_URL: https://workflow.test/webhook/steerco
+          NEXT_PUBLIC_N8N_STEERCO_READ_WEBHOOK_URL: https://workflow.test/webhook/steerco-read
 
       - name: Test browser compatibility
         run: npm run test:compatibility
         env:
           NEXT_PUBLIC_WORKSPACE_RUNTIME_MODE: local_demo
+          NEXT_PUBLIC_N8N_PMO_WEBHOOK_URL: https://workflow.test/webhook/pmo
+          NEXT_PUBLIC_N8N_STEERCO_WEBHOOK_URL: https://workflow.test/webhook/steerco
+          NEXT_PUBLIC_N8N_STEERCO_READ_WEBHOOK_URL: https://workflow.test/webhook/steerco-read
 
       - name: Assemble App Service artifact
         shell: bash
