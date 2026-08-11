@@ -1,11 +1,12 @@
 type BrandMarkProps = {
   compact?: boolean;
+  surface?: "dark" | "light";
 };
 
-export function BrandMark({ compact = false }: BrandMarkProps) {
+export function BrandMark({ compact = false, surface = "dark" }: BrandMarkProps) {
   return (
     <div
-      className={`brand-lockup${compact ? " brand-lockup-compact" : ""}`}
+      className={`brand-lockup brand-lockup-${surface}${compact ? " brand-lockup-compact" : ""}`}
       aria-label="eraneos Transformation Cockpit, part of OET AI Suite"
     >
       <span className="eraneos-mark" aria-hidden="true">

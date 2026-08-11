@@ -1,6 +1,5 @@
-import ControlTower from "@/components/control-tower";
-import { bootstrapPmoData } from "@/lib/pmo-fixtures";
+import ApplicationEntry from "@/components/application-entry";
 
 export default function HomePage() {
-  return <ControlTower initialData={bootstrapPmoData} />;
+  return <ApplicationEntry />;
 }

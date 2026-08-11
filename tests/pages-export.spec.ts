@@ -7,8 +7,8 @@ test("serves the static cockpit under the GitHub project path with working asset
   await page.route("https://eraneos-agentic-platform.azurewebsites.net/webhook/a2126107-4e70-4717-8f1c-545d7f310741", async (route) => {
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: true, document: bootstrapPmoData }) });
   });
-  await page.goto("./");
-  await expect(page).toHaveURL(/\/eraneos-oet-transformation-cockpit\/$/);
+  await page.goto("./?view=signin");
+  await expect(page).toHaveURL(/\/eraneos-oet-transformation-cockpit\/\?view=signin$/);
   await expect(page.getByLabel("eraneos Transformation Cockpit, part of OET AI Suite")).toBeVisible();
   await page.getByLabel("Temporary workspace credential").fill("pages-test-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
