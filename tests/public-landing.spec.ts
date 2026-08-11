@@ -38,7 +38,9 @@ test("provides self-registration, sign-out and sign-in on static-compatible rout
   await expect(page.getByRole("heading", { name: "Create the place where your transformation portfolio lives." })).toBeVisible();
   await page.getByLabel("Organisation name").fill("Public Journey Office");
   await page.getByRole("button", { name: "Create organisation" }).click();
-  await page.getByRole("button", { name: "Open neutral demo project" }).click();
+  await page.getByLabel("Project name").fill("Public Journey Project");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("button", { name: "Open cockpit" }).click();
   await expect(page.getByLabel("Temporary workspace credential")).toBeVisible();
   await expect(page.getByText("Public Journey · local demonstration identity")).toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();

@@ -11,6 +11,7 @@ import {
   type ProposalSet,
   type ReviewBundle,
 } from "@/lib/governed-proposals";
+import type { WorkspaceScope } from "@/lib/project-data-repository";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
@@ -97,22 +98,23 @@ async function normalizeDocument<T extends { document?: unknown }>(payload: T): 
   return payload.document ? { ...payload, document: migratePmoDocument(payload.document) } : payload as Omit<T, "document"> & { document?: PmoDocument };
 }
 
-export async function loadPmoDocument(secret: string) {
-  return normalizeDocument(await callWorkflow<PmoApiResponse>(secret, { mode: "pmo.read" }));
+export async function loadPmoDocument(secret: string, workspace: WorkspaceScope) {
+  return normalizeDocument(await callWorkflow<PmoApiResponse>(secret, { mode: "pmo.read", workspace }));
 }
 
-export async function savePmoDocument(secret: string, document: PmoDocument) {
-  return normalizeDocument(await callWorkflow<PmoApiResponse>(secret, { mode: "pmo.save", document }));
+export async function savePmoDocument(secret: string, document: PmoDocument, workspace: WorkspaceScope) {
+  return normalizeDocument(await callWorkflow<PmoApiResponse>(secret, { mode: "pmo.save", workspace, document }));
 }
 
-export async function reviewAndPublishProposalSet(secret: string, proposalSet: ProposalSet, reviewer: string, decisions: DecisionInput[], expectedRevision: number) {
+export async function reviewAndPublishProposalSet(secret: string, proposalSet: ProposalSet, reviewer: string, decisions: DecisionInput[], expectedRevision: number, workspace: WorkspaceScope) {
   const reviewBundle = buildReviewBundle(proposalSet, reviewer, decisions);
-  const reviewed = await callWorkflow<ProposalReviewResponse>(secret, { mode: "pmo.review", proposalSetId: proposalSet.id, reviewBundle });
+  const reviewed = await callWorkflow<ProposalReviewResponse>(secret, { mode: "pmo.review", workspace, proposalSetId: proposalSet.id, reviewBundle });
   if (!reviewed.ok || !reviewed.reviewBundle) throw new Error(reviewed.error || "The governed review could not be recorded.");
   const storedReview = ReviewBundleSchema.parse(reviewed.reviewBundle);
   const idempotencyKey = storedReview.id.replace(/[^A-Za-z0-9-]/g, "-").slice(0, 80);
   const published = await callWorkflow<ProposalPublishResponse>(secret, {
     mode: "pmo.publish",
+    workspace,
     proposalSetId: proposalSet.id,
     reviewBundleId: storedReview.id,
     actor: reviewer,
@@ -209,6 +211,7 @@ export async function ingestEvidence(
   secret: string,
   meta: Record<string, string>,
   files: File[],
+  workspace: WorkspaceScope,
   textUpdate = "",
 ) {
   const extracted = await extractEvidence(files);
@@ -216,7 +219,7 @@ export async function ingestEvidence(
     extracted.unshift({ name: "workbench-update.md", type: "text_update", content: textUpdate.trim() });
   }
   if (extracted.length === 0) throw new Error("Add at least one document or written update.");
-  const raw = await callWorkflow<WorkflowIntakeResponse & { agentRun?: unknown }>(secret, { mode: "pmo.ingest", meta, extracted });
+  const raw = await callWorkflow<WorkflowIntakeResponse & { agentRun?: unknown }>(secret, { mode: "pmo.ingest", workspace, meta: { ...meta, organisation_id: workspace.organisationId, project_id: workspace.projectId }, extracted });
   const parsedRun = AgentRunEnvelopeSchema.safeParse(raw.agentRun);
   const response: WorkflowIntakeResponse = {
     ...raw,

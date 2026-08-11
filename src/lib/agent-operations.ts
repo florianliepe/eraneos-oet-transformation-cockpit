@@ -14,6 +14,7 @@ export const AgentOperationRecordSchema = z.object({
   contractVersion: z.literal(AGENT_OPERATIONS_CONTRACT_VERSION),
   recordVersion: z.number().int().positive(),
   executionId: z.string().min(1),
+  scope: z.object({ organisationId: z.string().min(8), projectId: z.string().min(8) }),
   run: AgentRunEnvelopeSchema,
   input: z.object({
     ref: z.string().min(1),
@@ -59,16 +60,18 @@ const safeId = (value: string) => value.replace(/[^A-Za-z0-9._:-]/g, "-").slice(
 
 export function buildAgentOperationRecord(input: {
   run: AgentRunEnvelope;
+  scope: { organisationId: string; projectId: string };
   descriptor: RecoveryInputDescriptor;
   source?: AgentOperationRecord;
   recoveryMode?: "retry" | "replay";
 }): AgentOperationRecord {
   const now = new Date().toISOString();
-  const inputRef = `recovery:${safeId(input.run.executionId)}`;
+  const inputRef = `recovery:${safeId(input.scope.organisationId)}:${safeId(input.scope.projectId)}:${safeId(input.run.executionId)}`;
   return AgentOperationRecordSchema.parse({
     contractVersion: AGENT_OPERATIONS_CONTRACT_VERSION,
     recordVersion: 1,
     executionId: input.run.executionId,
+    scope: input.scope,
     run: input.run,
     input: { ref: inputRef, ...input.descriptor },
     lineage: {

@@ -24,7 +24,9 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole("button", { name: "Create local account" }).click();
   await page.getByLabel("Organisation name").fill("Control Tower Test Office");
   await page.getByRole("button", { name: "Create organisation" }).click();
-  await page.getByRole("button", { name: "Open neutral demo project" }).click();
+  await page.getByLabel("Project name").fill("Control Tower Project");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("button", { name: "Open cockpit" }).click();
   await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
 });
@@ -36,6 +38,15 @@ test("opens the product-neutral executive workspace without client errors", asyn
   await expect(page.getByLabel("eraneos Transformation Cockpit, part of OET AI Suite")).toBeVisible();
   await expect(page.getByText("part of OET AI Suite")).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("scopes workflow requests to the selected organisation and project", async ({ page }) => {
+  const requestPromise = page.waitForRequest((request) => request.url().includes("workflow.test/webhook") && request.postDataJSON()?.mode === "pmo.read");
+  await page.getByLabel("Refresh project data").click();
+  const body = (await requestPromise).postDataJSON() as { workspace?: { organisationId?: string; projectId?: string; projectName?: string } };
+  expect(body.workspace?.organisationId).toMatch(/^org_/);
+  expect(body.workspace?.projectId).toMatch(/^prj_/);
+  expect(body.workspace?.projectName).toBe("Control Tower Project");
 });
 
 test("navigates through the retained core delivery views", async ({ page }) => {
@@ -81,7 +92,7 @@ test("searches across governed records, saves filters and configures register co
   await expect(page.getByText("Columns (3)")).toBeVisible();
   await expect(page.locator(".register-card").first().getByText("Evidence", { exact: true })).toHaveCount(0);
   await page.reload();
-  await page.getByRole("button", { name: "Open neutral demo project" }).click();
+  await page.getByRole("button", { name: "Open cockpit" }).click();
   await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(page.getByRole("heading", { name: "Executive overview" })).toBeVisible();
@@ -160,7 +171,7 @@ test("reviews field-level agent proposals before governed publication", async ({
     return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: false, document: bootstrapPmoData }) });
   });
   await page.reload();
-  await page.getByRole("button", { name: "Open neutral demo project" }).click();
+  await page.getByRole("button", { name: "Open cockpit" }).click();
   await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake", exact: true }).click();
@@ -186,7 +197,7 @@ test("shows immutable run history and replays the original input with lineage", 
   await page.getByLabel("Write a project update").fill("A traced dependency update for operations testing.");
   await page.getByRole("button", { name: "Analyse and update workbench" }).click();
   await page.reload();
-  await page.getByRole("button", { name: "Open neutral demo project" }).click();
+  await page.getByRole("button", { name: "Open cockpit" }).click();
   await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Agent operations" }).click();

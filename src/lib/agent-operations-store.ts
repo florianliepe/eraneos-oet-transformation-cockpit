@@ -61,11 +61,11 @@ async function encryptionKey(secret: string, salt: Uint8Array) {
   return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: salt as BufferSource, iterations: 210_000 }, material, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
 }
 
-export async function listAgentOperationRecords(): Promise<AgentOperationRecord[]> {
+export async function listAgentOperationRecords(scope: { organisationId: string; projectId: string }): Promise<AgentOperationRecord[]> {
   const database = await openDatabase();
   try {
     const raw = await requestResult(database.transaction(RECORDS_STORE, "readonly").objectStore(RECORDS_STORE).getAll());
-    return raw.map((item) => AgentOperationRecordSchema.parse(item)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return raw.flatMap((item) => { const parsed = AgentOperationRecordSchema.safeParse(item); return parsed.success && parsed.data.scope.organisationId === scope.organisationId && parsed.data.scope.projectId === scope.projectId ? [parsed.data] : []; }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   } finally { database.close(); }
 }
 
