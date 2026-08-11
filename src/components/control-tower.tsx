@@ -102,7 +102,7 @@ function StatusPill({ status }: { status: string }) {
   return <span className={`status-pill status-${tone}`}>{titleCase(status)}</span>;
 }
 
-export default function ControlTower({ initialData, workspaceScope, initialView = "overview" }: { initialData: PmoDocument; workspaceScope: WorkspaceScope; initialView?: CockpitView }) {
+export default function ControlTower({ initialData, workspaceScope, accountableActor = { userId: "historical-unattributed", displayName: "Historical workspace operator" }, initialView = "overview" }: { initialData: PmoDocument; workspaceScope: WorkspaceScope; accountableActor?: { userId: string; displayName: string }; initialView?: CockpitView }) {
   const [view, setView] = useState<View>(initialView);
   const [data, setData] = useState<PmoDocument | null>(initialData);
   const [source, setSource] = useState<"github" | "bootstrap">("bootstrap");
@@ -190,7 +190,7 @@ export default function ControlTower({ initialData, workspaceScope, initialView 
       textUpdatePresent: Boolean(submission.textUpdate.trim()),
       evidence: submission.files.map((file) => ({ name: file.name, mediaType: file.type || "application/octet-stream", size: file.size })),
     };
-    const record = buildAgentOperationRecord({ run, scope: workspaceScope, descriptor, source: recovery?.source, recoveryMode: recovery?.mode });
+    const record = buildAgentOperationRecord({ run, scope: workspaceScope, descriptor, source: recovery?.source, recoveryMode: recovery?.mode, actor: accountableActor });
     setRunHistory((current) => [record, ...current.filter((item) => item.executionId !== record.executionId)]);
     try {
       await saveEncryptedRecoveryInput(workspaceSecret, record.input.ref, submission);
