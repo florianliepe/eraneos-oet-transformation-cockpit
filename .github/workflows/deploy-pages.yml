@@ -45,6 +45,9 @@ jobs:
       - name: Build static GitHub Pages frontend
         run: npm run build:pages
 
+      - name: Install Chromium for Pages test
+        run: npx playwright install --with-deps chromium
+
       - name: Test exported project path and runtime boundary
         run: npm run test:pages
 
