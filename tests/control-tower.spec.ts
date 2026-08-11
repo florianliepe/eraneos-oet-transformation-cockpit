@@ -118,9 +118,9 @@ test("creates a governed first-class issue and exposes governance records", asyn
   await page.getByRole("button", { name: "PMO registers" }).click();
   await expect(page.getByRole("heading", { name: "Governed registers" })).toBeVisible();
   await page.getByRole("button", { name: "Add issue" }).click();
-  await page.getByLabel("Title").fill("Cross-workstream design conflict");
+  await page.getByRole("textbox", { name: "Title", exact: true }).fill("Cross-workstream design conflict");
   await page.getByLabel("Description").fill("Two workstreams require incompatible interface assumptions.");
-  await page.getByRole("textbox", { name: "Owner" }).fill("PMO Lead");
+  await page.getByRole("textbox", { name: "Owner", exact: true }).fill("PMO Lead");
   await page.getByLabel("Resolution").fill("Convene a design authority decision.");
   await page.getByRole("button", { name: "Add to workbench" }).click();
   await expect(page.getByText("Cross-workstream design conflict")).toBeVisible();
@@ -129,6 +129,16 @@ test("creates a governed first-class issue and exposes governance records", asyn
   await expect(page.getByRole("heading", { name: "Review queue" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Object versions" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Audit events" })).toBeVisible();
+});
+
+test("supports saved register views, governed bulk updates and controlled import export", async ({ page }) => {
+  await page.getByRole("button", { name: "PMO registers" }).click();
+  await expect(page.getByRole("heading", { name: "Recoverable project checklist" })).toBeVisible(); await expect(page.getByRole("heading", { name: "Milestones and critical path" })).toBeVisible(); await expect(page.getByRole("heading", { name: "Cross-object control map" })).toBeVisible();
+  await page.getByLabel("Filter records").fill("baseline"); page.once("dialog", (dialog) => dialog.accept("Baseline issues")); await page.getByRole("button", { name: "Save view" }).click(); await expect(page.getByLabel("Saved register view")).toContainText("Baseline issues");
+  await page.getByLabel("Filter records").fill(""); await page.getByLabel("Select Baseline ownership unresolved").check(); await page.getByLabel("New owner").fill("Delivery Owner"); await page.getByLabel("New status").selectOption("resolved"); await page.getByRole("button", { name: "Preview bulk update" }).click(); await expect(page.getByText(/v1 → v2/)).toBeVisible(); await page.getByRole("button", { name: "Apply governed bulk update" }).click();
+  const issue = page.locator(".register-card").filter({ hasText: "Baseline ownership unresolved" }); await expect(issue.getByText("Delivery Owner")).toBeVisible(); await expect(issue.getByText("Resolved", { exact: true })).toBeVisible(); await expect(issue.locator(".register-meta span").filter({ hasText: "Version" })).toContainText("2");
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Export governed CSV" }).click(); expect((await download).suggestedFilename()).toContain("issue-register-revision");
+  const csv = 'id,title,owner,status,object_version\nISS-1,"Baseline ownership reconciled",Programme Lead,open,2'; await page.getByLabel("Import CSV / Excel").setInputFiles({ name: "issues.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }); await expect(page.getByText(/Import preview · 1 row/)).toBeVisible(); await page.getByRole("button", { name: "Apply governed import" }).click(); await expect(page.getByText("Baseline ownership reconciled")).toBeVisible(); await expect(page.getByText("Programme Lead").last()).toBeVisible();
 });
 
 test("shows a traceable agent execution contract for legacy workflow responses", async ({ page }) => {
