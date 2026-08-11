@@ -18,7 +18,7 @@ async function openCockpit(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "Create organisation" }).click();
   await page.getByLabel("Project name").fill("Visual Project");
   await page.getByRole("button", { name: "Create project" }).click();
-  await page.getByRole("button", { name: "Open cockpit" }).click();
+  await page.locator(".project-workspaces").getByRole("button", { name: "Open cockpit" }).click();
   await page.getByLabel("Temporary workspace credential").fill("visual-test-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(page.getByRole("heading", { name: "Executive overview" })).toBeVisible();
@@ -89,7 +89,6 @@ test("captures empty, loading, error and recovery states", async ({ page }, test
   await page.reload();
   await page.unroute("https://workflow.test/webhook/**");
   await page.route("https://workflow.test/webhook/**", async (route) => { await new Promise((resolve) => setTimeout(resolve, 450)); await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Controlled visual failure" }) }); });
-  await page.getByRole("button", { name: "Open cockpit" }).click();
   await page.getByLabel("Temporary workspace credential").fill("visual-test-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(page.getByRole("status")).toContainText("Connecting to the project control tower");
