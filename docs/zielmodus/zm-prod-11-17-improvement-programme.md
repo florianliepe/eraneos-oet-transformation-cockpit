@@ -173,6 +173,16 @@ Produce repeatable, evidence-linked project and portfolio decision packs.
 - Project and portfolio outputs preserve tenant/project scope.
 - Exports and published views are reproducible from an immutable snapshot.
 
+### Implementation record
+
+- `executive-reporting-1.0` defines project Steering Committee and portfolio review templates with governed organisation/target scope, assigned reviewer, explicit decision requests and deterministic source fingerprints.
+- Project publication fails closed unless exactly one project is bound, the immutable snapshot is approved, the assigned reviewer has recorded rationale and the reviewed source fingerprint still matches.
+- Portfolio decision packs include only approved project snapshots, preserve per-project source fingerprints and approval identities, derive evidence-linked attention signals and state every missing/unapproved project explicitly.
+- Approval, publication, revocation and restore actions append linked immutable receipts; the cockpit exposes their actor, revision, source fingerprint and rationale without mutating prior receipts.
+- Existing period selection, evidence-bound/missing claims, baseline/forecast/actual comparison, AI/human labelling, source-drift gates, expiry/revocation and rollback remain intact.
+- PowerPoint output adds document title/language/description, content descriptions and `_provenance/report-manifest.json`; print styling remains the accessible PDF-ready path.
+- TypeScript, lint, governance artifacts, 90 browser/deterministic tests, App Service-shaped build, Pages build and deployed-path test pass.
+
 ## ZM-PROD-16 — Design and usability hardening
 
 ### Goal
