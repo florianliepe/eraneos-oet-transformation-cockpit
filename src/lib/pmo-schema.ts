@@ -9,6 +9,7 @@ export const DeliveryStatusSchema = z.enum(["not_started", "in_progress", "at_ri
 export const ObjectTypeSchema = z.enum([
   "project", "workstream", "milestone", "deliverable", "risk", "issue", "action",
   "decision", "dependency", "assumption", "change_request", "meeting", "evidence",
+  "portfolio", "programme", "benefit", "outcome", "resource", "financial", "scenario",
 ]);
 export const ObjectRefSchema = z.object({ type: ObjectTypeSchema, id: z.string().min(1) });
 
@@ -173,6 +174,41 @@ export const MeetingSchema = z.object({
   decisionIds: z.array(z.string()).default([]), actionIds: z.array(z.string()).default([]), ...governed,
 });
 
+export const PortfolioSchema = z.object({
+  id: z.string().min(1), name: z.string().min(1), owner: z.string().min(1),
+  objective: z.string().min(1), rag: RagSchema, programmeIds: z.array(z.string()).default([]), ...governed,
+});
+export const ProgrammeSchema = z.object({
+  id: z.string().min(1), name: z.string().min(1), owner: z.string().min(1), portfolioId: z.string().min(1),
+  objective: z.string().min(1), startDate: DateSchema, endDate: DateSchema, projectIds: z.array(z.string()).default([]), rag: RagSchema, ...governed,
+});
+export const OutcomeSchema = z.object({
+  id: z.string().min(1), title: z.string().min(1), owner: z.string().min(1), programmeId: z.string().min(1),
+  measure: z.string().min(1), target: z.number(), forecast: z.number(), actual: z.number().optional(), targetDate: DateSchema,
+  status: z.enum(["planned", "tracking", "achieved", "at_risk"]), ...governed,
+});
+export const BenefitSchema = z.object({
+  id: z.string().min(1), title: z.string().min(1), owner: z.string().min(1), programmeId: z.string().min(1), outcomeId: z.string().optional(),
+  unit: z.string().min(1), baseline: z.number(), target: z.number(), forecast: z.number(), actual: z.number().optional(), targetDate: DateSchema,
+  status: z.enum(["planned", "tracking", "realised", "at_risk"]), ...governed,
+});
+export const ResourcePoolSchema = z.object({
+  id: z.string().min(1), name: z.string().min(1), programmeId: z.string().min(1), capability: z.string().min(1),
+  period: z.string().regex(/^\d{4}-\d{2}$/), capacityFte: z.number().nonnegative(), demandFte: z.number().nonnegative(),
+  status: z.enum(["balanced", "constrained", "surplus"]), ...governed,
+});
+export const FinancialSchema = z.object({
+  id: z.string().min(1), title: z.string().min(1), programmeId: z.string().min(1), period: z.string().regex(/^\d{4}-\d{2}$/),
+  category: z.enum(["investment", "operating_cost", "benefit"]), currency: z.string().length(3),
+  baseline: z.number(), forecast: z.number(), actual: z.number().optional(), ...governed,
+});
+export const ScenarioSchema = z.object({
+  id: z.string().min(1), title: z.string().min(1), programmeId: z.string().min(1), owner: z.string().min(1),
+  status: z.enum(["draft", "pending_review", "approved", "rejected"]), baselineRevision: z.number().int().positive(),
+  assumptions: z.array(z.string()).min(1), scheduleDeltaDays: z.number().int(), costDelta: z.number(), benefitDelta: z.number(),
+  rationale: z.string().min(1), ...governed,
+});
+
 export const PmoDocumentSchema = z.object({
   schemaVersion: z.literal("2.0"),
   revision: z.number().int().min(1),
@@ -192,6 +228,13 @@ export const PmoDocumentSchema = z.object({
   reviews: z.array(ReviewRecordSchema),
   audit: z.array(AuditEventSchema),
   objectVersions: z.array(ObjectVersionSchema),
+  portfolios: z.array(PortfolioSchema).default([]),
+  programmes: z.array(ProgrammeSchema).default([]),
+  outcomes: z.array(OutcomeSchema).default([]),
+  benefits: z.array(BenefitSchema).default([]),
+  resourcePools: z.array(ResourcePoolSchema).default([]),
+  financials: z.array(FinancialSchema).default([]),
+  scenarios: z.array(ScenarioSchema).default([]),
 });
 
 const LegacyGovernanceFreeRecord = z.object({ id: z.string().min(1) }).passthrough();
@@ -230,6 +273,13 @@ export type Dependency = z.infer<typeof DependencySchema>;
 export type Assumption = z.infer<typeof AssumptionSchema>;
 export type ChangeRequest = z.infer<typeof ChangeRequestSchema>;
 export type Meeting = z.infer<typeof MeetingSchema>;
+export type Portfolio = z.infer<typeof PortfolioSchema>;
+export type Programme = z.infer<typeof ProgrammeSchema>;
+export type Outcome = z.infer<typeof OutcomeSchema>;
+export type Benefit = z.infer<typeof BenefitSchema>;
+export type ResourcePool = z.infer<typeof ResourcePoolSchema>;
+export type Financial = z.infer<typeof FinancialSchema>;
+export type Scenario = z.infer<typeof ScenarioSchema>;
 
 export function createGovernance(actor: string, at = new Date().toISOString(), current?: GovernanceMetadata): GovernanceMetadata {
   return {
@@ -298,7 +348,7 @@ export function migratePmoDocument(input: unknown): PmoDocument {
     issues: [], actions, decisions, dependencies: [], assumptions: [], changeRequests: [], meetings,
     evidence: [], reviews: [],
     audit: legacy.activity.map((item) => ({ id: item.id, timestamp: item.timestamp, actor: item.actor, action: "migrate" as const, object: { type: "project" as const, id: legacy.project.id }, message: item.message, changes: [], evidenceIds: [] })),
-    objectVersions: [],
+    objectVersions: [], portfolios: [], programmes: [], outcomes: [], benefits: [], resourcePools: [], financials: [], scenarios: [],
   };
   return PmoDocumentSchema.parse(migrated);
 }

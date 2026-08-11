@@ -4,12 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PmoDocument } from "@/lib/pmo-schema";
 import { Icons } from "./icons";
 
-type SearchView = "plan" | "risks" | "registers" | "meetings" | "activity";
+type SearchView = "portfolio" | "plan" | "risks" | "registers" | "meetings" | "activity";
 type SearchItem = { id: string; title: string; detail: string; kind: string; view: SearchView };
 const STORAGE_KEY = "transformation-cockpit:saved-searches";
 
 function searchable(data: PmoDocument): SearchItem[] {
   return [
+    ...data.portfolios.map((item) => ({ id: item.id, title: item.name, detail: `${item.owner} · ${item.rag}`, kind: "Portfolio", view: "portfolio" as const })),
+    ...data.programmes.map((item) => ({ id: item.id, title: item.name, detail: `${item.owner} · ${item.rag}`, kind: "Programme", view: "portfolio" as const })),
+    ...data.outcomes.map((item) => ({ id: item.id, title: item.title, detail: `${item.owner} · ${item.status}`, kind: "Outcome", view: "portfolio" as const })),
+    ...data.benefits.map((item) => ({ id: item.id, title: item.title, detail: `${item.owner} · ${item.status}`, kind: "Benefit", view: "portfolio" as const })),
+    ...data.resourcePools.map((item) => ({ id: item.id, title: item.name, detail: `${item.capability} · ${item.status}`, kind: "Resource pool", view: "portfolio" as const })),
+    ...data.financials.map((item) => ({ id: item.id, title: item.title, detail: `${item.period} · ${item.category}`, kind: "Financial", view: "portfolio" as const })),
+    ...data.scenarios.map((item) => ({ id: item.id, title: item.title, detail: `${item.owner} · ${item.status}`, kind: "Scenario", view: "portfolio" as const })),
     ...data.deliverables.map((item) => ({ id: item.id, title: item.title, detail: `${item.owner} · ${item.status}`, kind: "Deliverable", view: "plan" as const })),
     ...data.risks.map((item) => ({ id: item.id, title: item.title, detail: `${item.owner} · ${item.state}`, kind: "Risk", view: "risks" as const })),
     ...data.issues.map((item) => ({ id: item.id, title: item.title, detail: `${item.owner} · ${item.status}`, kind: "Issue", view: "registers" as const })),

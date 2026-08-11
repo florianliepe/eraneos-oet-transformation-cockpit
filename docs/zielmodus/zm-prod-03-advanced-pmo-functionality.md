@@ -24,3 +24,14 @@ Extend the governed cockpit from project control to programme and portfolio deci
 ## Deployment outcome
 
 Deploy the expanded governed domain and decision views before executive reporting expansion.
+
+## Implementation record
+
+- Added first-class portfolio, programme, outcome, benefit, aggregate resource-pool, financial and scenario schemas with evidence, review, audit and object-version contracts.
+- Added governed portfolio → programme → project hierarchy references and cross-level validation.
+- Added deterministic dependency-network and longest-path calculation with explicit provider-to-consumer and governed-date assumptions; cycles block validation.
+- Added deterministic cost baseline/forecast/actual variance, benefit target/forecast gap and non-personal capability capacity calculations.
+- Added candidate-versus-approved scenario comparison; the approved baseline is immutable and candidate revisions remain pending review.
+- Added a governed scenario editor that creates a new audit event and object version without changing the approved baseline.
+- Added a responsive Programme decisions view covering hierarchy, value, capacity, finance, critical path and scenario impact.
+- Migrated product-neutral fixtures and added validation, calculation, cycle, baseline-immutability and UI tests.

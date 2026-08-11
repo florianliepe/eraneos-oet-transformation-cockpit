@@ -38,6 +38,22 @@ test("navigates through the retained core delivery views", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "SteerCo summary", level: 1 })).toBeVisible();
 });
 
+test("shows governed programme hierarchy, variance, critical path and scenario impact", async ({ page }) => {
+  await page.getByRole("button", { name: "Programme decisions" }).click();
+  await expect(page.getByRole("heading", { name: "Programme decisions", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Portfolio and programme decision scope" })).toBeVisible();
+  await expect(page.getByText("OET transformation portfolio")).toBeVisible();
+  await expect(page.getByText("120K", { exact: false })).toBeVisible();
+  await expect(page.getByText("deliverable:DEL-1")).toBeVisible();
+  await expect(page.getByText("Human review required before approval")).toBeVisible();
+  await page.getByRole("button", { name: "Revise candidate scenario" }).click();
+  await page.getByLabel("Cost delta").fill("90000");
+  await page.getByLabel("Impact rationale").fill("Updated governed comparison after capacity review; approved baseline remains unchanged.");
+  await page.getByRole("button", { name: "Save governed revision" }).click();
+  await expect(page.getByText(/€90k/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Publish changes" })).toBeEnabled();
+});
+
 test("searches across governed records, saves filters and configures register columns", async ({ page }) => {
   const risk = bootstrapPmoData.risks[0];
   await page.getByLabel("Search project").fill(risk.title);

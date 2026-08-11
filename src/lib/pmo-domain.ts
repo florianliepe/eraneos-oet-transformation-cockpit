@@ -21,6 +21,13 @@ export const governedCollections = {
   assumption: "assumptions",
   change_request: "changeRequests",
   meeting: "meetings",
+  portfolio: "portfolios",
+  programme: "programmes",
+  outcome: "outcomes",
+  benefit: "benefits",
+  resource: "resourcePools",
+  financial: "financials",
+  scenario: "scenarios",
 } as const;
 
 export type GovernedEntityType = keyof typeof governedCollections;
@@ -130,6 +137,8 @@ export function validatePmoReferences(document: PmoDocument): string[] {
   add("action", document.actions); add("decision", document.decisions); add("dependency", document.dependencies);
   add("assumption", document.assumptions); add("change_request", document.changeRequests); add("meeting", document.meetings);
   add("evidence", document.evidence);
+  add("portfolio", document.portfolios); add("programme", document.programmes); add("outcome", document.outcomes);
+  add("benefit", document.benefits); add("resource", document.resourcePools); add("financial", document.financials); add("scenario", document.scenarios);
 
   const errors: string[] = [];
   const check = (owner: string, ref: ObjectRef) => {
@@ -153,5 +162,15 @@ export function validatePmoReferences(document: PmoDocument): string[] {
     item.evidenceIds.forEach((id) => check(item.id, { type: "evidence", id }));
   });
   document.objectVersions.forEach((item) => check(item.id, item.object));
+  document.portfolios.forEach((item) => item.programmeIds.forEach((id) => check(item.id, { type: "programme", id })));
+  document.programmes.forEach((item) => {
+    check(item.id, { type: "portfolio", id: item.portfolioId });
+    item.projectIds.forEach((id) => check(item.id, { type: "project", id }));
+  });
+  document.outcomes.forEach((item) => check(item.id, { type: "programme", id: item.programmeId }));
+  document.benefits.forEach((item) => { check(item.id, { type: "programme", id: item.programmeId }); if (item.outcomeId) check(item.id, { type: "outcome", id: item.outcomeId }); });
+  document.resourcePools.forEach((item) => check(item.id, { type: "programme", id: item.programmeId }));
+  document.financials.forEach((item) => check(item.id, { type: "programme", id: item.programmeId }));
+  document.scenarios.forEach((item) => check(item.id, { type: "programme", id: item.programmeId }));
   return errors;
 }
