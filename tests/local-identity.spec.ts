@@ -33,6 +33,17 @@ test("rejects duplicate accounts and clears expired sessions", async () => {
   expect(await provider.currentSession()).toBeNull();
 });
 
+test("changes a local password only after verifying the current password", async () => {
+  const storage = new MemoryStorage();
+  const provider = new LocalIdentityProvider(storage, () => new Date("2026-08-11T10:00:00.000Z"));
+  await provider.register({ displayName: "Password Owner", email: "password@example.com", password: "original-local-password", termsAccepted: true });
+  await expect(provider.changePassword("incorrect-password", "replacement-local-password")).rejects.toThrow("current local password");
+  await provider.changePassword("original-local-password", "replacement-local-password");
+  await provider.signOut();
+  await expect(provider.signIn("password@example.com", "original-local-password")).rejects.toThrow("Email or password is not valid");
+  await expect(provider.signIn("password@example.com", "replacement-local-password")).resolves.toBeTruthy();
+});
+
 test("accepts an email-bound invitation and rejects expired or mismatched codes", async () => {
   const storage = new MemoryStorage();
   const clock = () => new Date("2026-08-11T10:00:00.000Z");

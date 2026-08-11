@@ -62,6 +62,19 @@ export class LocalIdentityProvider implements IdentityProvider {
 
   async signOut() { const state = this.read(); delete state.session; this.write(state); }
 
+  async changePassword(currentPassword: string, newPassword: string) {
+    const state = this.read();
+    const session = state.session;
+    const account = session && new Date(session.expiresAt).getTime() > this.now().getTime() ? state.accounts.find((item) => item.id === session.userId && item.status === "active") : undefined;
+    const verifier = account ? state.verifiers[account.id] : undefined;
+    if (!account || !verifier || !(await matchesLocalVerifier(currentPassword, verifier))) throw new Error("The current local password is not valid.");
+    if (newPassword.length < 10) throw new Error("Use at least 10 characters for the new local password.");
+    if (newPassword === currentPassword) throw new Error("Choose a different local password.");
+    state.verifiers[account.id] = await deriveLocalVerifier(newPassword);
+    account.updatedAt = this.now().toISOString();
+    this.write(state);
+  }
+
   async currentSession(): Promise<IdentityResult | null> {
     const state = this.read();
     if (!state.session || new Date(state.session.expiresAt).getTime() <= this.now().getTime()) {

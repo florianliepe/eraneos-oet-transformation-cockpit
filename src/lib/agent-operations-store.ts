@@ -69,6 +69,39 @@ export async function listAgentOperationRecords(scope: { organisationId: string;
   } finally { database.close(); }
 }
 
+export async function exportAllAgentOperationRecords(): Promise<AgentOperationRecord[]> {
+  const database = await openDatabase();
+  try {
+    const raw = await requestResult(database.transaction(RECORDS_STORE, "readonly").objectStore(RECORDS_STORE).getAll());
+    return raw.map((item) => AgentOperationRecordSchema.parse(item));
+  } finally { database.close(); }
+}
+
+export async function replaceAgentOperationRecords(records: AgentOperationRecord[]) {
+  const parsed = records.map((record) => AgentOperationRecordSchema.parse(record));
+  const database = await openDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(RECORDS_STORE, "readwrite");
+      const store = transaction.objectStore(RECORDS_STORE);
+      store.clear();
+      for (const record of parsed) store.put(record);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error("Agent operation restore failed."));
+      transaction.onabort = () => reject(transaction.error || new Error("Agent operation restore was aborted."));
+    });
+  } finally { database.close(); }
+}
+
+export function deleteAgentOperationsDatabase() {
+  return new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DATABASE_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error("Agent operations data could not be removed."));
+    request.onblocked = () => reject(new Error("Close other cockpit tabs before resetting local data."));
+  });
+}
+
 export async function saveAgentOperationRecord(record: AgentOperationRecord) {
   const parsed = AgentOperationRecordSchema.parse(record);
   const database = await openDatabase();

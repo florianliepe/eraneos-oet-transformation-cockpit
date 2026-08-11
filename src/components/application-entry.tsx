@@ -66,7 +66,7 @@ export default function ApplicationEntry() {
 
   if (view === "invite" && provider) return <IdentityEntry provider={provider} mode="invite" onAuthenticated={(result) => { setIdentity(result); navigate("signin"); }} onNavigate={navigate} onBack={() => navigate("landing")} />;
 
-  if (view !== "landing" && identity && provider && workspaceRepository && !cockpitOpen) return <WorkspaceHome account={identity.account} repository={workspaceRepository} onOpenCockpit={(scope) => { setWorkspaceScope(scope); setCockpitOpen(true); }} onAcceptInvitation={() => navigate("invite")} onSignOut={() => void provider.signOut().then(() => { setIdentity(null); navigate("signin"); })} />;
+  if (view !== "landing" && identity && provider && workspaceRepository && !cockpitOpen) return <WorkspaceHome account={identity.account} session={identity.session} identityProvider={provider} repository={workspaceRepository} onOpenCockpit={(scope) => { setWorkspaceScope(scope); setCockpitOpen(true); }} onAcceptInvitation={() => navigate("invite")} onSignOut={() => void provider.signOut().then(() => { setIdentity(null); navigate("signin"); })} onReset={() => { setIdentity(null); setCockpitOpen(false); navigate("register"); }} />;
 
   if (view !== "landing" && identity && provider && cockpitOpen && workspaceScope) {
     return (

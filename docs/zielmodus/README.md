@@ -10,6 +10,7 @@ The active roadmap is delivered as small, independently verifiable work packages
 | 4 | [ZM-PROD-05D](zm-prod-05d-agent-quality-operations.md) | Evaluation, retry, replay and operational visibility | Evaluation and failure-recovery gates pass |
 | 5 | [ZM-PROD-09A](zm-prod-09a-release-recovery.md) | Workflow release promotion, backup and recovery | Export, restore and rollback are rehearsed |
 | 6 | [ZM-PROD-10](zm-prod-10-multi-tenant-workspace-foundation.md) | Landing page, local identity boundary, organisation governance and isolated multi-project workspaces | Identity, tenancy, accessibility, regression and Pages gates pass |
+| 7 | [ZM-PROD-11–17](zm-prod-11-17-improvement-programme.md) | Local safety, portfolio steering, delivery workbench, agent control, reporting, design and operational quality | Each sequential package is merged, deployed and verified before the next begins |
 
 Azure production identity and persistence activation, SharePoint integration and Teams integration are explicitly deferred until they become relevant and the required platform access exists. ZM-PROD-10 prepares replaceable adapters without treating local browser identity as production security.
 

@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { WorkspaceRepository } from "@/lib/workspace-repository";
-import type { Invitation, MembershipAuditEvent, Organisation, OrganisationMembership, ProjectWorkspace, UserAccount, WorkspaceRole } from "@/lib/workspace-schema";
+import type { Invitation, MembershipAuditEvent, Organisation, OrganisationMembership, ProjectWorkspace, Session, UserAccount, WorkspaceRole } from "@/lib/workspace-schema";
 import type { WorkspaceScope } from "@/lib/project-data-repository";
 import { BrandMark } from "./brand-mark";
+import type { IdentityProvider } from "@/lib/identity-provider";
+import { AccountSafetyPanel } from "./account-safety-panel";
 
 const roles: WorkspaceRole[] = ["owner", "portfolio_lead", "project_lead", "contributor", "viewer"];
 const roleLabel = (role: WorkspaceRole) => role.split("_").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ");
 
-export function WorkspaceHome({ account, repository, onOpenCockpit, onAcceptInvitation, onSignOut }: { account: UserAccount; repository: WorkspaceRepository; onOpenCockpit: (scope: WorkspaceScope) => void; onAcceptInvitation: () => void; onSignOut: () => void }) {
+export function WorkspaceHome({ account, session, identityProvider, repository, onOpenCockpit, onAcceptInvitation, onSignOut, onReset }: { account: UserAccount; session: Session; identityProvider: IdentityProvider; repository: WorkspaceRepository; onOpenCockpit: (scope: WorkspaceScope) => void; onAcceptInvitation: () => void; onSignOut: () => void; onReset: () => void }) {
   const [organisations, setOrganisations] = useState<Organisation[]>([]); const [selectedId, setSelectedId] = useState("");
   const [members, setMembers] = useState<OrganisationMembership[]>([]); const [invitations, setInvitations] = useState<Invitation[]>([]); const [audit, setAudit] = useState<MembershipAuditEvent[]>([]);
   const [projects, setProjects] = useState<ProjectWorkspace[]>([]); const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -48,6 +50,7 @@ export function WorkspaceHome({ account, repository, onOpenCockpit, onAcceptInvi
       <div className="workspace-grid"><section className="workspace-panel"><header><div><span className="public-kicker">MEMBERS</span><h2>Role governance</h2></div><b>{members.length} active</b></header>{members.map((member) => <article key={member.id}><div><strong>{member.userId === account.id ? account.displayName : "Invited member"}</strong><small>{member.userId}</small></div><select aria-label={`Role for ${member.userId}`} value={member.role} onChange={(event) => void changeRole(member, event.target.value as WorkspaceRole)}>{roles.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}</select><button aria-label={`Remove ${member.userId}`} onClick={() => void repository.removeMembership(selected.id, account.id, member.id).then(() => refresh(selected.id)).catch((reason) => setError(reason.message))}>Remove</button></article>)}</section>
         <section className="workspace-panel"><header><div><span className="public-kicker">INVITATIONS</span><h2>Invite a member</h2></div></header><form className="invite-form" onSubmit={invite}><label><span>Email</span><input name="inviteEmail" type="email" required /></label><label><span>Role</span><select name="inviteRole" defaultValue="viewer">{roles.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}</select></label><button className="public-button">Create invitation</button></form>{issuedCode && <div className="invitation-code" role="status"><b>Copy this code now</b><code>{issuedCode}</code><span>Shown once. Send it through an approved channel.</span></div>}<div className="invitation-list">{invitations.map((item) => <div key={item.id}><span><b>{item.email}</b><small>{roleLabel(item.role)} · {item.status}</small></span>{item.status === "pending" && <button onClick={() => void repository.revokeInvitation(selected.id, account.id, item.id).then(() => refresh(selected.id))}>Revoke</button>}</div>)}</div></section>
         <section className="workspace-panel workspace-audit"><header><div><span className="public-kicker">AUDIT</span><h2>Governance activity</h2></div></header>{audit.map((item) => <article key={item.id}><b>{item.event}</b><span>{item.detail}</span><time>{new Date(item.at).toLocaleString("en-GB")}</time></article>)}</section></div>
+      <AccountSafetyPanel account={account} session={session} provider={identityProvider} onReset={onReset} />
     </>}
   </main></div>;
 }

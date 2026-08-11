@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { IdentityProvider, IdentityResult } from "@/lib/identity-provider";
 import { BrandMark } from "./brand-mark";
+import { BackupRestoreControl } from "./backup-restore-control";
 
 type IdentityMode = "signin" | "register" | "invite";
 
@@ -50,6 +51,7 @@ export function IdentityEntry({ provider, mode, onAuthenticated, onNavigate, onB
         <button className="public-button public-button-large" disabled={busy}>{busy ? "Please wait…" : copy.action}</button>
         <footer>{mode !== "signin" && <button type="button" onClick={() => onNavigate("signin")}>Already registered? Sign in</button>}{mode === "signin" && <><button type="button" onClick={() => onNavigate("register")}>Create account</button><button type="button" onClick={() => onNavigate("invite")}>Accept invitation</button></>}</footer>
       </form>
+      {mode === "signin" && <BackupRestoreControl compact onRestored={() => setSuccess("Backup restored. Sign in with the local account password from that backup.")} />}
     </main>
   </div>;
 }
