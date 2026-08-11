@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Icons } from "./icons";
 import type { PmoDocument } from "@/lib/pmo-schema";
+import { BrandMark } from "./brand-mark";
 import { buildCorePmoSummary } from "@/lib/reporting-schema";
 import { approveSteercoSnapshot, generateSteercoDraft, publishSteercoSnapshot, rejectSteercoSnapshot, reviseSteercoSection, revokeSteercoShare, rollbackSteercoPublication } from "@/lib/steerco-client";
 import { applySteercoApproval, applySteercoRagOverride, assertSteercoSourcesCurrent, buildSteercoEnvelope, buildSteercoEvidence, rejectSteercoDraft, resolveSteercoPeriod, type SteercoClaim, type SteercoPeriod, type SteercoRag, type SteercoSnapshot } from "@/lib/steerco-schema";
@@ -126,7 +127,7 @@ export function SteercoWorkbench({ pmo, workspaceSecret }: { pmo: PmoDocument; w
 }
 
 export function SteercoReadOnly({ snapshot }: { snapshot: SteercoSnapshot }) {
-  return <main className="steerco-readonly"><header className="steerco-readonly-bar"><div><span className="eraneos-mark"><b>ERANEOS</b></span><b>Steering Committee summary</b></div><div><span>View only</span><button className="button secondary" onClick={() => window.print()}>Print / Save as PDF</button></div></header><SteercoReport snapshot={snapshot} editable={false}/><footer>Immutable approved snapshot · No editing authority · Generated data is limited to SteerCo visibility.</footer></main>;
+  return <main className="steerco-readonly"><header className="steerco-readonly-bar"><div><BrandMark compact/><b>Steering Committee summary</b></div><div><span>View only</span><button className="button secondary" onClick={() => window.print()}>Print / Save as PDF</button></div></header><SteercoReport snapshot={snapshot} editable={false}/><footer>Immutable approved snapshot · No editing authority · Generated data is limited to SteerCo visibility.</footer></main>;
 }
 
 function SteercoReport({ snapshot, editable, onEditClaim }: { snapshot: SteercoSnapshot; editable: boolean; onEditClaim?: (id: string, text: string) => void }) {

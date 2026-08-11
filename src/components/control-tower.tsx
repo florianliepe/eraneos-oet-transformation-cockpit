@@ -11,6 +11,7 @@ import { deletePmoRecord, governedCollections, linkedRecordCount, updateProject,
 import { SteercoReadOnly, SteercoWorkbench } from "./steerco-summary";
 import { loadSteercoShare } from "@/lib/steerco-client";
 import type { SteercoSnapshot } from "@/lib/steerco-schema";
+import { BrandMark } from "./brand-mark";
 
 type View = "intake" | "overview" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
@@ -66,10 +67,6 @@ function titleCase(value: string) { return value.replaceAll("_", " ").replace(/\
 function riskScore(risk: Risk) { return risk.probability * risk.impact; }
 function relativeDay(value: string, anchor: string) {
   return new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(Math.round((new Date(value).getTime() - new Date(anchor).getTime()) / 86_400_000), "day");
-}
-
-function BrandMark() {
-  return <div className="brand-lockup" aria-label="eraneos Transformation Cockpit, part of OET AI Suite"><span className="eraneos-mark"><span className="eraneos-glyph"><i/><i/><i/></span><b>ERANEOS</b></span><span className="product-lockup"><b>Transformation Cockpit</b><small>part of OET AI Suite</small></span></div>;
 }
 
 function RagDot({ rag, label = true }: { rag: Rag; label?: boolean }) {
