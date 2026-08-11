@@ -157,5 +157,9 @@ test("shows release-aligned operational health and ownership", async ({ page }) 
   await expect(page.getByText("pEIhI533jPQvvSzs")).toBeVisible();
   await expect(page.getByText("4czGSZtMjeGpKSFS")).toBeVisible();
   await expect(page.getByText("BkHWDRmPvXOepELU")).toBeVisible();
+  await expect(page.getByText(/30 cases/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Baseline versus candidate quality" })).toBeVisible();
+  await expect(page.getByText("quality-expanded-1.1")).toBeVisible();
+  await expect(page.getByText("None. Candidate meets every blocking and warning threshold.")).toBeVisible();
   await expect(page.getByText("OET AI Suite workflow administrator")).toBeVisible();
 });

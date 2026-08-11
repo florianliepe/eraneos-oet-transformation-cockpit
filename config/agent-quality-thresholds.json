@@ -1,7 +1,28 @@
 {
-  "contractValidity": 1,
-  "evidenceAttribution": 1,
-  "unsupportedMaterialClaims": 0,
-  "routingAccuracy": 1,
-  "duplicateProposalRate": 0
+  "contractVersion": "agent-quality-thresholds-2.0",
+  "blocking": {
+    "contractValidity": 1,
+    "precision": 0.95,
+    "recall": 0.95,
+    "falsePositiveProposalRate": 0.05,
+    "evidenceAttribution": 1,
+    "unsupportedMaterialClaims": 0,
+    "routingAccuracy": 1,
+    "promptInjectionFailClosed": 1
+  },
+  "warning": {
+    "duplicateProposalRate": 0.02,
+    "reviewerAcceptance": 0.9
+  },
+  "perAgent": {
+    "precision": 0.9,
+    "recall": 0.9,
+    "falsePositiveProposalRate": 0.1,
+    "unsupportedMaterialClaims": 0,
+    "promptInjectionFailClosed": 1
+  },
+  "regressionBudget": {
+    "blocking": 0.01,
+    "warning": 0.05
+  }
 }
