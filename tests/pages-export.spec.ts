@@ -17,7 +17,9 @@ test("serves the static cockpit under the GitHub project path with working asset
   await page.getByRole("button", { name: "Create local account" }).click();
   await page.getByLabel("Organisation name").fill("Pages Test Office");
   await page.getByRole("button", { name: "Create organisation" }).click();
-  await page.getByRole("button", { name: "Open neutral demo project" }).click();
+  await page.getByLabel("Project name").fill("Pages Project");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("button", { name: "Open cockpit" }).click();
   await page.getByLabel("Temporary workspace credential").fill("pages-test-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(page.getByRole("heading", { name: "Executive overview" })).toBeVisible();

@@ -148,6 +148,14 @@ Execution status: **implemented and validated** on 2026-08-11.
 4. Migrate the current single demo project into a neutral seeded workspace without losing fixtures or governance lineage.
 5. Prove that switching projects cannot expose another project’s data.
 
+Execution status: **implemented and validated** on 2026-08-11.
+
+- Organisation dashboards support project creation, retained selection, rename, recoverable archive and restore, with the neutral cockpit opened only from a selected active project.
+- Versioned project workspace and project membership contracts resolve every local project through an organisation, project and canonical PMO document reference.
+- The `ProjectDataRepository` boundary namespaces browser-local PMO envelopes by contract version, organisation and project, rejects mismatched writes and derives neutral seeded documents per selected workspace.
+- Workflow requests carry the selected organisation/project scope, agent operation records and encrypted recovery references are project-scoped, and proposal/report state resets at the selected cockpit boundary.
+- Domain and browser tests cover two-project steering, lifecycle recovery, retained context, denied cross-organisation discovery and Project A/Project B data isolation.
+
 ### ZM-PROD-10E — Production adapter readiness
 
 1. Document the Entra External ID, API and PostgreSQL adapter contracts.

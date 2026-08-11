@@ -21,6 +21,8 @@ import { GlobalSearch } from "./global-search";
 import { ProgrammeDecisionView } from "./programme-decision-view";
 import { buildAgentOperationRecord, updateAgentOperationRecord, type AgentOperationRecord } from "@/lib/agent-operations";
 import { listAgentOperationRecords, loadEncryptedRecoveryInput, saveAgentOperationRecord, saveEncryptedRecoveryInput } from "@/lib/agent-operations-store";
+import type { WorkspaceScope } from "@/lib/project-data-repository";
+import { scopeDocument } from "@/lib/local-project-data-repository";
 
 type View = "intake" | "review" | "operations" | "health" | "overview" | "portfolio" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
@@ -99,7 +101,7 @@ function StatusPill({ status }: { status: string }) {
   return <span className={`status-pill status-${tone}`}>{titleCase(status)}</span>;
 }
 
-export default function ControlTower({ initialData }: { initialData: PmoDocument }) {
+export default function ControlTower({ initialData, workspaceScope }: { initialData: PmoDocument; workspaceScope: WorkspaceScope }) {
   const [view, setView] = useState<View>("overview");
   const [data, setData] = useState<PmoDocument | null>(initialData);
   const [source, setSource] = useState<"github" | "bootstrap">("bootstrap");
@@ -142,11 +144,11 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
   async function loadData(secret = workspaceSecret) {
     setLoading(true); setError("");
     try {
-      const payload = await loadPmoDocument(secret);
+      const payload = await loadPmoDocument(secret, workspaceScope);
       if (!payload.ok || !payload.document) throw new Error(payload.error || "Unable to load project data.");
-      setData(payload.document); setSource(payload.source || "bootstrap"); setStorageConfigured(Boolean(payload.storageConfigured)); setDirty(false);
+      setData(scopeDocument(payload.document, workspaceScope)); setSource(payload.source || "bootstrap"); setStorageConfigured(Boolean(payload.storageConfigured)); setDirty(false);
       setWorkspaceSecret(secret); setAccessOpen(false); setAccessError("");
-      setRunHistory(await listAgentOperationRecords());
+      setRunHistory(await listAgentOperationRecords(workspaceScope));
     } catch (reason: unknown) {
       const message = reason instanceof Error ? reason.message : "Unable to load project data.";
       if (accessOpen) setAccessError(message); else setError(message);
@@ -174,9 +176,9 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
     if (!data) return;
     setSaving(true); setError("");
     try {
-      const payload = await savePmoDocument(workspaceSecret, data);
+      const payload = await savePmoDocument(workspaceSecret, data, workspaceScope);
       if (!payload.ok || !payload.document) throw new Error(payload.error || "Publish failed.");
-      setData(payload.document); setSource("github"); setDirty(false); setPublishOpen(false);
+      setData(scopeDocument(payload.document, workspaceScope)); setSource("github"); setDirty(false); setPublishOpen(false);
     } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Publish failed."); }
     finally { setSaving(false); }
   }
@@ -187,7 +189,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
       textUpdatePresent: Boolean(submission.textUpdate.trim()),
       evidence: submission.files.map((file) => ({ name: file.name, mediaType: file.type || "application/octet-stream", size: file.size })),
     };
-    const record = buildAgentOperationRecord({ run, descriptor, source: recovery?.source, recoveryMode: recovery?.mode });
+    const record = buildAgentOperationRecord({ run, scope: workspaceScope, descriptor, source: recovery?.source, recoveryMode: recovery?.mode });
     setRunHistory((current) => [record, ...current.filter((item) => item.executionId !== record.executionId)]);
     try {
       await saveEncryptedRecoveryInput(workspaceSecret, record.input.ref, submission);
@@ -202,11 +204,11 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
     const { meta, files, textUpdate } = submission;
     setWorkflowSaving(true); setError(""); setWorkflowResult(null);
     try {
-      const payload = await ingestEvidence(workspaceSecret, meta, files, textUpdate);
+      const payload = await ingestEvidence(workspaceSecret, meta, files, workspaceScope, textUpdate);
       if (!payload.ok) throw new Error(payload.error || "Workflow intake failed.");
-      const refreshed = payload.document ? { ok: true, document: payload.document, source: "github" as const, storageConfigured: true } : await loadPmoDocument(workspaceSecret);
+      const refreshed = payload.document ? { ok: true, document: payload.document, source: "github" as const, storageConfigured: true } : await loadPmoDocument(workspaceSecret, workspaceScope);
       if (refreshed.document) {
-        setData(refreshed.document);
+        setData(scopeDocument(refreshed.document, workspaceScope));
         setSource(refreshed.source || "github");
         setStorageConfigured(Boolean(refreshed.storageConfigured));
         setDirty(false);
@@ -231,9 +233,9 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
     if (!data) return;
     setReviewBusy(true); setError("");
     try {
-      const publication = await reviewAndPublishProposalSet(workspaceSecret, proposalSet, reviewer, decisions, data.revision);
+      const publication = await reviewAndPublishProposalSet(workspaceSecret, proposalSet, reviewer, decisions, data.revision, workspaceScope);
       if (!publication.ok) throw new Error("The governed publisher rejected the review bundle.");
-      if (publication.document) setData(publication.document);
+      if (publication.document) setData(scopeDocument(publication.document, workspaceScope));
       const nextStatus = publication.acceptedProposalIds.length ? "published" : "rejected";
       setProposalSets((current) => current.map((item) => item.id === proposalSet.id ? { ...item, status: nextStatus } : item));
       const reviewOutcome = publication.acceptedProposalIds.length && publication.rejectedProposalIds.length ? "mixed" : publication.acceptedProposalIds.length ? "accepted" : "rejected";
@@ -348,7 +350,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
       {mobileNav && <button className="nav-scrim mobile-only" aria-label="Close navigation" onClick={() => setMobileNav(false)}/>}
       <aside className={cx("sidebar", mobileNav && "sidebar-open")} aria-label="Project navigation">
         <div className="sidebar-head"><BrandMark/><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Close navigation"><Icons.close/></button></div>
-        <div className="project-switcher"><span className="project-monogram">TC</span><div><b>Transformation Workspace</b><small>OET AI Suite</small></div><Icons.chevron/></div>
+        <div className="project-switcher"><span className="project-monogram">TC</span><div><b>{workspaceScope.projectName}</b><small>{workspaceScope.projectId}</small></div><Icons.chevron/></div>
         <nav aria-label="Primary navigation">
           <span className="nav-label">Project control</span>
           {navigation.map((item) => { const NavIcon = Icons[item.icon]; const count = item.id === "risks" ? data.risks.filter((risk) => risk.state !== "closed").length : item.id === "review" ? proposalSets.filter((set) => set.status === "pending_review").length : 0; return <button key={item.id} className={cx("nav-item", view === item.id && "active")} aria-current={view === item.id ? "page" : undefined} onClick={() => { setView(item.id); setMobileNav(false); }}><NavIcon/><span>{item.label}</span>{count > 0 && <em>{count}</em>}</button>; })}

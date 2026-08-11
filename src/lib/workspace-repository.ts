@@ -1,4 +1,4 @@
-import type { Invitation, MembershipAuditEvent, Organisation, OrganisationMembership, UserAccount, WorkspaceRole } from "./workspace-schema";
+import type { Invitation, MembershipAuditEvent, Organisation, OrganisationMembership, ProjectWorkspace, UserAccount, WorkspaceRole } from "./workspace-schema";
 
 export type IssuedInvitation = { invitation: Invitation; code: string };
 export interface WorkspaceRepository {
@@ -12,4 +12,9 @@ export interface WorkspaceRepository {
   updateMembershipRole(organisationId: string, actorUserId: string, membershipId: string, role: WorkspaceRole): Promise<OrganisationMembership>;
   removeMembership(organisationId: string, actorUserId: string, membershipId: string): Promise<void>;
   listAudit(organisationId: string, actorUserId: string): Promise<MembershipAuditEvent[]>;
+  listProjects(organisationId: string, actorUserId: string, includeArchived?: boolean): Promise<ProjectWorkspace[]>;
+  createProject(organisationId: string, actorUserId: string, name: string): Promise<ProjectWorkspace>;
+  renameProject(organisationId: string, actorUserId: string, projectId: string, name: string): Promise<ProjectWorkspace>;
+  archiveProject(organisationId: string, actorUserId: string, projectId: string): Promise<ProjectWorkspace>;
+  restoreProject(organisationId: string, actorUserId: string, projectId: string): Promise<ProjectWorkspace>;
 }

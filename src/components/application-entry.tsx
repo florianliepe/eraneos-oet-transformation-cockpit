@@ -8,6 +8,7 @@ import type { IdentityProvider, IdentityResult } from "@/lib/identity-provider";
 import { LocalWorkspaceRepository } from "@/lib/local-workspace-repository";
 import type { WorkspaceRepository } from "@/lib/workspace-repository";
 import { WorkspaceHome } from "./workspace-home";
+import type { WorkspaceScope } from "@/lib/project-data-repository";
 
 type PublicView = "landing" | "signin" | "register" | "invite";
 
@@ -26,6 +27,7 @@ export default function ApplicationEntry() {
   const [workspaceRepository, setWorkspaceRepository] = useState<WorkspaceRepository | null>(null);
   const [identityReady, setIdentityReady] = useState(false);
   const [cockpitOpen, setCockpitOpen] = useState(false);
+  const [workspaceScope, setWorkspaceScope] = useState<WorkspaceScope | null>(null);
 
   useEffect(() => {
     const syncView = () => setView(viewFromLocation());
@@ -54,9 +56,9 @@ export default function ApplicationEntry() {
 
   if (view === "invite" && provider) return <IdentityEntry provider={provider} mode="invite" onAuthenticated={(result) => { setIdentity(result); navigate("signin"); }} onNavigate={navigate} onBack={() => navigate("landing")} />;
 
-  if (view !== "landing" && identity && provider && workspaceRepository && !cockpitOpen) return <WorkspaceHome account={identity.account} repository={workspaceRepository} onOpenCockpit={() => setCockpitOpen(true)} onAcceptInvitation={() => navigate("invite")} onSignOut={() => void provider.signOut().then(() => { setIdentity(null); navigate("signin"); })} />;
+  if (view !== "landing" && identity && provider && workspaceRepository && !cockpitOpen) return <WorkspaceHome account={identity.account} repository={workspaceRepository} onOpenCockpit={(scope) => { setWorkspaceScope(scope); setCockpitOpen(true); }} onAcceptInvitation={() => navigate("invite")} onSignOut={() => void provider.signOut().then(() => { setIdentity(null); navigate("signin"); })} />;
 
-  if (view !== "landing" && identity && provider && cockpitOpen) {
+  if (view !== "landing" && identity && provider && cockpitOpen && workspaceScope) {
     return (
       <Suspense fallback={<EntryLoading />}>
         <div className="authenticated-entry-bar">
@@ -65,7 +67,7 @@ export default function ApplicationEntry() {
           <button type="button" onClick={() => navigate("invite")}>Accept invitation</button>
           <button type="button" onClick={() => void provider.signOut().then(() => { setIdentity(null); setCockpitOpen(false); navigate("signin"); })}>Sign out</button>
         </div>
-        <AuthenticatedCockpit />
+        <AuthenticatedCockpit scope={workspaceScope} />
       </Suspense>
     );
   }

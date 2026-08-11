@@ -21,7 +21,9 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole("button", { name: "Create local account" }).click();
   await page.getByLabel("Organisation name").fill("Accessibility Test Office");
   await page.getByRole("button", { name: "Create organisation" }).click();
-  await page.getByRole("button", { name: "Open neutral demo project" }).click();
+  await page.getByLabel("Project name").fill("Accessibility Project");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("button", { name: "Open cockpit" }).click();
   await page.getByLabel("Temporary workspace credential").fill("accessibility-test");
   await page.getByRole("button", { name: "Open workspace" }).click();
 });

@@ -71,10 +71,31 @@ export const SessionSchema = z.object({
   expiresAt: DateTimeSchema,
 });
 
+export const ProjectWorkspaceSchema = z.object({
+  contractVersion: z.literal(WORKSPACE_CONTRACT_VERSION),
+  id: OpaqueIdSchema,
+  organisationId: OpaqueIdSchema,
+  name: z.string().min(2).max(140),
+  status: z.enum(["active", "archived"]),
+  canonicalDocumentRef: z.string().min(1).max(240),
+  createdByUserId: OpaqueIdSchema,
+  createdAt: DateTimeSchema,
+  updatedAt: DateTimeSchema,
+  archivedAt: DateTimeSchema.optional(),
+});
+
+export const ProjectMembershipSchema = z.object({
+  contractVersion: z.literal(WORKSPACE_CONTRACT_VERSION), id: OpaqueIdSchema,
+  organisationId: OpaqueIdSchema, projectId: OpaqueIdSchema, userId: OpaqueIdSchema,
+  role: WorkspaceRoleSchema, status: z.enum(["active", "suspended"]), createdAt: DateTimeSchema, updatedAt: DateTimeSchema,
+});
+
 export type UserAccount = z.infer<typeof UserAccountSchema>;
 export type Organisation = z.infer<typeof OrganisationSchema>;
 export type OrganisationMembership = z.infer<typeof OrganisationMembershipSchema>;
 export type MembershipAuditEvent = z.infer<typeof MembershipAuditEventSchema>;
 export type Invitation = z.infer<typeof InvitationSchema>;
 export type Session = z.infer<typeof SessionSchema>;
+export type ProjectWorkspace = z.infer<typeof ProjectWorkspaceSchema>;
+export type ProjectMembership = z.infer<typeof ProjectMembershipSchema>;
 export type WorkspaceRole = z.infer<typeof WorkspaceRoleSchema>;
