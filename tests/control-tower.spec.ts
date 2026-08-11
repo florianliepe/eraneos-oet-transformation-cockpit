@@ -57,6 +57,14 @@ test("navigates through the retained core delivery views", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "SteerCo summary", level: 1 })).toBeVisible();
 });
 
+test("configures a scoped executive report reviewer and decision request", async ({ page }) => {
+  await page.getByRole("button", { name: "SteerCo summary" }).click();
+  await expect(page.getByText("Project Steering Committee · executive-reporting-1.0")).toBeVisible();
+  await expect(page.getByLabel("Assigned reviewer")).toHaveValue("Programme Sponsor");
+  await expect(page.getByLabel("Decision requested")).toHaveValue("Confirm recovery action and delivery tolerance.");
+  await expect(page.getByText("Portfolio packs use the same contract")).toBeVisible();
+});
+
 test("shows governed programme hierarchy, variance, critical path and scenario impact", async ({ page }) => {
   await page.getByRole("button", { name: "Programme decisions" }).click();
   await expect(page.getByRole("heading", { name: "Programme decisions", level: 1 })).toBeVisible();

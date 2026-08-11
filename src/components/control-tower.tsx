@@ -384,7 +384,7 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
             onApply={(next) => { setData(next); setDirty(true); }}
           />}
           {view === "meetings" && <MeetingView data={data} query={query} onEdit={setEditor} onDelete={requestDelete}/>}
-          {view === "steerco" && <SteercoWorkbench pmo={data} workspaceSecret={workspaceSecret}/>}
+          {view === "steerco" && <SteercoWorkbench pmo={data} workspaceSecret={workspaceSecret} workspaceScope={workspaceScope}/>}
           {view === "activity" && <ActivityView data={data} storageConfigured={storageConfigured}/>} 
         </div>
       </main>

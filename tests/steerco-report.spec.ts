@@ -13,6 +13,7 @@ import {
   SteercoSnapshotSchema,
 } from "../src/lib/steerco-schema";
 import { buildSteercoPowerPoint } from "../src/lib/steerco-export";
+import { appendPublicationReceipt, assertExecutiveReportPublishable, buildExecutiveReportPackage, buildPortfolioDecisionPack, recordExecutiveReview, reportSourceFingerprint } from "../src/lib/executive-reporting";
 import JSZip from "jszip";
 
 const pmo = structuredClone(bootstrapPmoData);
@@ -88,6 +89,30 @@ test("compares governed periods without mutating either immutable input", () => 
   expect(previous.reporting.trends[0].previous).toBeUndefined();
 });
 
+test("binds project reporting to scope, assigned review and immutable publication receipts", () => {
+  const draft = buildSteercoEvidence(envelope(), "PMO Lead");
+  const supported = { ...draft, executiveSummary: [{ id: "AI-1", text: "Critical delivery evidence requires a decision.", kind: "ai_narrative" as const, sourceIds: ["R-1", "DEL-1"] }] };
+  const approved = applySteercoApproval(supported, "Programme Sponsor", "Reviewed cited evidence.");
+  const assigned = buildExecutiveReportPackage({ snapshot: approved, scope: { organisationId: "org_test01", targetKind: "project", targetIds: ["prj_test01"] }, reviewer: "Programme Sponsor", decisionRequests: [{ id: "REQ-1", title: "Confirm recovery tolerance", owner: "Programme Sponsor", dueDate: "2026-08-31", status: "requested", sourceIds: ["R-1"] }] });
+  expect(() => recordExecutiveReview(assigned, "Another reviewer", "approved", "Reviewed.")).toThrow(/assigned reviewer/);
+  const reviewed = recordExecutiveReview(assigned, "Programme Sponsor", "approved", "Reviewed evidence and decision request.", "2026-08-11T12:00:00.000Z");
+  expect(assertExecutiveReportPublishable(reviewed, approved)).toBe(true);
+  expect(() => assertExecutiveReportPublishable(reviewed, { ...approved, sourceRevision: { ...approved.sourceRevision, pmo: approved.sourceRevision.pmo + 1 } })).toThrow(/sources changed/);
+  const published = appendPublicationReceipt(appendPublicationReceipt(reviewed, "approved", "Programme Sponsor", "Approved.", "2026-08-11T12:01:00.000Z"), "published", "Programme Sponsor", undefined, "2026-08-11T12:02:00.000Z");
+  expect(published.publicationHistory[1]).toMatchObject({ action: "published", previousReceiptId: published.publicationHistory[0].id });
+});
+
+test("builds a portfolio pack only from approved snapshots and keeps missing projects explicit", () => {
+  const draft = buildSteercoEvidence(envelope(), "PMO Lead");
+  const supported = { ...draft, executiveSummary: [{ id: "AI-1", text: "Portfolio attention is required.", kind: "ai_narrative" as const, sourceIds: ["R-1"] }] };
+  const approved = applySteercoApproval(supported, "Sponsor", "Reviewed sources.");
+  const pack = buildPortfolioDecisionPack("org_test01", [{ projectId: "prj_test01", snapshot: approved }, { projectId: "prj_test02" }], "2026-08-11T12:00:00.000Z");
+  expect(pack.projects).toHaveLength(1);
+  expect(pack.attention[0]).toMatchObject({ projectId: "prj_test01" });
+  expect(pack.missing).toEqual(["prj_test02: no approved snapshot supplied."]);
+  expect(pack.projects[0].sourceFingerprint).toBe(reportSourceFingerprint(approved));
+});
+
 test("blocks unsupported material claims and creates a reproducible PowerPoint package after review", async () => {
   const draft = buildSteercoEvidence(envelope(), "PMO Lead");
   const unsupported = { ...draft, executiveSummary: [{ id: "J-1", text: "Leadership believes adoption will accelerate.", kind: "human_override" as const, sourceIds: [] }] };
@@ -100,4 +125,6 @@ test("blocks unsupported material claims and creates a reproducible PowerPoint p
   const evidenceSlide = await zip.file("ppt/slides/slide5.xml")?.async("string");
   expect(evidenceSlide).toContain("Source PMO revision");
   expect(evidenceSlide).toContain("Sponsor");
+  const manifest = JSON.parse(await zip.file("_provenance/report-manifest.json")!.async("string"));
+  expect(manifest).toMatchObject({ contractVersion: "executive-report-export-1.0", snapshotId: approved.id, sourceFingerprint: reportSourceFingerprint(approved) });
 });
