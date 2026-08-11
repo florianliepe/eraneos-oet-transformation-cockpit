@@ -11,7 +11,8 @@ const files = [
   "docs/n8n/agents/governed-publisher-smoke.workflow.json",
   ...manifest.workflows.map((item) => `docs/n8n/agents/${item.file}`),
 ];
-const artifacts = files.map((file) => ({ file, sha256: createHash("sha256").update(readFileSync(resolve(file))).digest("hex") }));
+const canonicalBytes = (file) => readFileSync(resolve(file), "utf8").replace(/\r\n/g, "\n");
+const artifacts = files.map((file) => ({ file, sha256: createHash("sha256").update(canonicalBytes(file)).digest("hex") }));
 const release = {
   releaseContract: "workflow-release-1.0",
   releaseId: "2026-08-11-zm-prod-09a",

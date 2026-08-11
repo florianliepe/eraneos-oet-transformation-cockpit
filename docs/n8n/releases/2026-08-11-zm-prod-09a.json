@@ -37,15 +37,15 @@
   "artifacts": [
     {
       "file": "docs/n8n-pmo-orchestrator.workflow.json",
-      "sha256": "59612138c59f33fab2a33f455ace016999a3c28f0af6a269bc8f2fb317b75b52"
+      "sha256": "a10400cd71433ec39ca8bc2f0626d6b17e657cea2c33700cb0ef1c49f396422d"
     },
     {
       "file": "docs/n8n/agents/governed-publisher.workflow.json",
-      "sha256": "a2c817dd68aa027985a714f2c321c9309e650fa2e72f912fe75e7c4580473198"
+      "sha256": "6f3cc0fa6f87e477ca2615861e9ef05bce8146762384bf50680b534547eb766d"
     },
     {
       "file": "docs/n8n/agents/error-handler.workflow.json",
-      "sha256": "942c3fd581b032bfcb214a232ac9a8b530e8a7f133da606564675ca5ca9fdf16"
+      "sha256": "53760a4c394570a2c04bd58c4a0e20299688b1646d5a4f2a99f1c4ed0d7f419a"
     },
     {
       "file": "docs/n8n/agents/smoke-test.workflow.json",
@@ -53,7 +53,7 @@
     },
     {
       "file": "docs/n8n/agents/governed-publisher-smoke.workflow.json",
-      "sha256": "9fea0b8cd62a01d2525e0bc87a4b21c918301080909944b0bdaae29a2e589f4c"
+      "sha256": "94d878aae1d535f3cb128ac26f874c9f23ba736d933f5fc6fc0f9e7e1a770f8d"
     },
     {
       "file": "docs/n8n/agents/evidence-verify.workflow.json",

@@ -7,10 +7,10 @@ const errors = [];
 if (release.releaseContract !== "workflow-release-1.0") errors.push("Invalid release contract.");
 if (release.endpoint.webhookPath !== "a2126107-4e70-4717-8f1c-545d7f310741") errors.push("Public endpoint contract changed.");
 for (const artifact of release.artifacts) {
-  const content = readFileSync(resolve(artifact.file));
-  const checksum = createHash("sha256").update(content).digest("hex");
+  const content = readFileSync(resolve(artifact.file), "utf8");
+  const checksum = createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex");
   if (checksum !== artifact.sha256) errors.push(`Checksum mismatch: ${artifact.file}`);
-  const workflow = JSON.parse(content.toString("utf8"));
+  const workflow = JSON.parse(content);
   if (workflow.active !== false) errors.push(`Source workflow must be inactive: ${artifact.file}`);
   if (!workflow.name || !workflow.nodes?.length || !workflow.connections) errors.push(`Invalid workflow backup: ${artifact.file}`);
 }
