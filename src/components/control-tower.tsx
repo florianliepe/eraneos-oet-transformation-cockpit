@@ -18,10 +18,11 @@ import type { DecisionInput, ProposalSet } from "@/lib/governed-proposals";
 import { AgentOperationsPanel } from "./agent-operations-panel";
 import { OperationalHealth } from "./operational-health";
 import { GlobalSearch } from "./global-search";
+import { ProgrammeDecisionView } from "./programme-decision-view";
 import { buildAgentOperationRecord, updateAgentOperationRecord, type AgentOperationRecord } from "@/lib/agent-operations";
 import { listAgentOperationRecords, loadEncryptedRecoveryInput, saveAgentOperationRecord, saveEncryptedRecoveryInput } from "@/lib/agent-operations-store";
 
-type View = "intake" | "review" | "operations" | "health" | "overview" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
+type View = "intake" | "review" | "operations" | "health" | "overview" | "portfolio" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
 type DeleteTarget = { entity: Exclude<EditableEntity, "project">; id: string; label: string; blockedReason?: string };
 
@@ -31,6 +32,7 @@ const navigation: Array<{ id: View; label: string; icon: keyof typeof Icons }> =
   { id: "operations", label: "Agent operations", icon: "activity" },
   { id: "health", label: "Operational health", icon: "dashboard" },
   { id: "overview", label: "Executive overview", icon: "dashboard" },
+  { id: "portfolio", label: "Programme decisions", icon: "dashboard" },
   { id: "plan", label: "Plan & deliverables", icon: "plan" },
   { id: "risks", label: "Risk register", icon: "risk" },
   { id: "registers", label: "PMO registers", icon: "plan" },
@@ -45,6 +47,7 @@ const viewMeta: Record<View, { eyebrow: string; title: string; description: stri
   operations: { eyebrow: "Agent operations", title: "Execution control", description: "Inspect run health, versions, latency and safe recovery lineage." },
   health: { eyebrow: "Production operations", title: "Operational health", description: "Release readiness, authoritative bindings and actionable incident signals." },
   overview: { eyebrow: "Control tower", title: "Executive overview", description: "One live view of delivery health, decisions and exposure." },
+  portfolio: { eyebrow: "Portfolio decision support", title: "Programme decisions", description: "Governed hierarchy, value, capacity, financial variance and scenario impact." },
   plan: { eyebrow: "Delivery", title: "Plan & deliverables", description: "Track gate milestones and workstream commitments." },
   risks: { eyebrow: "RAID", title: "Risk register", description: "Prioritise exposure and keep mitigation ownership visible." },
   registers: { eyebrow: "Governed domain", title: "PMO registers", description: "Control issues, actions, decisions, dependencies, assumptions, change and their evidence." },
@@ -367,6 +370,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
           {view === "operations" && <AgentOperationsPanel records={runHistory} busy={workflowSaving} onRecover={(record, mode) => void recoverRun(record, mode)} onUpdate={(record, update) => void updateRun(record, update)}/>}
           {view === "health" && <OperationalHealth runs={runHistory.map((record) => ({ run: record.run }))} pendingReviews={proposalSets.filter((set) => set.status === "pending_review").length}/>}
           {view === "overview" && <Overview data={data} exposure={exposure} openActions={openActions} completedDeliverables={completedDeliverables} setView={setView} onEdit={setEditor} onDelete={requestDelete}/>}
+          {view === "portfolio" && <ProgrammeDecisionView data={data} onSaveScenario={(scenario) => mutate((current) => upsertPmoRecord(current, "scenario", scenario, "Portfolio PMO"))}/>}
           {view === "plan" && <PlanView data={data} query={query} mutate={mutate} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "risks" && <RiskView data={data} query={query} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "registers" && <DomainRegisters data={data} query={query} onEdit={setEditor} onDelete={requestDelete}/>}
