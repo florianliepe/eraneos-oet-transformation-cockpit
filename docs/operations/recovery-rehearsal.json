@@ -1,0 +1,13 @@
+{
+  "contractVersion": "recovery-rehearsal-1.0",
+  "performedAt": "2026-08-11T12:00:00.000Z",
+  "scope": "GitHub Pages plus n8n pilot",
+  "destructiveActions": false,
+  "passed": true,
+  "scenarios": [
+    { "name": "browser-local workspace backup and restore", "evidence": "tests/local-workspace-backup.spec.ts", "passed": true },
+    { "name": "checksummed n8n release restore", "evidence": "npm run verify:workflow-release", "passed": true },
+    { "name": "failed Pages release rollback", "evidence": "docs/github-pages-go-live.md#verified-release-and-recovery", "passed": true },
+    { "name": "non-destructive workflow rejection and duplicate smoke", "evidence": "docs/n8n/release-recovery-runbook.md", "passed": true }
+  ]
+}

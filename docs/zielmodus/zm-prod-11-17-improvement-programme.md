@@ -238,6 +238,16 @@ Establish a dependable, observable and recoverable GitHub Pages plus n8n pilot o
 - Backup/restore and rollback evidence is current and reproducible.
 - The live GitHub Pages pilot matches the signed release artifact and has a documented support boundary.
 
+### Implementation record
+
+- `operational-error-1.0` centralises privacy-safe client failures, retry guidance and UUID correlation references; PMO and SteerCo requests send the reference header and never reflect workflow bodies, credentials or user content into visible diagnostics.
+- Release-bound workflow compatibility reports `compatible`, `stale_binding` or honest `unknown` states against the signed agent catalogue, with fail-closed publication and recovery guidance.
+- `product-telemetry-1.0` accepts a strict metadata-only event shape. Collection is disabled unless both an explicit enable flag and an approved HTTPS endpoint are configured.
+- Versioned asset budgets block oversized Pages and standalone builds. The release artifact remains within 4.5 MB total, 2.5 MB JavaScript, 650 KB largest JavaScript chunk and 180 KB CSS limits; the cockpit interaction target is 250 ms.
+- Both main validation workflows now block high-severity dependency findings, operational-contract drift, accessibility regression and Chromium/Firefox compatibility failure before artifact publication. Existing unsafe-bundle, type, lint, governance and workflow-release gates remain mandatory.
+- A non-destructive recovery rehearsal covers encrypted local workspace restore, checksummed n8n release restoration, no-write workflow smoke and GitHub Pages revert/redeploy. Support ownership, privacy-safe incident triage, stale-binding diagnosis and the explicit pilot service boundary are documented.
+- TypeScript, lint, governance/release verification, zero-vulnerability production dependency audit, 96 browser/deterministic tests, accessibility and two-browser compatibility suites, App Service-shaped build, Pages build and deployed-path test pass locally.
+
 ## Explicitly excluded
 
 - Microsoft Entra External ID activation.

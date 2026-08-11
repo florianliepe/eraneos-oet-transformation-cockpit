@@ -53,3 +53,7 @@ The shared workspace credential is entered in the browser, retained only in Reac
 - Disable deployment by disabling `deploy-pages.yml` or changing the Pages source in repository settings.
 - Unpublish the site in **Settings → Pages** before removing a custom domain or changing visibility.
 - On GitHub Free, changing the repository back to private unpublishes the Pages site. Keep the repository public until a private-repository Pages plan or another host is available.
+
+## Verified release and recovery
+
+The Pages workflow builds once, applies contract, security, accessibility, compatibility and performance gates, then uploads that exact `out` directory as the deployment artifact. Record the merge SHA and successful workflow run as the artifact signature. Verify the live asset prefix and release-specific UI marker after deployment; if they differ, stop workflow publication and revert the merge commit so the prior signed export is redeployed. The non-destructive rehearsal is recorded in `docs/operations/recovery-rehearsal.json`.

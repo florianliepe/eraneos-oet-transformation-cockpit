@@ -7,8 +7,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/verify-workspace-runtime.mjs && next build && node scripts/verify-public-bundle.mjs",
-    "build:pages": "node scripts/verify-workspace-runtime.mjs && next build && node scripts/verify-public-bundle.mjs && node scripts/verify-pages-export.mjs",
+    "build": "node scripts/verify-workspace-runtime.mjs && next build && node scripts/verify-public-bundle.mjs && node scripts/verify-performance-budgets.mjs",
+    "build:pages": "node scripts/verify-workspace-runtime.mjs && next build && node scripts/verify-public-bundle.mjs && node scripts/verify-pages-export.mjs && node scripts/verify-performance-budgets.mjs --pages",
     "verify:workspace-runtime": "node scripts/verify-workspace-runtime.mjs",
     "verify:public-bundle": "node scripts/verify-public-bundle.mjs",
     "verify:governance-artifacts": "node scripts/verify-governance-artifacts.mjs && node scripts/evaluate-agent-quality.mjs && node scripts/evaluate-smart-orchestration.mjs && node scripts/verify-workflow-release.mjs && node scripts/verify-operational-baseline.mjs",
@@ -20,6 +20,8 @@
     "build:workflow-release": "node scripts/build-workflow-release.mjs",
     "verify:workflow-release": "node scripts/verify-workflow-release.mjs",
     "verify:operations": "node scripts/verify-operational-baseline.mjs",
+    "verify:operational-quality": "node scripts/verify-operational-quality.mjs",
+    "verify:release": "npm run lint && npm run typecheck && npm run verify:governance-artifacts && npm run verify:operational-quality && npm audit --omit=dev --audit-level=high",
     "verify:agent-workflows": "node scripts/verify-specialist-workflows.mjs",
     "build:agent-orchestrator": "node scripts/build-agent-orchestrator.mjs",
     "build:governed-publisher": "node scripts/build-governed-publisher.mjs",
@@ -31,7 +33,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "test:pages": "playwright test tests/pages-export.spec.ts --config=playwright.pages.config.ts"
+    "test:pages": "playwright test tests/pages-export.spec.ts --config=playwright.pages.config.ts",
+    "test:accessibility": "playwright test tests/accessibility.spec.ts",
+    "test:compatibility": "playwright test tests/browser-compatibility.spec.ts --config=playwright.compatibility.config.ts"
   },
   "dependencies": {
     "gray-matter": "^4.0.3",

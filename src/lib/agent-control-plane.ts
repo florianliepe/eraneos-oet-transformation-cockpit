@@ -21,6 +21,12 @@ export const AgentCatalogueEntrySchema = z.object({
 
 export type AgentCatalogueEntry = z.infer<typeof AgentCatalogueEntrySchema>;
 
+export function diagnoseWorkflowCompatibility(entry: AgentCatalogueEntry, runtime: { releaseId?: string; liveBindingId?: string }) {
+  if (!runtime.releaseId || !runtime.liveBindingId) return { status: "unknown" as const, guidance: "Run the checked-in release verifier and request runtime metadata from the workflow operator." };
+  if (runtime.releaseId !== entry.releaseId || runtime.liveBindingId !== entry.liveBindingId) return { status: "stale_binding" as const, guidance: "Stop publication, compare the release manifest and live binding, then restore the last verified release." };
+  return { status: "compatible" as const, guidance: "Release and live binding match the signed catalogue." };
+}
+
 export const AGENT_CATALOGUE: AgentCatalogueEntry[] = [
   {
     workflowId: manifest.orchestrator.workflowId, title: "PMO orchestrator",

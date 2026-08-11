@@ -1,0 +1,12 @@
+{
+  "contractVersion": "performance-budget-1.0",
+  "publicExport": {
+    "assetCount": 80,
+    "totalBytes": 4500000,
+    "javascriptBytes": 2500000,
+    "largestJavascriptBytes": 650000,
+    "cssBytes": 180000,
+    "indexHtmlBytes": 60000
+  },
+  "cockpitInteractionMilliseconds": 250
+}
