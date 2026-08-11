@@ -3,7 +3,7 @@ import { extname, join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const output = join(root, ".next", "static");
-if (!existsSync(output)) throw new Error("Client bundle verification requires a completed standalone production build in .next/static/.");
+if (!existsSync(output)) throw new Error("Client bundle verification requires a completed production build in .next/static/.");
 
 const extensions = new Set([".html", ".js", ".json", ".css", ".map", ".txt", ".xml"]);
 const files = [];

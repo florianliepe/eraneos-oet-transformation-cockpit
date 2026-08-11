@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { bootstrapPmoData } from "../src/lib/pmo-fixtures";
 
 test.beforeEach(async ({ page }) => {
-  await page.route("https://workflow.test/**", async (route) => {
+  await page.route("https://workflow.test/webhook/**", async (route) => {
     const body = route.request().postDataJSON() as { mode?: string; document?: typeof bootstrapPmoData };
     if (body.mode === "pmo.save" && body.document) {
       await route.fulfill({

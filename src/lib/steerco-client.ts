@@ -1,4 +1,5 @@
 import { SteercoSnapshotSchema, type SteercoEvidenceEnvelope, type SteercoSnapshot } from "./steerco-schema";
+import { publicWorkflowEndpoint } from "./public-runtime";
 
 export type SteercoWorkflowResponse = {
   ok?: boolean;
@@ -10,9 +11,7 @@ export type SteercoWorkflowResponse = {
 };
 
 function configuredEndpoint(variable: "NEXT_PUBLIC_N8N_STEERCO_WEBHOOK_URL" | "NEXT_PUBLIC_N8N_STEERCO_READ_WEBHOOK_URL") {
-  const configured = process.env[variable]?.trim();
-  if (!configured) throw new Error(`The Transformation Cockpit endpoint ${variable} is not configured.`);
-  return configured;
+  return publicWorkflowEndpoint(process.env[variable]);
 }
 function endpoint() { return configuredEndpoint("NEXT_PUBLIC_N8N_STEERCO_WEBHOOK_URL"); }
 function readEndpoint() { return configuredEndpoint("NEXT_PUBLIC_N8N_STEERCO_READ_WEBHOOK_URL"); }
