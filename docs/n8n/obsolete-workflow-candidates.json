@@ -1,0 +1,14 @@
+{
+  "contractVersion": "workflow-cleanup-candidates-1.0",
+  "generatedAt": "2026-08-11T12:30:00.000Z",
+  "destructiveActionAllowed": false,
+  "authoritative": { "orchestrator": "pEIhI533jPQvvSzs", "publisher": "4czGSZtMjeGpKSFS", "errorHandler": "BkHWDRmPvXOepELU" },
+  "candidates": [
+    { "workflowId": "H8V3RtTWTTeApR7J", "kind": "orchestrator", "reason": "superseded pre-governed orchestrator", "requiredCheck": "confirm unpublished and no production executions after replacement" },
+    { "workflowId": "H1vtHLQDEgVrHrpU", "kind": "orchestrator", "reason": "intermediate governed orchestrator", "requiredCheck": "confirm unpublished and endpoint inactive" },
+    { "workflowId": "RToP0ZCeTQUTKhBE", "kind": "orchestrator", "reason": "superseded before central error binding", "requiredCheck": "confirm unpublished and endpoint inactive" },
+    { "workflowId": "fPfQgk5D1nEMIv0i", "kind": "publisher", "reason": "superseded n8n-incompatible clone implementation", "requiredCheck": "confirm no orchestrator references this ID" },
+    { "workflowId": "h3LGbbPKoKoVSlAk", "kind": "smoke", "reason": "failed pre-fix non-production smoke workflow", "requiredCheck": "preserve execution evidence before archival" },
+    { "workflowId": "i7R67pfWGa9C7fFD", "kind": "smoke", "reason": "successful recovery rehearsal retained as evidence", "requiredCheck": "archive only after release evidence retention expires" }
+  ]
+}
