@@ -66,3 +66,17 @@ test("creates a governed first-class issue and exposes governance records", asyn
   await expect(page.getByRole("heading", { name: "Object versions" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Audit events" })).toBeVisible();
 });
+
+test("shows a traceable agent execution contract for legacy workflow responses", async ({ page }) => {
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake" }).click();
+  await page.getByLabel("Write a project update").fill("A delivery dependency may affect the next milestone.");
+  await page.getByRole("button", { name: "Analyse and update workbench" }).click();
+
+  const result = page.getByLabel("Agent execution result");
+  await expect(result).toBeVisible();
+  await expect(result.getByText("agent-run-1.0")).toBeVisible();
+  await expect(result.getByText("Legacy Direct")).toBeVisible();
+  await expect(result.getByText("LEGACY_DIRECT_PERSISTENCE")).toBeVisible();
+  await expect(result.getByText("Evidence verifier")).toBeVisible();
+  await expect(result.getByText("Governance reviewer")).toBeVisible();
+});

@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 import { Icons } from "./icons";
+import { AGENT_CONTRACT_VERSION, SPECIALIST_AGENTS, type AgentRunEnvelope } from "@/lib/agent-contracts";
+import { AgentRunPanel } from "./agent-run-panel";
 
 export type IntakeSubmission = {
   meta: Record<string, string>;
@@ -9,21 +11,12 @@ export type IntakeSubmission = {
   textUpdate: string;
 };
 
-const specialistAgents = [
-  { id: "evidence", workflow: "evidence.verify", title: "Evidence verifier", copy: "Checks sources, ambiguity and confidence." },
-  { id: "delivery", workflow: "delivery.plan", title: "Delivery planner", copy: "Maps commitments to milestones and deliverables." },
-  { id: "risk", workflow: "risk.analyse", title: "Risk analyst", copy: "Extracts exposure, scoring and mitigations." },
-  { id: "meeting", workflow: "meeting.synthesise", title: "Meeting synthesizer", copy: "Separates summaries, decisions and actions." },
-  { id: "controls", workflow: "controls.classify", title: "PMO controls analyst", copy: "Classifies issues, actions, dependencies, assumptions and changes." },
-  { id: "governance", workflow: "governance.review", title: "Governance reviewer", copy: "Links evidence, reviews and audit-ready object versions." },
-];
-
 function intakeId() {
   const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 12);
   return `INTAKE-${stamp}`;
 }
 
-export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; result: string; onRun: (submission: IntakeSubmission) => void }) {
+export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; result: AgentRunEnvelope | null; onRun: (submission: IntakeSubmission) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [textUpdate, setTextUpdate] = useState("");
@@ -50,7 +43,7 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
       <div className="orchestrator-badge"><span className="ai-logo"><Icons.spark/></span><div><b>PMO Orchestrator</b><small>Evidence → conventions → PMO entities → GitHub revision</small></div><i/></div>
     </section>
 
-    {result && <div className="success-banner intake-success"><span>{result}</span></div>}
+    {result && <AgentRunPanel run={result}/>}
 
     <form className="intake-layout" onSubmit={(event) => {
       event.preventDefault();
@@ -67,8 +60,11 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
           rag: "amber",
           routing,
           agents: agents.join(","),
-          agent_workflows: specialistAgents.filter((agent) => agents.includes(agent.id)).map((agent) => agent.workflow).join(","),
+          agent_workflows: SPECIALIST_AGENTS.filter((agent) => agents.includes(agent.id)).map((agent) => agent.workflow).join(","),
           domain_schema: "pmo-2.0",
+          agent_contract_version: AGENT_CONTRACT_VERSION,
+          correlation_id: crypto.randomUUID(),
+          requested_at: new Date().toISOString(),
         },
       });
     }}>
@@ -85,7 +81,7 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
 
       <aside className="intake-side">
         <section className="panel routing-panel"><div className="panel-head"><div><span className="section-kicker">02 · ROUTE</span><h3>Analysis context</h3></div></div><label><span>Optional intake title</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. August steering update"/></label><label><span>Primary destination</span><select value={routing} onChange={(event) => setRouting(event.target.value)}><option value="auto">Let orchestrator decide</option><option value="project">Project overview</option><option value="deliverables">Plan & deliverables</option><option value="risks">Risk register</option><option value="registers">PMO registers</option><option value="issues">Issues</option><option value="actions">Actions</option><option value="decisions">Decisions</option><option value="dependencies">Dependencies</option><option value="assumptions">Assumptions</option><option value="change_requests">Change requests</option><option value="governance">Evidence & governance</option><option value="meetings">Meeting hub</option></select></label></section>
-        <section className="panel agent-panel"><div className="panel-head"><div><span className="section-kicker">03 · DELEGATE</span><h3>Specialist agents</h3></div></div><div className="agent-list">{specialistAgents.map((agent) => <label key={agent.id} className={agents.includes(agent.id) ? "selected" : ""}><input type="checkbox" checked={agents.includes(agent.id)} onChange={() => toggleAgent(agent.id)}/><span><b>{agent.title}</b><small>{agent.copy}</small></span></label>)}</div></section>
+        <section className="panel agent-panel"><div className="panel-head"><div><span className="section-kicker">03 · DELEGATE</span><h3>Specialist agents</h3></div></div><div className="agent-list">{SPECIALIST_AGENTS.map((agent) => <label key={agent.id} className={agents.includes(agent.id) ? "selected" : ""}><input type="checkbox" checked={agents.includes(agent.id)} onChange={() => toggleAgent(agent.id)}/><span><b>{agent.title}</b><small>{agent.copy}</small></span></label>)}</div></section>
         <button className="button primary orchestrate-button" disabled={!canSubmit}><Icons.spark/>{saving ? "Orchestrating…" : "Analyse and update workbench"}</button>
         <p className="intake-note">The orchestrator validates and persists accepted changes as a GitHub revision, then refreshes the affected PMO views and activity trail.</p>
       </aside>

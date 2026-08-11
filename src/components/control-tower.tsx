@@ -12,6 +12,7 @@ import { SteercoReadOnly, SteercoWorkbench } from "./steerco-summary";
 import { loadSteercoShare } from "@/lib/steerco-client";
 import type { SteercoSnapshot } from "@/lib/steerco-schema";
 import { BrandMark } from "./brand-mark";
+import type { AgentRunEnvelope } from "@/lib/agent-contracts";
 
 type View = "intake" | "overview" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
@@ -100,7 +101,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [saving, setSaving] = useState(false);
   const [workflowSaving, setWorkflowSaving] = useState(false);
-  const [workflowResult, setWorkflowResult] = useState("");
+  const [workflowResult, setWorkflowResult] = useState<AgentRunEnvelope | null>(null);
   const [dirty, setDirty] = useState(false);
   const [sharedSnapshot, setSharedSnapshot] = useState<SteercoSnapshot | null>(null);
   const [shareRequested, setShareRequested] = useState(false);
@@ -161,12 +162,10 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
   }
 
   async function runWorkflowIntake({ meta, files, textUpdate }: IntakeSubmission) {
-    setWorkflowSaving(true); setError(""); setWorkflowResult("");
+    setWorkflowSaving(true); setError(""); setWorkflowResult(null);
     try {
       const payload = await ingestEvidence(workspaceSecret, meta, files, textUpdate);
       if (!payload.ok) throw new Error(payload.error || "Workflow intake failed.");
-      const wpId = payload.wpId || "work package";
-      const reviewCount = payload.needs_review?.length ?? 0;
       const refreshed = payload.document ? { ok: true, document: payload.document, source: "github" as const, storageConfigured: true } : await loadPmoDocument(workspaceSecret);
       if (refreshed.document) {
         setData(refreshed.document);
@@ -174,8 +173,8 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
         setStorageConfigured(Boolean(refreshed.storageConfigured));
         setDirty(false);
       }
-      const applied = payload.appliedChanges?.length ?? 0;
-      setWorkflowResult(`${wpId} analysed by n8n${applied ? ` and applied as ${applied} workbench change${applied === 1 ? "" : "s"}` : ""}${reviewCount ? ` with ${reviewCount} review item${reviewCount === 1 ? "" : "s"}` : ""}.`);
+      if (!payload.agentRun) throw new Error("The workflow response did not contain a valid agent execution contract.");
+      setWorkflowResult(payload.agentRun);
     } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Workflow intake failed."); }
     finally { setWorkflowSaving(false); }
   }
@@ -269,7 +268,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
 
         <div className="content-wrap">
           {error && <div className="error-banner"><span>{error}</span><button onClick={() => setError("")}><Icons.close/></button></div>}
-          {workflowResult && view !== "intake" && <div className="success-banner"><span>{workflowResult}</span><button onClick={() => setWorkflowResult("")}><Icons.close/></button></div>}
+          {workflowResult && view !== "intake" && <div className="success-banner"><span>Agent execution {workflowResult.executionId} completed with {workflowResult.proposals.length} proposed change{workflowResult.proposals.length === 1 ? "" : "s"}.</span><button onClick={() => setWorkflowResult(null)}><Icons.close/></button></div>}
           <div className="page-heading"><div><span className="eyebrow">{meta.eyebrow}</span><h1>{meta.title}</h1><p>{meta.description}</p></div><div className="heading-meta"><span>Last synced</span><b>{formatDateTime(data.project.updatedAt)}</b></div></div>
 
           {view === "intake" && <IntakeWorkbench saving={workflowSaving} result={workflowResult} onRun={(submission) => void runWorkflowIntake(submission)}/>}
