@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { LocalIdentityProvider, LOCAL_IDENTITY_STORAGE_KEY, type StorageBoundary } from "../src/lib/local-identity-provider";
+import { LocalWorkspaceRepository, LOCAL_WORKSPACE_STORAGE_KEY } from "../src/lib/local-workspace-repository";
 import { WORKSPACE_CONTRACT_VERSION } from "../src/lib/workspace-schema";
 
 class MemoryStorage implements StorageBoundary {
@@ -34,12 +35,18 @@ test("rejects duplicate accounts and clears expired sessions", async () => {
 
 test("accepts an email-bound invitation and rejects expired or mismatched codes", async () => {
   const storage = new MemoryStorage();
-  const provider = new LocalIdentityProvider(storage, () => new Date("2026-08-11T10:00:00.000Z"));
+  const clock = () => new Date("2026-08-11T10:00:00.000Z");
+  const workspace = new LocalWorkspaceRepository(storage, clock);
+  const provider = new LocalIdentityProvider(storage, clock, workspace);
   const identity = await provider.register({ displayName: "Sam Owner", email: "sam@example.com", password: "invited-local-password", termsAccepted: true });
-  await provider.provisionInvitation({ organisationId: "org_demo01", email: "sam@example.com", role: "owner", invitedByUserId: identity.account.id, expiresAt: "2026-08-12T10:00:00.000Z", code: "valid-code-2026" });
-  await provider.provisionInvitation({ organisationId: "org_demo02", email: "sam@example.com", role: "viewer", invitedByUserId: identity.account.id, expiresAt: "2026-08-10T10:00:00.000Z", code: "expired-code-2026" });
-  const accepted = await provider.acceptInvitation("valid-code-2026");
-  expect(accepted.membership).toMatchObject({ organisationId: "org_demo01", role: "owner", invitationId: accepted.invitation.id });
-  await expect(provider.acceptInvitation("expired-code-2026")).rejects.toThrow("not valid or is no longer available");
+  const { organisation } = await workspace.createOrganisation(identity.account, "Invitation test");
+  const valid = await workspace.createInvitation(organisation.id, identity.account.id, "sam@example.com", "viewer");
+  const expired = await workspace.createInvitation(organisation.id, identity.account.id, "sam@example.com", "viewer");
+  const stored = JSON.parse(storage.getItem(LOCAL_WORKSPACE_STORAGE_KEY)!) as { invitations: Array<{ id: string; expiresAt: string }> };
+  stored.invitations.find((item) => item.id === expired.invitation.id)!.expiresAt = "2026-08-10T10:00:00.000Z";
+  storage.setItem(LOCAL_WORKSPACE_STORAGE_KEY, JSON.stringify(stored));
+  const accepted = await provider.acceptInvitation(valid.code);
+  expect(accepted.membership).toMatchObject({ organisationId: organisation.id, role: "viewer", invitationId: accepted.invitation.id });
+  await expect(provider.acceptInvitation(expired.code)).rejects.toThrow("not valid or is no longer available");
   await expect(provider.acceptInvitation("unknown-code-2026")).rejects.toThrow("not valid or is no longer available");
 });

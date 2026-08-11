@@ -132,6 +132,14 @@ Execution status: **implemented and validated** on 2026-08-11.
 4. Centralise authorisation decisions and denial reasons.
 5. Audit membership and role changes without storing sensitive credential material.
 
+Execution status: **implemented and validated** on 2026-08-11.
+
+- Self-registered users can create organisation workspaces and become the first owner through the replaceable `WorkspaceRepository` boundary.
+- Central authorisation decisions deny access by default, constrain assignable roles and expose stable denial codes and reasons.
+- Owners can create and revoke email-bound invitations; generated codes are displayed once, persisted only as one-way verifiers and never written to audit events.
+- Invitation acceptance can add a second owner, while downgrade and removal operations enforce the invariant that every active organisation retains an owner.
+- Organisation, invitation and membership mutations produce versioned local audit events; domain and browser journeys cover second-owner onboarding, revocation, authority limits and final-owner protection.
+
 ### ZM-PROD-10D — Multi-project workspace
 
 1. Add project creation, selection, rename, archive and restore.
