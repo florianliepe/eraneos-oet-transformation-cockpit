@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: false, document: bootstrapPmoData }),
     });
   });
-  await page.goto("/");
+  await page.goto("/?view=signin");
   await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
 });

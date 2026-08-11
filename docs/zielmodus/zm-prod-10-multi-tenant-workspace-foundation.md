@@ -101,6 +101,13 @@ The later production adapters are:
 4. Preserve static GitHub Pages export and direct-link behaviour.
 5. Add accessibility, responsive and visual regression coverage.
 
+Execution status: **implemented and validated** on 2026-08-11.
+
+- The default route renders only the public product surface; the cockpit and project fixture are loaded from a separate lazy chunk after explicit sign-in navigation.
+- Static-compatible `?view=signin` and `?view=register` entry routes retain browser-history behaviour at both root and GitHub Pages base paths.
+- The registration entry is intentionally informational until ZM-PROD-10B supplies the versioned local identity adapter and onboarding journeys.
+- Desktop and mobile product-surface tests prove that the public route makes no workflow request; accessibility, full cockpit regression, governance and Pages export gates pass.
+
 ### ZM-PROD-10B — Local identity and onboarding contracts
 
 1. Add versioned identity, session, invitation and membership schemas.

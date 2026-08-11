@@ -8,7 +8,7 @@ async function openCockpit(page: import("@playwright/test").Page) {
       body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: true, document: bootstrapPmoData }),
     });
   });
-  await page.goto("/");
+  await page.goto("/?view=signin");
   await page.getByLabel("Temporary workspace credential").fill("visual-test-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(page.getByRole("heading", { name: "Executive overview" })).toBeVisible();

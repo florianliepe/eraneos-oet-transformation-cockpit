@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./public.css";
 
 :root {
   --brand-ink: #202020;
