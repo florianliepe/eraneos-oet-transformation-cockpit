@@ -49,6 +49,8 @@ jobs:
           cp -R .next/standalone/. deploy/
           cp -R .next/static/. deploy/.next/static/
           cp -R public deploy/public
+          test -f deploy/server.js
+          test -d deploy/.next/server
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v7
@@ -56,6 +58,7 @@ jobs:
           name: frontend-app-service
           path: deploy
           if-no-files-found: error
+          include-hidden-files: true
 
   deploy_frontend:
     if: github.event_name == 'workflow_dispatch' && vars.AZURE_FRONTEND_APP_NAME != ''
