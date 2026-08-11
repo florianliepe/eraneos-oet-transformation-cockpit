@@ -13,7 +13,12 @@ function contrast(a: string, b: string) {
 
 test.beforeEach(async ({ page }) => {
   await page.route("https://workflow.test/webhook/**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: true, document: bootstrapPmoData }) }));
-  await page.goto("/?view=signin");
+  await page.goto("/?view=register");
+  await page.getByLabel("Display name").fill("Accessibility Tester");
+  await page.getByLabel("Email").fill("accessibility@example.com");
+  await page.getByLabel("Local demonstration password").fill("accessibility-local-password");
+  await page.getByLabel(/I accept the applicable terms/).check();
+  await page.getByRole("button", { name: "Create local account" }).click();
   await page.getByLabel("Temporary workspace credential").fill("accessibility-test");
   await page.getByRole("button", { name: "Open workspace" }).click();
 });

@@ -26,20 +26,23 @@ for (const viewport of [
   });
 }
 
-test("provides static-compatible sign-in, registration and browser-history routes", async ({ page }) => {
+test("provides self-registration, sign-out and sign-in on static-compatible routes", async ({ page }) => {
   await page.goto("/?view=register");
-  await expect(page.getByRole("heading", { name: "Set up your transformation workspace." })).toBeVisible();
-  await expect(page.getByText("Production email verification, recovery, MFA", { exact: false })).toBeVisible();
-
-  await page.getByRole("button", { name: "Use current MVP access" }).click();
-  await expect(page).toHaveURL(/view=signin/);
+  await expect(page.getByRole("heading", { name: "Start your transformation workspace." })).toBeVisible();
+  await expect(page.getByText("not Microsoft Entra authentication", { exact: false })).toBeVisible();
+  await page.getByLabel("Display name").fill("Public Journey");
+  await page.getByLabel("Email").fill("public@example.com");
+  await page.getByLabel("Local demonstration password").fill("public-local-password");
+  await page.getByLabel(/I accept the applicable terms/).check();
+  await page.getByRole("button", { name: "Create local account" }).click();
   await expect(page.getByLabel("Temporary workspace credential")).toBeVisible();
-  await expect(page.getByText("Local demonstration access", { exact: false })).toBeVisible();
-
-  await page.goBack();
-  await expect(page.getByRole("heading", { name: "Set up your transformation workspace." })).toBeVisible();
-  await page.getByRole("button", { name: "Back to overview" }).click();
-  await expect(page.getByRole("heading", { name: "Turn transformation signals into accountable decisions." })).toBeVisible();
+  await expect(page.getByText("Public Journey · local demonstration identity")).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByRole("heading", { name: "Sign in to your cockpit." })).toBeVisible();
+  await page.getByLabel("Email").fill("public@example.com");
+  await page.getByLabel("Local demonstration password").fill("public-local-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByLabel("Temporary workspace credential")).toBeVisible();
 });
 
 test("supports public skip navigation and named visible controls", async ({ page }) => {

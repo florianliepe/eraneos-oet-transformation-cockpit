@@ -16,7 +16,12 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: false, document: bootstrapPmoData }),
     });
   });
-  await page.goto("/?view=signin");
+  await page.goto("/?view=register");
+  await page.getByLabel("Display name").fill("Control Tower Tester");
+  await page.getByLabel("Email").fill("control-tower@example.com");
+  await page.getByLabel("Local demonstration password").fill("control-tower-local-password");
+  await page.getByLabel(/I accept the applicable terms/).check();
+  await page.getByRole("button", { name: "Create local account" }).click();
   await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
 });
