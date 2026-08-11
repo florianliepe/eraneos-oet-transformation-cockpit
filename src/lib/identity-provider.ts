@@ -10,4 +10,5 @@ export interface IdentityProvider {
   signOut(): Promise<void>;
   currentSession(): Promise<IdentityResult | null>;
   acceptInvitation(code: string): Promise<InvitationAcceptance>;
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
 }
