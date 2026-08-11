@@ -141,6 +141,16 @@ Make the existing n8n agent system observable, governable and project-safe from 
 - Failure, retry and replay preserve original input lineage and idempotency.
 - Live binding and workflow-release verification pass against the existing n8n endpoint.
 
+### Implementation record
+
+- `agent-control-plane-1.0` publishes nine unique, release-verified n8n bindings with purpose, workflow version, release, data classification, availability and explicit write boundary.
+- New executions, retries and replays are bound to organisation, project and signed-in accountable actor; historical records receive an honest unattributed compatibility identity when parsed.
+- Deterministic idempotency keys group recovery attempts under immutable root lineage, identify duplicates and leave each source execution unchanged.
+- Operations now expose step progress, latency/timeout-budget state, routing explanations, budget escalation, low-confidence/policy review signals and request-only cancellation state. The UI explicitly states that the current binding does not expose remote cancellation.
+- Canonical-write authorization fails closed on project-scope mismatch or absent accepted review; specialist workflows remain proposal-only and only the governed publisher declares a reviewed canonical-write boundary.
+- Browser-session activation guidance uses the existing binding and verification scripts without requesting credentials or MFA. Workflow checksums, release alignment, nine unique bindings and the existing endpoint contract pass automated verification.
+- TypeScript, lint, governance artifacts, 87 browser/deterministic tests, App Service-shaped build, Pages build and the deployed-path test pass.
+
 ## ZM-PROD-15 — Executive reporting and governance
 
 ### Goal

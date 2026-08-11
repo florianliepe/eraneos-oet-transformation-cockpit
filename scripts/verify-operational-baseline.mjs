@@ -20,6 +20,8 @@ if (policy.redaction.length < 5) errors.push("Log-redaction policy is incomplete
 const pages = readFileSync(resolve(".github/workflows/deploy-pages.yml"), "utf8");
 for (const action of ["actions/configure-pages@v6", "actions/upload-pages-artifact@v5", "actions/deploy-pages@v5"]) if (!pages.includes(action)) errors.push(`Pages workflow is missing ${action}.`);
 const healthView = readFileSync(resolve("src/components/operational-health.tsx"), "utf8");
-for (const id of [manifest.orchestrator.liveWorkflowId, manifest.publisher.liveWorkflowId, manifest.operations.errorWorkflowLiveId]) if (!healthView.includes(id)) errors.push(`Operational health view is missing authoritative binding ${id}.`);
+const controlPlane = readFileSync(resolve("src/lib/agent-control-plane.ts"), "utf8");
+if (!healthView.includes("AGENT_CATALOGUE")) errors.push("Operational health view is not bound to the versioned agent catalogue.");
+for (const source of ["manifest.json", "2026-08-11-zm-prod-05g.json"]) if (!controlPlane.includes(source)) errors.push(`Agent control plane is missing authoritative source ${source}.`);
 if (errors.length) { console.error(errors.join("\n")); process.exit(1); }
 console.log(`Operational baseline verified: ${authoritative.length} unique live bindings, ${cleanup.candidates.length} non-destructive cleanup candidates.`);

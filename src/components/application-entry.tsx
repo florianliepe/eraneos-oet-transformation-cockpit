@@ -95,7 +95,7 @@ export default function ApplicationEntry() {
           <button type="button" onClick={() => navigate("invite")}>Accept invitation</button>
           <button type="button" onClick={() => void provider.signOut().then(() => { clearCockpitContext(); setIdentity(null); setCockpitOpen(false); navigate("signin"); })}>Sign out</button>
         </div>
-        <AuthenticatedCockpit scope={workspaceScope} initialView={initialCockpitView} />
+        <AuthenticatedCockpit scope={workspaceScope} initialView={initialCockpitView} account={identity.account} />
       </Suspense>
     );
   }

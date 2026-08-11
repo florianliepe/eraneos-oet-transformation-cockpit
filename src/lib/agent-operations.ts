@@ -10,11 +10,25 @@ export const AgentOperatorNoteSchema = z.object({
   createdAt: z.string().datetime(),
 });
 
+export const AgentCancellationSchema = z.object({
+  capability: z.literal("request_only").default("request_only"),
+  state: z.enum(["not_requested", "requested", "closed"]).default("not_requested"),
+  requestedBy: z.string().min(1).optional(),
+  requestedAt: z.string().datetime().optional(),
+  reason: z.string().min(1).optional(),
+}).default({ capability: "request_only", state: "not_requested" });
+
 export const AgentOperationRecordSchema = z.object({
   contractVersion: z.literal(AGENT_OPERATIONS_CONTRACT_VERSION),
   recordVersion: z.number().int().positive(),
   executionId: z.string().min(1),
   scope: z.object({ organisationId: z.string().min(8), projectId: z.string().min(8) }),
+  accountableActor: z.object({ userId: z.string().min(8), displayName: z.string().min(1) })
+    .default({ userId: "historical-unattributed", displayName: "Historical workspace operator" }),
+  idempotency: z.object({
+    key: z.string().min(1),
+    duplicateOf: z.string().min(1).optional(),
+  }).default({ key: "historical-unclassified" }),
   run: AgentRunEnvelopeSchema,
   input: z.object({
     ref: z.string().min(1),
@@ -43,6 +57,7 @@ export const AgentOperationRecordSchema = z.object({
     resolvedAt: z.string().datetime().optional(),
     notes: z.array(AgentOperatorNoteSchema),
   }),
+  cancellation: AgentCancellationSchema,
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -64,18 +79,23 @@ export function buildAgentOperationRecord(input: {
   descriptor: RecoveryInputDescriptor;
   source?: AgentOperationRecord;
   recoveryMode?: "retry" | "replay";
+  actor?: { userId: string; displayName: string };
 }): AgentOperationRecord {
   const now = new Date().toISOString();
   const inputRef = `recovery:${safeId(input.scope.organisationId)}:${safeId(input.scope.projectId)}:${safeId(input.run.executionId)}`;
+  const rootExecutionId = input.source?.lineage.rootExecutionId || input.run.executionId;
+  const idempotencyKey = `agent:${safeId(input.scope.organisationId)}:${safeId(input.scope.projectId)}:${safeId(input.run.correlationId)}:${safeId(rootExecutionId)}`;
   return AgentOperationRecordSchema.parse({
     contractVersion: AGENT_OPERATIONS_CONTRACT_VERSION,
     recordVersion: 1,
     executionId: input.run.executionId,
     scope: input.scope,
+    accountableActor: input.actor || { userId: "historical-unattributed", displayName: "Historical workspace operator" },
+    idempotency: { key: idempotencyKey, duplicateOf: input.source?.idempotency.key === idempotencyKey ? input.source.executionId : undefined },
     run: input.run,
     input: { ref: inputRef, ...input.descriptor },
     lineage: {
-      rootExecutionId: input.source?.lineage.rootExecutionId || input.run.executionId,
+      rootExecutionId,
       sourceExecutionId: input.source?.executionId,
       recoveryMode: input.recoveryMode,
     },
@@ -84,6 +104,7 @@ export function buildAgentOperationRecord(input: {
       workflows: Object.fromEntries(input.run.steps.map((step) => [step.workflowId, step.workflowVersion])),
     },
     operator: { state: "unacknowledged", notes: [] },
+    cancellation: { capability: "request_only", state: "not_requested" },
     createdAt: now,
     updatedAt: now,
   });
@@ -93,6 +114,7 @@ export function updateAgentOperationRecord(record: AgentOperationRecord, update:
   state?: AgentOperatorState;
   owner?: string;
   note?: { author: string; message: string };
+  cancellation?: { actor: string; reason: string };
 }): AgentOperationRecord {
   const now = new Date().toISOString();
   const state = update.state || record.operator.state;
@@ -102,6 +124,13 @@ export function updateAgentOperationRecord(record: AgentOperationRecord, update:
     message: update.note.message.trim(),
     createdAt: now,
   }] : record.operator.notes;
+  const cancellation = update.cancellation ? {
+    capability: "request_only" as const,
+    state: "requested" as const,
+    requestedBy: update.cancellation.actor.trim(),
+    requestedAt: now,
+    reason: update.cancellation.reason.trim(),
+  } : record.cancellation;
   return AgentOperationRecordSchema.parse({
     ...record,
     recordVersion: record.recordVersion + 1,
@@ -113,6 +142,7 @@ export function updateAgentOperationRecord(record: AgentOperationRecord, update:
       resolvedAt: state === "resolved" ? record.operator.resolvedAt || now : undefined,
       notes,
     },
+    cancellation,
     updatedAt: now,
   });
 }
