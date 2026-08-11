@@ -66,6 +66,11 @@ test("covers the branded operational workbenches and keyboard focus", async ({ p
     });
   }
 
+  await page.getByRole("button", { name: "Help" }).click();
+  await expect(page.getByRole("dialog", { name: "Understand this workspace" })).toBeVisible();
+  await testInfo.attach("eraneos-contextual-help", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+  await page.keyboard.press("Escape");
+
   await page.keyboard.press("Tab");
   const focused = page.locator(":focus-visible");
   await expect(focused).toBeVisible();

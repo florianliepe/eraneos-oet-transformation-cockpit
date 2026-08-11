@@ -205,6 +205,16 @@ Deliver a coherent, accessible Eraneos product experience across public, workspa
 - Accessibility and visual regression gates cover every major application surface.
 - Design changes do not hide governance state or reduce information accuracy.
 
+### Implementation record
+
+- The canonical design/status/component contract is documented in `docs/design-system.md`; the cockpit continues to use the central Eraneos ink, warm-neutral and orange token layer while semantic health colours remain independent and text-labelled.
+- A responsive, non-modal contextual help drawer explains every major cockpit view, the draft/proposal/review/publish sequence, status meaning and keyboard controls in plain language.
+- First use now presents a dismissible three-step evidence, review and publication guide. Its browser-local preference changes no governed project data and can be rediscovered through contextual help.
+- Navigation moves keyboard focus to the new page heading; the help drawer opens with focus, closes on Escape and restores focus to its trigger.
+- Desktop, tablet and mobile layout retain governance content; reduced-motion and forced-colour behavior remain explicit, and contextual help has visual regression coverage.
+- Focused accessibility/visual tests cover named controls, landmarks, shortcuts, heading focus, help focus restoration, AA token contrast, reduced motion and normal/empty/loading/error/recovery surfaces.
+- TypeScript, lint, governance artifacts, 92 browser/deterministic tests, App Service-shaped build, Pages build and deployed-path test pass.
+
 ## ZM-PROD-17 — Operational quality
 
 ### Goal

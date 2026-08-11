@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icons } from "./icons";
 import type { Deliverable, PmoDocument, Rag, Risk } from "@/lib/pmo-schema";
 import { ingestEvidence, loadPmoDocument, reviewAndPublishProposalSet, savePmoDocument } from "@/lib/n8n-client";
@@ -24,6 +24,7 @@ import { listAgentOperationRecords, loadEncryptedRecoveryInput, saveAgentOperati
 import type { WorkspaceScope } from "@/lib/project-data-repository";
 import { scopeDocument } from "@/lib/local-project-data-repository";
 import type { CockpitView } from "@/lib/cockpit-navigation";
+import { ContextualHelp, FirstUseGuide } from "./contextual-help";
 
 type View = CockpitView;
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
@@ -128,6 +129,27 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
   const [sharedSnapshot, setSharedSnapshot] = useState<SteercoSnapshot | null>(null);
   const [shareRequested, setShareRequested] = useState(false);
   const [shareError, setShareError] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [showFirstUse, setShowFirstUse] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const priorView = useRef<View>(initialView);
+  const closeHelp = useCallback(() => setHelpOpen(false), []);
+
+  useEffect(() => {
+    queueMicrotask(() => setShowFirstUse(window.localStorage.getItem("oet-cockpit-first-use-dismissed") !== "true"));
+  }, []);
+
+  useEffect(() => {
+    if (priorView.current !== view) {
+      priorView.current = view;
+      queueMicrotask(() => headingRef.current?.focus());
+    }
+  }, [view]);
+
+  function dismissFirstUse() {
+    window.localStorage.setItem("oet-cockpit-first-use-dismissed", "true");
+    setShowFirstUse(false);
+  }
 
   useEffect(() => {
     const shareId = new URLSearchParams(window.location.search).get("steerco")?.trim();
@@ -361,12 +383,13 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
       </aside>
 
       <main className="main-area" id="cockpit-content" tabIndex={-1}>
-        <header className="topbar"><button className="icon-button mobile-only" aria-expanded={mobileNav} onClick={() => setMobileNav(true)} aria-label="Open navigation"><Icons.menu/></button><GlobalSearch data={data} value={search} onChange={setSearch} onNavigate={(target, resultQuery) => { setView(target); setSearch(resultQuery); }}/><div className="top-actions"><button className="sync-state" onClick={() => void loadData()} aria-label="Refresh project data"><span className={source === "github" ? "sync-live" : "sync-seed"}/>{source === "github" ? "GitHub live" : "Starter data"}<Icons.refresh/></button><button className="button secondary" onClick={() => setView("intake")}><span className="n8n-button-mark">n8n</span>Workbench intake</button><button className="button secondary" onClick={() => setPublishOpen(true)} disabled={!dirty}><Icons.github/>{dirty ? "Publish changes" : "All changes saved"}</button><button className="button primary" onClick={() => setIntakeOpen(true)}><Icons.plus/>Quick add</button></div></header>
+        <header className="topbar"><button className="icon-button mobile-only" aria-expanded={mobileNav} onClick={() => setMobileNav(true)} aria-label="Open navigation"><Icons.menu/></button><GlobalSearch data={data} value={search} onChange={setSearch} onNavigate={(target, resultQuery) => { setView(target); setSearch(resultQuery); }}/><div className="top-actions"><button className="sync-state" onClick={() => void loadData()} aria-label="Refresh project data"><span className={source === "github" ? "sync-live" : "sync-seed"}/>{source === "github" ? "GitHub live" : "Starter data"}<Icons.refresh/></button><button className="button secondary" onClick={() => setView("intake")}><span className="n8n-button-mark">n8n</span>Workbench intake</button><button className="button secondary" onClick={() => setPublishOpen(true)} disabled={!dirty}><Icons.github/>{dirty ? "Publish changes" : "All changes saved"}</button><button className="button ghost help-button" aria-expanded={helpOpen} onClick={() => setHelpOpen(true)}><span aria-hidden="true">?</span>Help</button><button className="button primary" onClick={() => setIntakeOpen(true)}><Icons.plus/>Quick add</button></div></header>
 
         <div className="content-wrap">
           {error && <div className="error-banner" role="alert"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><Icons.close/></button></div>}
           {workflowResult && view !== "intake" && <div className="success-banner"><span>Agent execution {workflowResult.executionId} completed with {workflowResult.proposals.length} proposed change{workflowResult.proposals.length === 1 ? "" : "s"}. Canonical state is unchanged pending review.</span><button onClick={() => setView("review")}>Review proposals</button><button onClick={() => setWorkflowResult(null)} aria-label="Dismiss agent result"><Icons.close/></button></div>}
-          <div className="page-heading"><div><span className="eyebrow">{meta.eyebrow}</span><h1 tabIndex={-1}>{meta.title}</h1><p>{meta.description}</p></div><div className="heading-meta"><span>Last synced</span><b>{formatDateTime(data.project.updatedAt)}</b></div></div>
+          <div className="page-heading"><div><span className="eyebrow">{meta.eyebrow}</span><h1 ref={headingRef} tabIndex={-1}>{meta.title}</h1><p>{meta.description}</p></div><div className="heading-meta"><span>Last synced</span><b>{formatDateTime(data.project.updatedAt)}</b></div></div>
+          {view === "overview" && showFirstUse && <FirstUseGuide onDismiss={dismissFirstUse}/>}
 
           {view === "intake" && <IntakeWorkbench saving={workflowSaving} result={workflowResult} onRun={(submission) => void runWorkflowIntake(submission)}/>}
           {view === "review" && <ProposalReviewInbox proposalSets={proposalSets} busy={reviewBusy} onSubmit={reviewProposalSet}/>}
@@ -388,6 +411,8 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
           {view === "activity" && <ActivityView data={data} storageConfigured={storageConfigured}/>} 
         </div>
       </main>
+
+      {helpOpen && <><button className="help-scrim" aria-label="Close contextual help" onClick={closeHelp}/><ContextualHelp view={view} onClose={closeHelp}/></>}
 
       {intakeOpen && <UpdateDialog onClose={() => setIntakeOpen(false)} onSubmit={addRecord} workstreams={data.workstreams.map((item) => ({ id: item.id, name: item.shortName }))}/>} 
       {publishOpen && <PublishDialog saving={saving} revision={data.revision} onClose={() => setPublishOpen(false)} onPublish={publish}/>} 
