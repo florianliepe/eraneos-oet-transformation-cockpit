@@ -21,3 +21,15 @@ Make agent quality measurable and failures recoverable without losing traceabili
 - Retries and replays never overwrite the original execution record.
 - Operators can identify the failed step and safe recovery action.
 
+## Implementation record
+
+Completed on 2026-08-11.
+
+- Six representative specialist fixtures are evaluated for contract validity, evidence attribution, unsupported material claims, routing accuracy, and duplicate proposals.
+- Release thresholds are source controlled in `config/agent-quality-thresholds.json`; `npm run verify:governance-artifacts` blocks promotion on regression.
+- Run contracts and the Agent operations view expose execution state, attempts, latency, workflow/prompt/model versions, review outcome, failed step, and safe recovery guidance.
+- Retry reuses the original input and correlation lineage. Replay uses the original input against current workflow bindings and records the source execution without mutating it.
+- Specialist dispatch and governed publication use three bounded attempts with a 1.5-second delay.
+- The central n8n error workflow stores immutable `agent-dead-letter-1.0` records outside canonical PMO state with explicit retry/replay actions.
+- Live error handler: `BkHWDRmPvXOepELU`; live public orchestrator: `pEIhI533jPQvvSzs`.
+

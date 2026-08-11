@@ -23,6 +23,9 @@ export function AgentRunPanel({ run }: { run: AgentRunEnvelope }) {
         <span><b>Correlation</b>{run.correlationId}</span>
         <span><b>Contract</b>{run.contractVersion}</span>
         <span><b>Persistence</b>{statusLabel(run.persistence.mode)}</span>
+        <span><b>Attempt</b>{run.operations.attempt}</span>
+        <span><b>Latency</b>{run.operations.latencyMs === undefined ? "Pending" : `${run.operations.latencyMs} ms`}</span>
+        <span><b>Review</b>{statusLabel(run.operations.reviewOutcome)}</span>
       </div>
 
       <div className="agent-step-list">

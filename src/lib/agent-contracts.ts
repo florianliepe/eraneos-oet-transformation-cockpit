@@ -67,13 +67,17 @@ export const AgentStepSchema = z.object({
   proposalIds: z.array(z.string()).default([]),
   startedAt: z.string().datetime().optional(),
   completedAt: z.string().datetime().optional(),
+  latencyMs: z.number().int().nonnegative().optional(),
+  attempt: z.number().int().positive().default(1),
+  error: z.string().optional(),
+  safeRecovery: z.string().optional(),
 });
 
 export const AgentRunEnvelopeSchema = z.object({
   contractVersion: z.literal(AGENT_CONTRACT_VERSION),
   executionId: z.string().min(1),
   correlationId: z.string().min(1),
-  status: z.enum(["running", "completed", "needs_review", "failed"]),
+  status: z.enum(["waiting", "running", "completed", "needs_review", "failed", "superseded"]),
   requestedAt: z.string().datetime(),
   completedAt: z.string().datetime().optional(),
   orchestrator: z.object({
@@ -95,6 +99,15 @@ export const AgentRunEnvelopeSchema = z.object({
     revision: z.number().int().positive().optional(),
     commitSha: z.string().optional(),
   }),
+  operations: z.object({
+    attempt: z.number().int().positive().default(1),
+    latencyMs: z.number().int().nonnegative().optional(),
+    parentExecutionId: z.string().optional(),
+    retryOf: z.string().optional(),
+    replayOf: z.string().optional(),
+    supersededBy: z.string().optional(),
+    reviewOutcome: z.enum(["pending", "accepted", "rejected", "mixed", "not_required"]).default("pending"),
+  }).default({ attempt: 1, reviewOutcome: "pending" }),
 });
 
 export type AgentRunEnvelope = z.infer<typeof AgentRunEnvelopeSchema>;
@@ -120,6 +133,7 @@ export function legacyAgentRun(input: {
   wpId?: string;
 }): AgentRunEnvelope {
   const completedAt = new Date().toISOString();
+  const legacyExecutionId = `legacy:${input.wpId || input.meta.wpId || "intake"}:${Date.now().toString(36)}`;
   const requestedAt = z.string().datetime().catch(completedAt).parse(input.meta.requested_at);
   const selectedWorkflows = selectedAgentWorkflows(input.meta.agent_workflows);
   const evidence = input.evidence.map((item, index) => ({
@@ -150,7 +164,7 @@ export function legacyAgentRun(input: {
   ];
   return AgentRunEnvelopeSchema.parse({
     contractVersion: AGENT_CONTRACT_VERSION,
-    executionId: `legacy:${input.wpId || input.meta.wpId || Date.now()}`,
+    executionId: legacyExecutionId,
     correlationId: input.meta.correlation_id || `legacy:${input.wpId || input.meta.wpId || Date.now()}`,
     status: input.needsReview?.length ? "needs_review" : "completed",
     requestedAt,
@@ -170,6 +184,7 @@ export function legacyAgentRun(input: {
     proposals,
     warnings,
     persistence: { mode: "legacy_direct", revision: input.revision, commitSha: input.commitSha },
+    operations: { attempt: 1, latencyMs: 0, reviewOutcome: "pending" },
   });
 }
 

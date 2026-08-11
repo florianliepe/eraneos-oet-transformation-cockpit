@@ -51,11 +51,25 @@ for (const node of executeNodes) {
     throw new Error(`${node.name} does not use the n8n 1.3 workflow resource locator contract.`);
   }
 }
+for (const name of ["ExecuteSelectedSpecialists", "ExecuteGovernedPublisher"]) {
+  const node = orchestrator.nodes.find((item) => item.name === name);
+  if (!node?.retryOnFail || node.maxTries !== 3 || node.waitBetweenTries !== 1500) throw new Error(`${name} is missing the bounded retry policy.`);
+}
+const errorWorkflow = JSON.parse(readFileSync(resolve(root, manifest.operations?.errorWorkflowFile || "error-handler.workflow.json"), "utf8"));
+for (const type of ["n8n-nodes-base.errorTrigger", "n8n-nodes-base.github"]) {
+  if (!errorWorkflow.nodes.some((node) => node.type === type)) throw new Error(`Central error workflow is missing ${type}.`);
+}
+const errorSerialized = JSON.stringify(errorWorkflow);
+for (const marker of ["agent-dead-letter-1.0", "retry_original_input", "replay_current_workflow", "originalExecutionImmutable"]) {
+  if (!errorSerialized.includes(marker)) throw new Error(`Central error workflow is missing ${marker}.`);
+}
 if (process.env.REQUIRE_LIVE_WORKFLOW_IDS === "1") {
   if (!/^[A-Za-z0-9_-]{8,64}$/.test(String(manifest.orchestrator.liveWorkflowId || ""))) throw new Error("Missing live orchestrator binding.");
   for (const entry of manifest.workflows) {
     if (!/^[A-Za-z0-9_-]{8,64}$/.test(String(entry.liveWorkflowId || ""))) throw new Error(`Missing live workflow binding for ${entry.workflowId}.`);
     if (!buildCalls.includes(entry.liveWorkflowId)) throw new Error(`Orchestrator does not contain the live binding for ${entry.workflowId}.`);
   }
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(String(manifest.operations?.errorWorkflowLiveId || ""))) throw new Error("Missing live central error workflow binding.");
+  if (orchestrator.settings?.errorWorkflow !== manifest.operations.errorWorkflowLiveId) throw new Error("Orchestrator is not bound to the central error workflow.");
 }
 console.log("Six specialist workflow contracts and selected-routing fixture verified.");
