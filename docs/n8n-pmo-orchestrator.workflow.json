@@ -29,7 +29,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body ?? {};\nconst mode = String(body.mode ?? '').trim();\nconst allowed = ['pmo.read', 'pmo.save', 'pmo.ingest'];\nreturn [{ json: { mode, validMode: allowed.includes(mode), body, receivedAt: new Date().toISOString() } }];"
+        "jsCode": "const body = $json.body ?? {};\nconst mode = String(body.mode ?? '').trim();\nconst allowed = ['pmo.read', 'pmo.save', 'pmo.ingest', 'pmo.review', 'pmo.publish'];\nreturn [{ json: { mode, validMode: allowed.includes(mode), body, receivedAt: new Date().toISOString() } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -174,7 +174,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const document = structuredClone($json.body?.document ?? null);\nconst required = ['workstreams','milestones','deliverables','risks','issues','actions','decisions','dependencies','assumptions','changeRequests','meetings','evidence','reviews','audit','objectVersions'];\nif (!document || document.schemaVersion !== '2.0' || !document.project || required.some(key => !Array.isArray(document[key]))) {\n  throw new Error('Invalid PMO document. Expected schemaVersion 2.0 and every governed collection.');\n}\nconst now = new Date().toISOString();\ndocument.revision = Math.max(1, Number(document.revision || 1)) + 1;\ndocument.project.updatedAt = now;\ndocument.project.governance = {...document.project.governance, version: Math.max(1, Number(document.project.governance?.version || 1)) + 1, updatedAt: now, updatedBy: 'n8n PMO Orchestrator'};\nconst commitMessage = 'pmo: publish control tower revision ' + document.revision;\nreturn [{ json: { document, fileContent: JSON.stringify(document, null, 2) + '\\n', commitMessage } }];"
+        "jsCode": "const document = JSON.parse(JSON.stringify($json.body?.document ?? null));\nconst required = ['workstreams','milestones','deliverables','risks','issues','actions','decisions','dependencies','assumptions','changeRequests','meetings','evidence','reviews','audit','objectVersions'];\nif (!document || document.schemaVersion !== '2.0' || !document.project || required.some(key => !Array.isArray(document[key]))) {\n  throw new Error('Invalid PMO document. Expected schemaVersion 2.0 and every governed collection.');\n}\nconst now = new Date().toISOString();\ndocument.revision = Math.max(1, Number(document.revision || 1)) + 1;\ndocument.project.updatedAt = now;\ndocument.project.governance = {...document.project.governance, version: Math.max(1, Number(document.project.governance?.version || 1)) + 1, updatedAt: now, updatedBy: 'n8n PMO Orchestrator'};\nconst commitMessage = 'pmo: publish control tower revision ' + document.revision;\nreturn [{ json: { document, fileContent: JSON.stringify(document, null, 2) + '\\n', commitMessage } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -488,52 +488,12 @@
     },
     {
       "parameters": {
-        "authentication": "accessToken",
-        "resource": "file",
-        "operation": "edit",
-        "owner": {
-          "__rl": true,
-          "value": "florianliepe",
-          "mode": "name"
-        },
-        "repository": {
-          "__rl": true,
-          "value": "eraneos-oet-transformation-cockpit-data",
-          "mode": "name"
-        },
-        "filePath": "knowledge/pmo/control-tower.json",
-        "binaryData": false,
-        "fileContent": "={{ $json.fileContent }}",
-        "commitMessage": "={{ $json.commitMessage }}",
-        "additionalParameters": {
-          "branch": {
-            "branch": "main"
-          }
-        }
-      },
-      "type": "n8n-nodes-base.github",
-      "typeVersion": 1.1,
-      "position": [
-        2720,
-        176
-      ],
-      "id": "9360ecca-2ec6-4360-96af-158222cfc700",
-      "name": "GitHubSaveControlTowerForIngest",
-      "credentials": {
-        "githubApi": {
-          "id": "3V46mglu7fpoPISX",
-          "name": "Transformation Cockpit GitHub Data"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const normalized=$node['NormalizeCanonical'].json;\nconst merged=$node['MergeIntoControlTower'].json;\nconst aggregate=$node['AggregateSpecialistResults'].json;\nconst completedAt=new Date().toISOString();\nconst status=aggregate.steps.some(step=>step.status==='failed')?'failed':(aggregate.warnings.length||aggregate.steps.some(step=>step.status==='needs_review')?'needs_review':'completed');\nconst commitSha=$json.commit?.sha??$json.content?.sha;\nconst commitUrl=$json.commit?.html_url??$json.content?.html_url;\nconst committedFiles=[normalized.jsonPath,normalized.markdownPath,'knowledge/pmo/control-tower.json'];\nconst evidence=aggregate.extracted.map((item,index)=>({id:String(item.id||item.name||'evidence-'+(index+1)),label:String(item.name||item.type||'Evidence'),source:item.name?String(item.name):undefined,verified:false}));\nconst agentRun={contractVersion:'agent-run-1.0',executionId:aggregate.executionId,correlationId:aggregate.correlationId,requestedAt:aggregate.requestedAt,completedAt,status,orchestrator:{workflowId:'pmo.orchestrate',workflowVersion:'1.1.0'},routing:{mode:String(aggregate.meta?.routing||'selected'),selectedWorkflows:aggregate.selectedWorkflows},steps:aggregate.steps,evidence,proposals:aggregate.proposals,warnings:aggregate.warnings,persistence:{mode:'legacy_direct',revision:Number(merged.document?.revision||normalized.canonical?.revision||1),commitSha}};\nreturn [{json:{ok:true,source:'github',storageConfigured:true,wpId:normalized.wpId,committedFiles,needs_review:normalized.needs_review,appliedChanges:merged.appliedChanges,document:merged.document,commit:{sha:commitSha,url:commitUrl},agentRun}}];"
+        "jsCode": "const stored=$node['BuildProposalSet'].json;const aggregate=$node['AggregateSpecialistResults'].json;const completedAt=new Date().toISOString();const proposals=stored.proposalSet.proposals.map(item=>({id:item.id,workflowId:item.workflowId,entity:item.entity,action:item.action,objectId:item.objectId,summary:item.summary,confidence:item.risk==='high'?'high':item.risk==='medium'?'medium':'low',evidenceIds:item.evidenceIds}));const warnings=aggregate.warnings;const agentRun={contractVersion:'agent-run-1.0',executionId:aggregate.executionId,correlationId:aggregate.correlationId,requestedAt:aggregate.requestedAt,completedAt,status:'needs_review',orchestrator:{workflowId:'pmo.orchestrate',workflowVersion:'1.2.0'},routing:{mode:String(aggregate.meta?.routing||'selected'),selectedWorkflows:aggregate.selectedWorkflows},steps:aggregate.steps,evidence:stored.proposalSet.evidence,proposals,warnings,persistence:{mode:'proposal_only',commitSha:$json.commit?.sha??$json.content?.sha}};return [{json:{ok:true,source:'github',storageConfigured:true,wpId:$node['NormalizeCanonical'].json.wpId,document:stored.document,proposalSet:stored.proposalSet,committedFiles:[stored.proposalPath],needs_review:proposals.map(item=>item.summary),appliedChanges:[],commit:{sha:$json.commit?.sha??$json.content?.sha,url:$json.commit?.html_url??$json.content?.html_url},agentRun}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2976,
+        2560,
         176
       ],
       "id": "9ceb64da-6110-4ef2-86cc-f9c5903168d2",
@@ -550,7 +510,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        3232,
+        2816,
         176
       ],
       "id": "083ff0bd-d911-42b4-ae1c-c0e1027b5f6b",
@@ -690,6 +650,519 @@
       ],
       "id": "aggregate-specialist-results",
       "name": "AggregateSpecialistResults"
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidate=$json.document;\nconst originalNode=$node['GitHubReadControlTowerForIngest'].json;\nif(!originalNode.content) throw new Error('Canonical PMO source is missing.');\nconst original=JSON.parse(Buffer.from(originalNode.content,'base64').toString('utf8'));\nconst aggregate=$node['AggregateSpecialistResults'].json;\nconst normalized=$node['NormalizeCanonical'].json;\nconst source=$node['BuildAssistantInput'].json;\nconst collections={workstream:'workstreams',milestone:'milestones',deliverable:'deliverables',risk:'risks',issue:'issues',action:'actions',decision:'decisions',dependency:'dependencies',assumption:'assumptions',change_request:'changeRequests',meeting:'meetings'};\nconst workflows={project:'delivery.plan',workstream:'delivery.plan',milestone:'delivery.plan',deliverable:'delivery.plan',risk:'risk.analyse',issue:'controls.classify',action:'controls.classify',decision:'meeting.synthesise',dependency:'controls.classify',assumption:'controls.classify',change_request:'controls.classify',meeting:'meeting.synthesise'};\nconst eq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);\nconst fields=(before,after)=>[...new Set([...Object.keys(before||{}),...Object.keys(after||{})])].filter(field=>field!=='governance'&&!eq(before?.[field],after?.[field])).map(field=>({field,before:before?.[field],after:after?.[field]}));\nconst record=(doc,type,id)=>type==='project'?doc.project:(doc[collections[type]]||[]).find(item=>item.id===id);\nconst risk=(type,action,after)=>action==='delete'||['project','decision','change_request'].includes(type)||after?.priority==='P1'||after?.criticality==='critical'||after?.status==='approved'?'high':action==='update'?'medium':'low';\nconst changes=[...($json.appliedChanges||[])];\nif(fields(original.project,candidate.project).length) changes.unshift({entity:'project',action:'update',id:original.project.id,summary:'Update project profile'});\nconst evidenceIds=[...new Set((source.extracted||[]).map((item,index)=>'EVD-'+normalized.wpId+'-'+(index+1)))];\nconst evidence=(source.extracted||[]).map((item,index)=>({id:evidenceIds[index],label:String(item.name||'Evidence '+(index+1)),source:'workbench:'+normalized.wpId,verified:false}));\nconst proposals=changes.map((change,index)=>{const before=record(original,change.entity,change.id);const after=record(candidate,change.entity,change.id);const action=change.action==='delete'?'delete':before?'update':'create';const diff=fields(before,after);return {id:'PROP-'+String(index+1).padStart(3,'0'),sourceExecutionId:aggregate.executionId,workflowId:workflows[change.entity]||'governance.review',entity:change.entity,action,objectId:String(change.id),expectedObjectVersion:Number(before?.governance?.version||0),summary:String(change.summary||action+' '+change.entity+' '+change.id),risk:risk(change.entity,action,after),evidenceIds:[...new Set(after?.governance?.evidenceIds?.length?after.governance.evidenceIds:evidenceIds)],fieldChanges:diff.length?diff:[{field:'record',before,after}],proposedObject:after};});\nconst safeExecution=String(aggregate.executionId).replace(/[^A-Za-z0-9._-]/g,'-').slice(0,90);\nconst id='PS-'+safeExecution;\nconst createdAt=new Date().toISOString();\nconst proposalSet={contractVersion:'proposal-set-1.0',id,sourceExecutionId:aggregate.executionId,correlationId:aggregate.correlationId,sourceRevision:Number(original.revision),status:'pending_review',createdAt,proposals,evidence,audit:[{id:'PAUD-GENERATE-'+safeExecution,event:'proposal.generated',actor:'PMO Orchestrator',at:createdAt,sourceExecutionId:aggregate.executionId,rationale:proposals.length+' proposal(s) generated; canonical state unchanged.'}]};\nreturn [{json:{proposalSet,document:original,proposalPath:'knowledge/pmo/proposals/'+id+'.json',fileContent:JSON.stringify(proposalSet,null,2)+'\\n',commitMessage:'pmo: store proposal set '+id}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        176
+      ],
+      "id": "build-proposal-set",
+      "name": "BuildProposalSet"
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "file",
+        "operation": "create",
+        "owner": {
+          "__rl": true,
+          "value": "florianliepe",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "eraneos-oet-transformation-cockpit-data",
+          "mode": "name"
+        },
+        "filePath": "={{ $json.proposalPath }}",
+        "binaryData": false,
+        "additionalParameters": {
+          "branch": {
+            "branch": "main"
+          }
+        },
+        "fileContent": "={{ $json.fileContent }}",
+        "commitMessage": "={{ $json.commitMessage }}"
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        2304,
+        176
+      ],
+      "id": "githubstoreproposalset",
+      "name": "GitHubStoreProposalSet",
+      "credentials": {
+        "githubApi": {
+          "id": "3V46mglu7fpoPISX",
+          "name": "GitHub data"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "IfReview-condition",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "pmo.review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        256,
+        384
+      ],
+      "id": "ifreview",
+      "name": "IfReview"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "IfPublish-condition",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "pmo.publish",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        512,
+        512
+      ],
+      "id": "ifpublish",
+      "name": "IfPublish"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body=$json.body??{};const setId=String(body.proposalSetId||'');const review=body.reviewBundle;if(!/^PS-[A-Za-z0-9._-]{4,100}$/.test(setId)||!review||review.contractVersion!=='review-decision-1.0')throw new Error('Invalid governed review request.');const safeReview=String(review.id||'').replace(/[^A-Za-z0-9._-]/g,'-').slice(0,110);if(!safeReview)throw new Error('Review bundle ID is required.');return [{json:{body,proposalSetId:setId,proposalPath:'knowledge/pmo/proposals/'+setId+'.json',reviewPath:'knowledge/pmo/proposals/'+setId+'.'+safeReview+'.review.json'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        336
+      ],
+      "id": "prepare-review-request",
+      "name": "PrepareReviewRequest"
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "file",
+        "operation": "get",
+        "owner": {
+          "__rl": true,
+          "value": "florianliepe",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "eraneos-oet-transformation-cockpit-data",
+          "mode": "name"
+        },
+        "filePath": "={{ $json.proposalPath }}",
+        "binaryData": false,
+        "additionalParameters": {
+          "reference": "main"
+        }
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        336
+      ],
+      "id": "githubreadproposalforreview",
+      "name": "GitHubReadProposalForReview",
+      "credentials": {
+        "githubApi": {
+          "id": "3V46mglu7fpoPISX",
+          "name": "GitHub data"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "if(!$json.content)throw new Error('Stored proposal set is missing.');const proposalSet=JSON.parse(Buffer.from($json.content,'base64').toString('utf8'));const request=$node['PrepareReviewRequest'].json;const review=request.body.reviewBundle;if(proposalSet.id!==request.proposalSetId||review.proposalSetId!==proposalSet.id||review.sourceExecutionId!==proposalSet.sourceExecutionId||!review.reviewer||!Array.isArray(review.decisions)||review.decisions.length!==proposalSet.proposals.length)throw new Error('Review lineage or decision coverage is invalid.');const byId=new Map(review.decisions.map(item=>[item.proposalId,item]));for(const proposal of proposalSet.proposals){const decision=byId.get(proposal.id);if(!decision||decision.sourceExecutionId!==proposalSet.sourceExecutionId||decision.expectedObjectVersion!==proposal.expectedObjectVersion||!['accept','reject'].includes(decision.decision))throw new Error('Invalid decision for '+proposal.id+'.');if(proposal.risk==='high'&&String(decision.rationale||'').trim().length<20)throw new Error('High-impact decision '+proposal.id+' requires accountable rationale.');}return [{json:{reviewBundle:review,reviewPath:request.reviewPath,fileContent:JSON.stringify(review,null,2)+'\\n',commitMessage:'pmo: record review '+review.id}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        336
+      ],
+      "id": "validate-review-decision",
+      "name": "ValidateReviewDecision"
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "file",
+        "operation": "create",
+        "owner": {
+          "__rl": true,
+          "value": "florianliepe",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "eraneos-oet-transformation-cockpit-data",
+          "mode": "name"
+        },
+        "filePath": "={{ $json.reviewPath }}",
+        "binaryData": false,
+        "additionalParameters": {
+          "branch": {
+            "branch": "main"
+          }
+        },
+        "fileContent": "={{ $json.fileContent }}",
+        "commitMessage": "={{ $json.commitMessage }}"
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        336
+      ],
+      "id": "githubstorereviewbundle",
+      "name": "GitHubStoreReviewBundle",
+      "credentials": {
+        "githubApi": {
+          "id": "3V46mglu7fpoPISX",
+          "name": "GitHub data"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,reviewBundle:$node['ValidateReviewDecision'].json.reviewBundle,commit:{sha:$json.commit?.sha??$json.content?.sha,url:$json.commit?.html_url??$json.content?.html_url}}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        336
+      ],
+      "id": "format-review",
+      "name": "FormatReview"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1792,
+        336
+      ],
+      "id": "respond-review",
+      "name": "RespondReview"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body=$json.body??{};const setId=String(body.proposalSetId||'');const reviewId=String(body.reviewBundleId||'');const actor=String(body.actor||'').trim();const key=String(body.idempotencyKey||'');if(!/^PS-[A-Za-z0-9._-]{4,100}$/.test(setId)||!/^[A-Za-z0-9._-]{8,140}$/.test(reviewId)||!actor||!/^[A-Za-z0-9-]{8,80}$/.test(key)||!Number.isInteger(Number(body.expectedRevision)))throw new Error('Invalid governed publication request.');return [{json:{body,proposalPath:'knowledge/pmo/proposals/'+setId+'.json',reviewPath:'knowledge/pmo/proposals/'+setId+'.'+reviewId.replace(/[^A-Za-z0-9._-]/g,'-').slice(0,110)+'.review.json'}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        512
+      ],
+      "id": "prepare-publish-request",
+      "name": "PreparePublishRequest"
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "file",
+        "operation": "get",
+        "owner": {
+          "__rl": true,
+          "value": "florianliepe",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "eraneos-oet-transformation-cockpit-data",
+          "mode": "name"
+        },
+        "filePath": "={{ $json.proposalPath }}",
+        "binaryData": false,
+        "additionalParameters": {
+          "reference": "main"
+        }
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1024,
+        512
+      ],
+      "id": "githubreadproposalforpublish",
+      "name": "GitHubReadProposalForPublish",
+      "credentials": {
+        "githubApi": {
+          "id": "3V46mglu7fpoPISX",
+          "name": "GitHub data"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "file",
+        "operation": "get",
+        "owner": {
+          "__rl": true,
+          "value": "florianliepe",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "eraneos-oet-transformation-cockpit-data",
+          "mode": "name"
+        },
+        "filePath": "={{ $node['PreparePublishRequest'].json.reviewPath }}",
+        "binaryData": false,
+        "additionalParameters": {
+          "reference": "main"
+        }
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        512
+      ],
+      "id": "githubreadreviewforpublish",
+      "name": "GitHubReadReviewForPublish",
+      "credentials": {
+        "githubApi": {
+          "id": "3V46mglu7fpoPISX",
+          "name": "GitHub data"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "file",
+        "operation": "get",
+        "owner": {
+          "__rl": true,
+          "value": "florianliepe",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "eraneos-oet-transformation-cockpit-data",
+          "mode": "name"
+        },
+        "filePath": "knowledge/pmo/control-tower.json",
+        "binaryData": false,
+        "additionalParameters": {
+          "reference": "main"
+        }
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1536,
+        512
+      ],
+      "id": "githubreadcanonicalforpublish",
+      "name": "GitHubReadCanonicalForPublish",
+      "credentials": {
+        "githubApi": {
+          "id": "3V46mglu7fpoPISX",
+          "name": "GitHub data"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const decode=node=>{const value=$node[node].json;if(!value.content)throw new Error(node+' content is missing.');return JSON.parse(Buffer.from(value.content,'base64').toString('utf8'));};const request=$node['PreparePublishRequest'].json.body;return [{json:{authorized:true,proposalSet:decode('GitHubReadProposalForPublish'),reviewBundle:decode('GitHubReadReviewForPublish'),canonicalDocument:decode('GitHubReadCanonicalForPublish'),expectedRevision:Number(request.expectedRevision),idempotencyKey:String(request.idempotencyKey),actor:String(request.actor)}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        512
+      ],
+      "id": "build-publisher-input",
+      "name": "BuildPublisherInput"
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "4czGSZtMjeGpKSFS",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "authorized": "={{ $json.authorized }}",
+            "proposalSet": "={{ $json.proposalSet }}",
+            "reviewBundle": "={{ $json.reviewBundle }}",
+            "canonicalDocument": "={{ $json.canonicalDocument }}",
+            "expectedRevision": "={{ $json.expectedRevision }}",
+            "idempotencyKey": "={{ $json.idempotencyKey }}",
+            "actor": "={{ $json.actor }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "authorized",
+              "displayName": "authorized",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "boolean"
+            },
+            {
+              "id": "proposalSet",
+              "displayName": "proposalSet",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            },
+            {
+              "id": "reviewBundle",
+              "displayName": "reviewBundle",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            },
+            {
+              "id": "canonicalDocument",
+              "displayName": "canonicalDocument",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            },
+            {
+              "id": "expectedRevision",
+              "displayName": "expectedRevision",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "idempotencyKey",
+              "displayName": "idempotencyKey",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "actor",
+              "displayName": "actor",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        2048,
+        512
+      ],
+      "id": "execute-governed-publisher",
+      "name": "ExecuteGovernedPublisher"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{...$json,ok:true}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        512
+      ],
+      "id": "format-publication",
+      "name": "FormatPublication"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2560,
+        512
+      ],
+      "id": "respond-publication",
+      "name": "RespondPublication"
     }
   ],
   "connections": {
@@ -806,7 +1279,7 @@
         ],
         [
           {
-            "node": "RespondInvalidMode",
+            "node": "IfReview",
             "type": "main",
             "index": 0
           }
@@ -894,7 +1367,7 @@
       "main": [
         [
           {
-            "node": "GitHubSaveControlTowerForIngest",
+            "node": "BuildProposalSet",
             "type": "main",
             "index": 0
           }
@@ -966,6 +1439,196 @@
           }
         ]
       ]
+    },
+    "BuildProposalSet": {
+      "main": [
+        [
+          {
+            "node": "GitHubStoreProposalSet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHubStoreProposalSet": {
+      "main": [
+        [
+          {
+            "node": "FormatIngest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfReview": {
+      "main": [
+        [
+          {
+            "node": "PrepareReviewRequest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IfPublish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfPublish": {
+      "main": [
+        [
+          {
+            "node": "PreparePublishRequest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RespondInvalidMode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareReviewRequest": {
+      "main": [
+        [
+          {
+            "node": "GitHubReadProposalForReview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHubReadProposalForReview": {
+      "main": [
+        [
+          {
+            "node": "ValidateReviewDecision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateReviewDecision": {
+      "main": [
+        [
+          {
+            "node": "GitHubStoreReviewBundle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHubStoreReviewBundle": {
+      "main": [
+        [
+          {
+            "node": "FormatReview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatReview": {
+      "main": [
+        [
+          {
+            "node": "RespondReview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PreparePublishRequest": {
+      "main": [
+        [
+          {
+            "node": "GitHubReadProposalForPublish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHubReadProposalForPublish": {
+      "main": [
+        [
+          {
+            "node": "GitHubReadReviewForPublish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHubReadReviewForPublish": {
+      "main": [
+        [
+          {
+            "node": "GitHubReadCanonicalForPublish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHubReadCanonicalForPublish": {
+      "main": [
+        [
+          {
+            "node": "BuildPublisherInput",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BuildPublisherInput": {
+      "main": [
+        [
+          {
+            "node": "ExecuteGovernedPublisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteGovernedPublisher": {
+      "main": [
+        [
+          {
+            "node": "FormatPublication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatPublication": {
+      "main": [
+        [
+          {
+            "node": "RespondPublication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -974,6 +1637,6 @@
     "binaryMode": "separate",
     "availableInMCP": true
   },
-  "versionId": "pmo-orchestrator-specialists-v1",
+  "versionId": "pmo-orchestrator-governed-publisher-v1",
   "tags": []
 }

@@ -21,3 +21,16 @@ Separate agent proposals from canonical PMO writes and require accountable human
 - Every accepted change has evidence, review, audit and object-version lineage.
 - Rejected changes leave canonical state unchanged.
 
+## Implementation record
+
+Completed on 2026-08-11.
+
+- The cockpit exposes an Agent review inbox with field-level current/proposed comparison, selective accept/reject decisions, reviewer identity, and mandatory high-impact rationale.
+- Proposal sets and review bundles carry immutable source execution and expected object-version lineage and are stored separately from `knowledge/pmo/control-tower.json`.
+- Agent ingestion is proposal-only. The dedicated `governed.publish` workflow is the sole agent-path canonical writer; manual `pmo.save` remains a separate human editing path.
+- The publisher validates authorization context, contract/schema, canonical and object versions, evidence references, complete review coverage, high-impact rationale, and deterministic idempotency immediately before publication.
+- Accepted changes create evidence, approved review, audit, and object-version records. Rejected and duplicate requests return the canonical revision unchanged.
+- Source verifier: `npm run verify:governed-publisher`.
+- Live non-destructive smoke result: rejection `shouldWrite:false`, duplicate `shouldWrite:false`, both revision `7`.
+- Live publisher: `4czGSZtMjeGpKSFS`; live public orchestrator: `RToP0ZCeTQUTKhBE`.
+

@@ -21,6 +21,12 @@ The generic PMO workflow is versioned at `docs/n8n-pmo-orchestrator.workflow.jso
 - `pmo.read` for the schema-v2 canonical document;
 - `pmo.save` for governed revision publication;
 - `pmo.ingest` for evidence-bound specialist workflows: evidence verification, delivery planning, risk analysis, meeting synthesis, controls classification and governance review.
+- `pmo.review` for immutable, field-level human review decisions;
+- `pmo.publish` for the dedicated governed publisher, the only agent-path canonical writer.
+
+Agent ingestion now stores proposal sets separately and returns the unchanged canonical document. The publisher revalidates authorization context, schema, canonical revision, object versions, evidence, review coverage, high-impact rationale, and idempotency immediately before a write.
+
+Current ZM-PROD-05C live bindings are recorded in `docs/n8n/agents/manifest.json`. The non-destructive live smoke test covers rejected and duplicate publications and must return `shouldWrite: false` without changing the fixture revision.
 
 The shared workspace credential is entered in the browser, retained only in React memory and sent as the `x-n8n-webhook-secret` header. Refreshing or closing the page clears it. Microsoft Entra ID remains the production identity target.
 
