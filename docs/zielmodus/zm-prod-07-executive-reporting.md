@@ -24,3 +24,13 @@ Produce configurable, evidence-linked executive reporting with accountable revie
 ## Deployment outcome
 
 Deploy reporting workbenches and verified export artifacts before smarter orchestration.
+
+## Execution record
+
+- Status: implemented and locally validated; GitHub Pages publication follows the merge gate.
+- Configurable report modules cover delivery, risks, decisions, benefits, finances and governed scenarios.
+- Every material claim must retain source identifiers or an explicit accountable judgement basis before approval.
+- Trend and material-change contracts expose current value, prior-period comparison, direction, explanation and lineage.
+- Existing accountable approval, immutable publication, rollback and revocation controls remain enforced.
+- The read-only report supports print-to-PDF and a reproducible Eraneos-styled PowerPoint package with an evidence appendix.
+- Automated tests verify configuration, period comparison, unsupported-claim blocking, immutability and PowerPoint package content.
