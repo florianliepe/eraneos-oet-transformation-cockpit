@@ -7,8 +7,9 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/verify-public-bundle.mjs",
-    "build:pages": "next build && node scripts/verify-public-bundle.mjs && node scripts/verify-pages-export.mjs",
+    "build": "node scripts/verify-workspace-runtime.mjs && next build && node scripts/verify-public-bundle.mjs",
+    "build:pages": "node scripts/verify-workspace-runtime.mjs && next build && node scripts/verify-public-bundle.mjs && node scripts/verify-pages-export.mjs",
+    "verify:workspace-runtime": "node scripts/verify-workspace-runtime.mjs",
     "verify:public-bundle": "node scripts/verify-public-bundle.mjs",
     "verify:governance-artifacts": "node scripts/verify-governance-artifacts.mjs && node scripts/evaluate-agent-quality.mjs && node scripts/evaluate-smart-orchestration.mjs && node scripts/verify-workflow-release.mjs && node scripts/verify-operational-baseline.mjs",
     "evaluate:agents": "node scripts/evaluate-agent-quality.mjs",
