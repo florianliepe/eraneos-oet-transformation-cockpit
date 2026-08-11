@@ -12,6 +12,7 @@ import {
   type ReviewBundle,
 } from "@/lib/governed-proposals";
 import type { WorkspaceScope } from "@/lib/project-data-repository";
+import { credentialRequired, newCorrelationId, workflowError } from "@/lib/operational-quality";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
@@ -72,24 +73,26 @@ function unwrap<T>(raw: unknown): T {
 
 async function callWorkflow<T>(secret: string, body: unknown): Promise<T> {
   const normalizedSecret = secret.trim();
-  if (!normalizedSecret) throw new Error("Enter the temporary workspace credential to continue.");
+  if (!normalizedSecret) throw credentialRequired("pmo_workflow");
+  const correlationId = newCorrelationId();
 
-  const response = await fetch(webhookUrl(), {
+  let response: Response;
+  try { response = await fetch(webhookUrl(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-n8n-webhook-secret": normalizedSecret,
+      "x-correlation-id": correlationId,
     },
     body: JSON.stringify(body),
     cache: "no-store",
-  });
+  }); } catch (cause) { throw workflowError({ component: "pmo_workflow", correlationId, cause }); }
 
   const contentType = response.headers.get("content-type") || "";
   const raw: unknown = contentType.includes("application/json") ? await response.json() : await response.text();
   const payload = unwrap<T & { error?: string }>(raw);
   if (!response.ok) {
-    const message = payload && typeof payload === "object" ? payload.error : undefined;
-    throw new Error(message || `The PMO workflow returned HTTP ${response.status}.`);
+    throw workflowError({ component: "pmo_workflow", correlationId, status: response.status });
   }
   return payload;
 }

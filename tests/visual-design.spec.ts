@@ -98,6 +98,6 @@ test("captures empty, loading, error and recovery states", async ({ page }, test
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(page.getByRole("status")).toContainText("Connecting to the project control tower");
   await testInfo.attach("state-loading", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
-  await expect(page.getByRole("alert").filter({ hasText: "Controlled visual failure" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "The workflow is temporarily unavailable." })).toBeVisible();
   await testInfo.attach("state-error", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
 });

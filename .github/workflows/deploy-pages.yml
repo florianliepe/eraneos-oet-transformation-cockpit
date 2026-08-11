@@ -33,6 +33,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint
         run: npm run lint
 
@@ -42,11 +45,20 @@ jobs:
       - name: Verify governed product contracts and neutrality
         run: npm run verify:governance-artifacts
 
+      - name: Verify operational release contract
+        run: npm run verify:operational-quality
+
       - name: Build static GitHub Pages frontend
         run: npm run build:pages
 
-      - name: Install Chromium for Pages test
-        run: npx playwright install --with-deps chromium
+      - name: Install supported browsers
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Test accessibility contract
+        run: npm run test:accessibility
+
+      - name: Test browser compatibility
+        run: npm run test:compatibility
 
       - name: Test exported project path and runtime boundary
         run: npm run test:pages

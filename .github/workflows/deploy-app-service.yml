@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint
         run: npm run lint
 
@@ -39,8 +42,24 @@ jobs:
       - name: Verify governed product contracts and neutrality
         run: npm run verify:governance-artifacts
 
+      - name: Verify operational release contract
+        run: npm run verify:operational-quality
+
       - name: Build standalone frontend
         run: npm run build
+
+      - name: Install supported browsers
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Test accessibility contract
+        run: npm run test:accessibility
+        env:
+          NEXT_PUBLIC_WORKSPACE_RUNTIME_MODE: local_demo
+
+      - name: Test browser compatibility
+        run: npm run test:compatibility
+        env:
+          NEXT_PUBLIC_WORKSPACE_RUNTIME_MODE: local_demo
 
       - name: Assemble App Service artifact
         shell: bash
