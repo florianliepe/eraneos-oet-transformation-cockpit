@@ -2,7 +2,7 @@
 
 ## Outcome
 
-The Transformation Cockpit now uses an Eraneos product design system while preserving PMO behavior, schemas, fixtures, n8n workflow identifiers and persistence contracts. The supplied Eraneos mark replaces the former CSS approximation. The UI remains English-only and contains no DEKRA references or dependencies.
+The Transformation Cockpit now uses an Eraneos product design system while preserving PMO behavior, schemas, fixtures, n8n workflow identifiers and persistence contracts. The supplied Eraneos mark replaces the former CSS approximation. The UI remains English-only and contains no restricted client references or dependencies.
 
 ## Visual evidence
 
@@ -34,7 +34,7 @@ Both screenshots show the MVP access boundary so the same application state can 
 - `npm run build:pages` — production static export passed.
 - `npm run test:pages` — GitHub Pages base-path and asset test passed.
 - Public-bundle credential and licensed-content scan — passed.
-- Repository and generated-output DEKRA scan — no matches.
+- Repository and generated-output client-neutrality scan — no matches.
 - Browser review — no console warnings/errors and no horizontal overflow at desktop width.
 
 ## Outstanding brand input
