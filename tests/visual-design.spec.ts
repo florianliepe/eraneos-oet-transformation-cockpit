@@ -8,7 +8,12 @@ async function openCockpit(page: import("@playwright/test").Page) {
       body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: true, document: bootstrapPmoData }),
     });
   });
-  await page.goto("/?view=signin");
+  await page.goto("/?view=register");
+  await page.getByLabel("Display name").fill("Visual Tester");
+  await page.getByLabel("Email").fill("visual@example.com");
+  await page.getByLabel("Local demonstration password").fill("visual-local-password");
+  await page.getByLabel(/I accept the applicable terms/).check();
+  await page.getByRole("button", { name: "Create local account" }).click();
   await page.getByLabel("Temporary workspace credential").fill("visual-test-credential");
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(page.getByRole("heading", { name: "Executive overview" })).toBeVisible();

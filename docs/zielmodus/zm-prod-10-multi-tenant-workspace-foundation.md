@@ -116,6 +116,14 @@ Execution status: **implemented and validated** on 2026-08-11.
 4. Make development-mode limitations explicit in the UI.
 5. Test invalid credentials, expired invitations, duplicate accounts and session expiry.
 
+Execution status: **implemented and validated** on 2026-08-11.
+
+- Versioned account, session, invitation, membership and role schemas now define the stable identity boundary, with a replaceable `IdentityProvider` interface.
+- Browser-local registration derives a per-account verifier with Web Crypto PBKDF2; plaintext passwords are neither persisted nor reused as the separate workflow credential.
+- Self-registration, sign-in, sign-out and signed-in invitation acceptance are available through static-compatible entry routes and carry an explicit local-development warning.
+- Sessions expire after eight hours, invitation codes are email-bound and one-time, and neither valid invitation codes nor seeded account credentials are embedded in the public application.
+- Domain and browser tests cover duplicate accounts, invalid credentials, expired and unknown invitation codes, session expiry, static Pages onboarding and retained cockpit access.
+
 ### ZM-PROD-10C — Organisation and role governance
 
 1. Add organisation creation and membership management.

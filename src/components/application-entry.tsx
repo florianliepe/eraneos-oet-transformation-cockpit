@@ -2,25 +2,37 @@
 
 import { lazy, Suspense, useEffect, useState } from "react";
 import { BrandMark } from "./brand-mark";
+import { IdentityEntry } from "./identity-entry";
+import { LocalIdentityProvider } from "@/lib/local-identity-provider";
+import type { IdentityProvider, IdentityResult } from "@/lib/identity-provider";
 
-type PublicView = "landing" | "signin" | "register";
+type PublicView = "landing" | "signin" | "register" | "invite";
 
 const AuthenticatedCockpit = lazy(() => import("./authenticated-cockpit"));
 
 function viewFromLocation(): PublicView {
   if (typeof window === "undefined") return "landing";
   const requested = new URLSearchParams(window.location.search).get("view");
-  return requested === "signin" || requested === "register" ? requested : "landing";
+  return requested === "signin" || requested === "register" || requested === "invite" ? requested : "landing";
 }
 
 export default function ApplicationEntry() {
   const [view, setView] = useState<PublicView>("landing");
+  const [provider, setProvider] = useState<IdentityProvider | null>(null);
+  const [identity, setIdentity] = useState<IdentityResult | null>(null);
+  const [identityReady, setIdentityReady] = useState(false);
 
   useEffect(() => {
     const syncView = () => setView(viewFromLocation());
     syncView();
     window.addEventListener("popstate", syncView);
     return () => window.removeEventListener("popstate", syncView);
+  }, []);
+
+  useEffect(() => {
+    const localProvider = new LocalIdentityProvider(window.localStorage);
+    queueMicrotask(() => setProvider(localProvider));
+    void localProvider.currentSession().then(setIdentity).finally(() => setIdentityReady(true));
   }, []);
 
   function navigate(next: PublicView) {
@@ -32,17 +44,25 @@ export default function ApplicationEntry() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  if (view === "signin") {
+  if (view !== "landing" && (!provider || !identityReady)) return <EntryLoading />;
+
+  if (view === "invite" && provider) return <IdentityEntry provider={provider} mode="invite" onAuthenticated={(result) => { setIdentity(result); navigate("signin"); }} onNavigate={navigate} onBack={() => navigate("landing")} />;
+
+  if (view !== "landing" && identity && provider) {
     return (
       <Suspense fallback={<EntryLoading />}>
         <div className="authenticated-entry-bar">
           <button type="button" onClick={() => navigate("landing")} aria-label="Back to public landing page">← Back to overview</button>
-          <span>Local demonstration access · production identity is not enabled</span>
+          <span>{identity.account.displayName} · local demonstration identity</span>
+          <button type="button" onClick={() => navigate("invite")}>Accept invitation</button>
+          <button type="button" onClick={() => void provider.signOut().then(() => { setIdentity(null); navigate("signin"); })}>Sign out</button>
         </div>
         <AuthenticatedCockpit />
       </Suspense>
     );
   }
+
+  if (view !== "landing" && provider) return <IdentityEntry provider={provider} mode={view} onAuthenticated={setIdentity} onNavigate={navigate} onBack={() => navigate("landing")} />;
 
   return (
     <div className="public-site">
@@ -63,7 +83,7 @@ export default function ApplicationEntry() {
       </header>
 
       <main id="public-content" tabIndex={-1}>
-        {view === "register" ? <RegistrationPreview onBack={() => navigate("landing")} onSignIn={() => navigate("signin")} /> : <LandingPage onSignIn={() => navigate("signin")} onRegister={() => navigate("register")} />}
+        <LandingPage onSignIn={() => navigate("signin")} onRegister={() => navigate("register")} />
       </main>
 
       <footer className="public-footer">
@@ -105,10 +125,6 @@ function LandingPage({ onSignIn, onRegister }: { onSignIn: () => void; onRegiste
     <section className="trust-section" id="security"><span className="public-kicker">TRUST BOUNDARY</span><h2>Production-shaped, honest about the current boundary.</h2><div><p>This public MVP uses clearly labelled local demonstration access. Production identity, MFA, recovery and server-side tenant enforcement remain gated until the approved Azure platform is connected.</p><ul><li>No credentials embedded in the public bundle</li><li>Proposal-only agent publishing</li><li>Versioned evidence, review and audit contracts</li><li>Fail-closed production adapter plan</li></ul></div></section>
     <section className="public-cta"><span className="public-kicker">START WITH ONE TRANSFORMATION</span><h2>Give every decision its evidence, owner and next action.</h2><div><button className="public-button public-button-large" type="button" onClick={onRegister}>Create account</button><button className="public-text-action" type="button" onClick={onSignIn}>Already have access? Sign in →</button></div></section>
   </>;
-}
-
-function RegistrationPreview({ onBack, onSignIn }: { onBack: () => void; onSignIn: () => void }) {
-  return <section className="entry-preview" aria-labelledby="registration-title"><button className="public-text-action" type="button" onClick={onBack}>← Back to overview</button><div><span className="public-kicker">CREATE ACCOUNT</span><h1 id="registration-title">Set up your transformation workspace.</h1><p>Self-registration and invitation onboarding are the next Zielmodus slice. The account boundary will support organisation workspaces with multiple owners and isolated projects.</p><div className="development-notice"><b>Development boundary</b><span>Production email verification, recovery, MFA and server-side identity are intentionally not simulated in this static release.</span></div><button className="public-button public-button-large" type="button" onClick={onSignIn}>Use current MVP access</button></div></section>;
 }
 
 function EntryLoading() {
