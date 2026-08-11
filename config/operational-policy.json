@@ -1,0 +1,9 @@
+{
+  "contractVersion": "operational-policy-1.0",
+  "owner": "OET AI Suite workflow administrator",
+  "incidentLead": "designated PMO platform operator",
+  "retention": { "successfulExecutionDays": 30, "failedExecutionDays": 90, "deadLetterDays": 90 },
+  "redaction": ["authorization headers", "credential-shaped values", "raw evidence bodies", "model prompts", "extracted source content"],
+  "alerts": { "availabilityFailureCount": 2, "availabilityWindowMinutes": 5, "authenticationFailures": 10, "authenticationWindowMinutes": 5, "deadLetters": 1, "repeatedWorkflowFailures": 3, "repeatedFailureWindowMinutes": 15 },
+  "destructiveCleanupRequiresConfirmation": true
+}

@@ -16,8 +16,9 @@ import { AgentRunEnvelopeSchema, selectedAgentWorkflows, type AgentRunEnvelope }
 import { ProposalReviewInbox } from "./proposal-review-inbox";
 import type { DecisionInput, ProposalSet } from "@/lib/governed-proposals";
 import { AgentOperationsPanel, type AgentRunHistoryEntry } from "./agent-operations-panel";
+import { OperationalHealth } from "./operational-health";
 
-type View = "intake" | "review" | "operations" | "overview" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
+type View = "intake" | "review" | "operations" | "health" | "overview" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
 type DeleteTarget = { entity: Exclude<EditableEntity, "project">; id: string; label: string; blockedReason?: string };
 
@@ -25,6 +26,7 @@ const navigation: Array<{ id: View; label: string; icon: keyof typeof Icons }> =
   { id: "intake", label: "Workbench intake", icon: "upload" },
   { id: "review", label: "Agent review inbox", icon: "activity" },
   { id: "operations", label: "Agent operations", icon: "activity" },
+  { id: "health", label: "Operational health", icon: "dashboard" },
   { id: "overview", label: "Executive overview", icon: "dashboard" },
   { id: "plan", label: "Plan & deliverables", icon: "plan" },
   { id: "risks", label: "Risk register", icon: "risk" },
@@ -38,6 +40,7 @@ const viewMeta: Record<View, { eyebrow: string; title: string; description: stri
   intake: { eyebrow: "PMO workbench", title: "Ingest and orchestrate", description: "Convert project evidence into governed, reviewable updates." },
   review: { eyebrow: "Human governance", title: "Agent review inbox", description: "Compare, accept or reject evidence-bound proposals before canonical publication." },
   operations: { eyebrow: "Agent operations", title: "Execution control", description: "Inspect run health, versions, latency and safe recovery lineage." },
+  health: { eyebrow: "Production operations", title: "Operational health", description: "Release readiness, authoritative bindings and actionable incident signals." },
   overview: { eyebrow: "Control tower", title: "Executive overview", description: "One live view of delivery health, decisions and exposure." },
   plan: { eyebrow: "Delivery", title: "Plan & deliverables", description: "Track gate milestones and workstream commitments." },
   risks: { eyebrow: "RAID", title: "Risk register", description: "Prioritise exposure and keep mitigation ownership visible." },
@@ -315,6 +318,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
           {view === "intake" && <IntakeWorkbench saving={workflowSaving} result={workflowResult} onRun={(submission) => void runWorkflowIntake(submission)}/>}
           {view === "review" && <ProposalReviewInbox proposalSets={proposalSets} busy={reviewBusy} onSubmit={reviewProposalSet}/>}
           {view === "operations" && <AgentOperationsPanel entries={runHistory} busy={workflowSaving} onRecover={recoverRun}/>}
+          {view === "health" && <OperationalHealth runs={runHistory} pendingReviews={proposalSets.filter((set) => set.status === "pending_review").length}/>}
           {view === "overview" && <Overview data={data} exposure={exposure} openActions={openActions} completedDeliverables={completedDeliverables} setView={setView} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "plan" && <PlanView data={data} query={query} mutate={mutate} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "risks" && <RiskView data={data} query={query} onEdit={setEditor} onDelete={requestDelete}/>}

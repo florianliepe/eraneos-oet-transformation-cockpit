@@ -288,6 +288,23 @@ svg { width: 18px; height: 18px; flex: 0 0 auto; }
 .agent-ops-actions button:disabled { opacity: .5; }
 @media (max-width: 900px) { .agent-ops-summary { grid-template-columns: repeat(2, 1fr); } .agent-ops-row { grid-template-columns: 1fr; } }
 
+.ops-health { display: grid; gap: 18px; }
+.ops-health-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.ops-health-grid .panel, .ops-health-section, .ops-policy { padding: 22px; }
+.ops-health-grid h3 { margin: 8px 0; font-size: 24px; }
+.ops-health-grid p, .ops-health-section header p { color: var(--muted); }
+.health-ok { color: #21734f; }.health-warning { color: #a9531c; }
+.binding-list { display: grid; margin-top: 18px; }
+.binding-list > div { display: grid; grid-template-columns: 10px minmax(180px, 1fr) minmax(180px, 1fr) auto; gap: 12px; align-items: center; padding: 13px 0; border-top: 1px solid var(--line); }
+.health-dot { width: 8px; height: 8px; border-radius: 50%; background: #2a8b61; }
+.binding-list code { font-size: 12px; }.binding-list small { color: var(--muted); }
+.health-incidents article { display: grid; grid-template-columns: auto 1fr; gap: 14px; padding: 15px 0; border-top: 1px solid var(--line); }
+.health-severity { align-self: start; padding: 4px 7px; border-radius: 3px; font-size: 10px; text-transform: uppercase; }.health-critical { background: #f7d8d2; color: #862f20; }.health-warning { background: #f8e6d6; color: #8c4a1e; }
+.health-empty { padding: 24px 0 4px; }.health-empty p { color: var(--muted); }
+.ops-policy { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }.ops-policy div { display: grid; gap: 5px; }.ops-policy span { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+@media (max-width: 900px) { .ops-health-grid, .ops-policy { grid-template-columns: 1fr 1fr; } .binding-list > div { grid-template-columns: 10px 1fr; }.binding-list code,.binding-list small { grid-column: 2; } }
+@media (max-width: 560px) { .ops-health-grid, .ops-policy { grid-template-columns: 1fr; } }
+
 .workflow-intro { display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: center; background: #fff4f6; border: 1px solid #f7d8df; border-radius: 6px; padding: 13px; margin: 18px 0; }
 .workflow-intro .n8n-logo { display: grid; place-items: center; height: 34px; border-radius: 5px; background: #fff; color: #ea4b71; font-size: 10px; font-weight: 900; }
 .workflow-intro p { margin: 0; color: #6e7772; font-size: 9px; line-height: 1.5; }

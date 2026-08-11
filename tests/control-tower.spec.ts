@@ -140,3 +140,13 @@ test("shows immutable run history and replays the original input with lineage", 
   expect(ingests[1].meta?.replay_of).toBeTruthy();
   expect(ingests[1].meta?.correlation_id).toBe(ingests[0].meta?.correlation_id);
 });
+
+test("shows release-aligned operational health and ownership", async ({ page }) => {
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Operational health" }).click();
+  await expect(page.getByRole("heading", { name: "Operational health", level: 1 })).toBeVisible();
+  await expect(page.getByText("2026-08-11-zm-prod-09a")).toBeVisible();
+  await expect(page.getByText("pEIhI533jPQvvSzs")).toBeVisible();
+  await expect(page.getByText("4czGSZtMjeGpKSFS")).toBeVisible();
+  await expect(page.getByText("BkHWDRmPvXOepELU")).toBeVisible();
+  await expect(page.getByText("OET AI Suite workflow administrator")).toBeVisible();
+});
