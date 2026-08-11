@@ -7,10 +7,13 @@ import {
   assertSteercoSourcesCurrent,
   buildSteercoEnvelope,
   buildSteercoEvidence,
+  compareSteercoPeriods,
   rejectSteercoDraft,
   resolveSteercoPeriod,
   SteercoSnapshotSchema,
 } from "../src/lib/steerco-schema";
+import { buildSteercoPowerPoint } from "../src/lib/steerco-export";
+import JSZip from "jszip";
 
 const pmo = structuredClone(bootstrapPmoData);
 pmo.revision = 12;
@@ -63,4 +66,38 @@ test("audits accountable overrides and rejection", () => {
   expect(overridden.rag.effective).toBe("amber");
   expect(overridden.audit.at(-1)?.event).toBe("steerco.rag_overridden");
   expect(rejectSteercoDraft(snapshot, "Sponsor", "Narrative requires stronger evidence.").status).toBe("rejected");
+});
+
+test("builds configurable executive modules with benefits, finances, scenarios and explainable trends", () => {
+  const snapshot = buildSteercoEvidence(envelope(), "PMO Lead", ["benefits", "finances", "scenarios"]);
+  expect(snapshot.reporting.modules).toEqual(["benefits", "finances", "scenarios"]);
+  expect(snapshot.sections.benefits[0].sourceIds).toContain("BEN-1");
+  expect(snapshot.sections.finances[0].sourceIds).toContain("FIN-1");
+  expect(snapshot.sections.scenarios.map((item) => item.id)).toContain("SCN-2");
+  expect(snapshot.reporting.trends.find((item) => item.id === "cost-variance")?.explanation).toContain("baseline");
+  expect(snapshot.reporting.materialChanges.every((item) => item.sourceIds.length > 0)).toBe(true);
+});
+
+test("compares governed periods without mutating either immutable input", () => {
+  const previous = buildSteercoEvidence(envelope(), "PMO Lead");
+  const current = structuredClone(previous);
+  current.id = "STEERCO-CURRENT";
+  current.reporting.trends[0].current += 5;
+  const compared = compareSteercoPeriods(current, previous);
+  expect(compared.reporting.trends[0]).toMatchObject({ previous: previous.reporting.trends[0].current, direction: "improving" });
+  expect(previous.reporting.trends[0].previous).toBeUndefined();
+});
+
+test("blocks unsupported material claims and creates a reproducible PowerPoint package after review", async () => {
+  const draft = buildSteercoEvidence(envelope(), "PMO Lead");
+  const unsupported = { ...draft, executiveSummary: [{ id: "J-1", text: "Leadership believes adoption will accelerate.", kind: "human_override" as const, sourceIds: [] }] };
+  expect(() => applySteercoApproval(unsupported, "Sponsor", "Reviewed.")).toThrow(/material claim/);
+  const supported = { ...unsupported, executiveSummary: [{ ...unsupported.executiveSummary[0], judgementBasis: "Sponsor judgement based on the agreed change approach." }] };
+  const approved = applySteercoApproval(supported, "Sponsor", "Reviewed evidence and judgement labels.");
+  const bytes = await buildSteercoPowerPoint(approved);
+  const zip = await JSZip.loadAsync(bytes);
+  expect(zip.file("ppt/presentation.xml")).not.toBeNull();
+  const evidenceSlide = await zip.file("ppt/slides/slide5.xml")?.async("string");
+  expect(evidenceSlide).toContain("Source PMO revision");
+  expect(evidenceSlide).toContain("Sponsor");
 });
