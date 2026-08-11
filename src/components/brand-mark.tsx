@@ -1,6 +1,3 @@
-import Image from "next/image";
-import eraneosMark from "../../public/brand/eraneos-mark.png";
-
 type BrandMarkProps = {
   compact?: boolean;
 };
@@ -12,7 +9,9 @@ export function BrandMark({ compact = false }: BrandMarkProps) {
       aria-label="eraneos Transformation Cockpit, part of OET AI Suite"
     >
       <span className="eraneos-mark" aria-hidden="true">
-        <Image src={eraneosMark} alt="" width={22} height={22} priority />
+        {/* A relative public URL works at both / and the GitHub Pages project base path. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="brand/eraneos-mark.png" alt="" width="22" height="22" />
         <b>eraneos</b>
       </span>
       {!compact && (
