@@ -20,3 +20,7 @@ Establish a production-operability baseline for the current GitHub Pages and n8n
 - Credential names and required scopes are documented without secret values.
 - Recovery preserves endpoint contracts and canonical PMO data.
 - Operational ownership, rollback criteria and evidence are recorded.
+
+## Implementation record
+
+Completed on 2026-08-11. The checksummed workflow release, credential-binding inventory, compatibility metadata, promotion/rollback procedure, recovery rehearsal evidence, security compensating controls, retention/redaction/rate-limit policy, incident triage, and capacity triggers are maintained in `docs/n8n/releases/2026-08-11-zm-prod-09a.json` and `docs/n8n/release-recovery-runbook.md`.
