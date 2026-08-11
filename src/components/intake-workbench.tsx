@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Icons } from "./icons";
 import { AGENT_CONTRACT_VERSION, SPECIALIST_AGENTS, type AgentRunEnvelope } from "@/lib/agent-contracts";
 import { AgentRunPanel } from "./agent-run-panel";
+import { planAgentRoute } from "@/lib/smart-orchestration";
 
 export type IntakeSubmission = {
   meta: Record<string, string>;
@@ -23,6 +24,10 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
   const [title, setTitle] = useState("");
   const [routing, setRouting] = useState("auto");
   const [agents, setAgents] = useState(["evidence", "delivery", "risk", "meeting", "controls", "governance"]);
+  const [agentMode, setAgentMode] = useState<"auto" | "manual">("auto");
+  const [overrideActor, setOverrideActor] = useState("PMO Lead");
+  const [overrideReason, setOverrideReason] = useState("");
+  const [maxSpecialists, setMaxSpecialists] = useState(4);
   const [dragging, setDragging] = useState(false);
 
   function addFiles(next: File[]) {
@@ -36,7 +41,12 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
     setAgents((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   }
 
-  const canSubmit = !saving && (files.length > 0 || textUpdate.trim().length > 0);
+  const requested = useMemo(() => SPECIALIST_AGENTS.filter((agent) => agents.includes(agent.id)).map((agent) => agent.workflow), [agents]);
+  const plan = useMemo(() => {
+    try { return planAgentRoute({ text: textUpdate, evidenceCount: files.length, requested, mode: agentMode, actor: overrideActor, overrideReason, budget: { maxSpecialists } }); }
+    catch { return null; }
+  }, [textUpdate, files.length, requested, agentMode, overrideActor, overrideReason, maxSpecialists]);
+  const canSubmit = !saving && Boolean(plan?.evidenceSufficient) && (agentMode === "auto" || Boolean(overrideActor.trim() && overrideReason.trim()));
   return <div className="intake-view">
     <section className="intake-hero">
       <div><span className="section-kicker">WORKBENCH INTAKE</span><h2>Turn project evidence into controlled updates.</h2><p>Drop source material or write an update. The n8n orchestrator classifies the evidence, delegates specialist analysis and proposes changes in the correct PMO views.</p></div>
@@ -60,7 +70,15 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
           rag: "amber",
           routing,
           agents: agents.join(","),
-          agent_workflows: SPECIALIST_AGENTS.filter((agent) => agents.includes(agent.id)).map((agent) => agent.workflow).join(","),
+          agent_workflows: plan?.selectedWorkflows.join(",") || "",
+          routing_policy: plan?.policyVersion || "smart-routing-1.0",
+          routing_explanation: JSON.stringify(plan?.decisions || []),
+          budget_max_specialists: String(maxSpecialists),
+          budget_max_tokens: String(plan?.budget.maxTokens || 9000),
+          budget_max_cost_eur: String(plan?.budget.maxCostEur || 0.1),
+          budget_max_latency_ms: String(plan?.budget.maxLatencyMs || 45000),
+          manual_override_actor: plan?.manualOverride?.actor || "",
+          manual_override_reason: plan?.manualOverride?.reason || "",
           domain_schema: "pmo-2.0",
           agent_contract_version: AGENT_CONTRACT_VERSION,
           correlation_id: crypto.randomUUID(),
@@ -81,7 +99,7 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
 
       <aside className="intake-side">
         <section className="panel routing-panel"><div className="panel-head"><div><span className="section-kicker">02 · ROUTE</span><h3>Analysis context</h3></div></div><label><span>Optional intake title</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. August steering update"/></label><label><span>Primary destination</span><select value={routing} onChange={(event) => setRouting(event.target.value)}><option value="auto">Let orchestrator decide</option><option value="project">Project overview</option><option value="deliverables">Plan & deliverables</option><option value="risks">Risk register</option><option value="registers">PMO registers</option><option value="issues">Issues</option><option value="actions">Actions</option><option value="decisions">Decisions</option><option value="dependencies">Dependencies</option><option value="assumptions">Assumptions</option><option value="change_requests">Change requests</option><option value="governance">Evidence & governance</option><option value="meetings">Meeting hub</option></select></label></section>
-        <section className="panel agent-panel"><div className="panel-head"><div><span className="section-kicker">03 · DELEGATE</span><h3>Specialist agents</h3></div></div><div className="agent-list">{SPECIALIST_AGENTS.map((agent) => <label key={agent.id} className={agents.includes(agent.id) ? "selected" : ""}><input type="checkbox" checked={agents.includes(agent.id)} onChange={() => toggleAgent(agent.id)}/><span><b>{agent.title}</b><small>{agent.copy}</small></span></label>)}</div></section>
+        <section className="panel agent-panel"><div className="panel-head"><div><span className="section-kicker">03 · DELEGATE</span><h3>Specialist agents</h3></div></div><label className="agent-mode"><span>Routing control</span><select value={agentMode} onChange={(event) => setAgentMode(event.target.value as "auto" | "manual")}><option value="auto">Smart automatic routing</option><option value="manual">Accountable manual override</option></select></label><label className="agent-mode"><span>Maximum specialists</span><select value={maxSpecialists} onChange={(event) => setMaxSpecialists(Number(event.target.value))}>{[1,2,3,4,5,6].map((value) => <option key={value}>{value}</option>)}</select></label>{agentMode === "manual" && <div className="manual-routing"><label><span>Override actor</span><input value={overrideActor} onChange={(event) => setOverrideActor(event.target.value)}/></label><label><span>Override reason</span><textarea value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} placeholder="Why is this routing override appropriate?"/></label></div>}<div className="agent-list">{SPECIALIST_AGENTS.map((agent) => <label key={agent.id} className={(agentMode === "manual" ? agents.includes(agent.id) : plan?.selectedWorkflows.includes(agent.workflow)) ? "selected" : ""}><input type="checkbox" disabled={agentMode === "auto"} checked={agentMode === "manual" ? agents.includes(agent.id) : Boolean(plan?.selectedWorkflows.includes(agent.workflow))} onChange={() => toggleAgent(agent.id)}/><span><b>{agent.title}</b><small>{agent.copy}</small></span></label>)}</div>{plan && <div className="routing-explanation" aria-live="polite"><b>{plan.selectedWorkflows.length} specialist(s) · ~{plan.budget.estimatedTokens.toLocaleString("en-GB")} tokens · ~€{plan.budget.estimatedCostEur.toFixed(3)} · ~{Math.round(plan.budget.estimatedLatencyMs/1000)}s</b>{plan.decisions.map((decision) => <p key={decision.workflowId}><span>{decision.sequence}</span>{SPECIALIST_AGENTS.find((agent) => agent.workflow === decision.workflowId)?.title}: {decision.reason}</p>)}{plan.terminationReason && <strong>{plan.terminationReason} Human review required.</strong>}</div>}</section>
         <button className="button primary orchestrate-button" disabled={!canSubmit}><Icons.spark/>{saving ? "Orchestrating…" : "Analyse and update workbench"}</button>
         <p className="intake-note">The orchestrator stores evidence-bound proposals only. Canonical PMO state changes only after accountable review and validation by the governed publisher.</p>
       </aside>

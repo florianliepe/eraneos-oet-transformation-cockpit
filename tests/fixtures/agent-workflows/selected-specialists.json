@@ -6,7 +6,7 @@
   "meta": {
     "wpId": "WP-05B",
     "title": "Specialist workflow verification",
-    "agent_workflows": "evidence.verify,risk.analyse"
+    "agent_workflows": "evidence.verify,risk.analyse,delivery.plan,governance.review"
   },
   "evidence": [
     {
@@ -18,6 +18,8 @@
   ],
   "expectedSelectedWorkflows": [
     "evidence.verify",
-    "risk.analyse"
+    "risk.analyse",
+    "delivery.plan",
+    "governance.review"
   ]
 }

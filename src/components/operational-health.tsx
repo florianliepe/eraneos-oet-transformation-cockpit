@@ -1,8 +1,9 @@
 import type { AgentRunEnvelope } from "@/lib/agent-contracts";
 import qualityReport from "@/data/agent-quality-report.json";
+import orchestrationReport from "@/data/orchestration-quality-report.json";
 
 const bindings = [
-  ["Public orchestrator", "pEIhI533jPQvvSzs"],
+  ["Public orchestrator", "IEv54E2lBQyd57hY"],
   ["Governed publisher", "4czGSZtMjeGpKSFS"],
   ["Central error handler", "BkHWDRmPvXOepELU"],
 ] as const;
@@ -15,8 +16,9 @@ export function OperationalHealth({ runs, pendingReviews }: { runs: Array<{ run:
   ];
   return <div className="ops-health">
     <section className="ops-health-grid">
-      <article className="panel"><span className="section-kicker">RELEASE</span><h3>2026-08-11-zm-prod-09a</h3><p>Checksummed workflow baseline · endpoint contract verified</p><strong className="health-ok">Release ready</strong></article>
+      <article className="panel"><span className="section-kicker">RELEASE</span><h3>2026-08-11-zm-prod-05g</h3><p>Checksummed smart-orchestration baseline · endpoint contract verified</p><strong className="health-ok">Release ready</strong></article>
       <article className="panel"><span className="section-kicker">AGENT QUALITY</span><h3>{qualityReport.caseCount} cases · 6 specialists</h3><p>{qualityReport.scenarioCount} scenario classes each · {qualityReport.scores.promptInjectionFailClosed * 100}% injection fail-closed · zero unsupported claims</p><strong className={qualityReport.releaseReady ? "health-ok" : "health-warning"}>{qualityReport.releaseReady ? "Gate passed" : "Promotion blocked"}</strong></article>
+      <article className="panel"><span className="section-kicker">SMART ROUTING</span><h3>{Math.round(orchestrationReport.improvements.costReduction * 100)}% less execution</h3><p>{orchestrationReport.candidate.calls}/{orchestrationReport.baseline.calls} specialist calls · {orchestrationReport.precision * 100}% precision · {orchestrationReport.recall * 100}% recall</p><strong className={orchestrationReport.qualityGatePassed ? "health-ok" : "health-warning"}>{orchestrationReport.qualityGatePassed ? "Quality preserved" : "Promotion blocked"}</strong></article>
       <article className="panel"><span className="section-kicker">INCIDENTS</span><h3>{incidents.length}</h3><p>Persistent failures and pending governance actions requiring operator attention</p><strong className={incidents.length ? "health-warning" : "health-ok"}>{incidents.length ? "Action required" : "Healthy"}</strong></article>
     </section>
     <section className="panel ops-health-section"><header><span className="section-kicker">AUTHORITATIVE BINDINGS</span><h2>Production workflow inventory</h2><p>Only these bindings are authoritative. Cleanup candidates remain non-destructive until explicitly confirmed.</p></header><div className="binding-list">{bindings.map(([name, id]) => <div key={id}><span className="health-dot"/><b>{name}</b><code>{id}</code><small>Live and release-aligned</small></div>)}</div></section>
