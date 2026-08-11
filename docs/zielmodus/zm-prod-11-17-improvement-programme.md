@@ -108,6 +108,16 @@ Make the selected project cockpit efficient for daily PMO control.
 - Relationship and timeline views explain their source records.
 - Existing project and agent workflows remain compatible.
 
+### Implementation record
+
+Implemented and validated on 2026-08-11.
+
+- Register work now supports local saved views, text/owner/status filters, deterministic sorting, configurable columns and explicit multi-record selection.
+- Bulk owner/status changes require a visible preview and expected object versions; application revalidates versions and creates normal governance, audit and object-version lineage.
+- Controlled CSV and Excel import accepts updates to known records only, previews required fields, rejects stale versions and records import audit events; governed CSV export retains object versions, review state and evidence identifiers.
+- The project workbench derives a recoverable onboarding checklist from canonical state, exposes a versioned starter template, maps cross-object relationships and explains the milestone/dependency critical path.
+- Guided single-record creation and evidence/governance surfaces remain intact, with 84 browser and deterministic tests covering regression, stale writes, import/export and lineage.
+
 ## ZM-PROD-14 — n8n agent control plane
 
 ### Goal

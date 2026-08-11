@@ -376,7 +376,13 @@ export default function ControlTower({ initialData, workspaceScope, initialView 
           {view === "portfolio" && <ProgrammeDecisionView data={data} onSaveScenario={(scenario) => mutate((current) => upsertPmoRecord(current, "scenario", scenario, "Portfolio PMO"))}/>}
           {view === "plan" && <PlanView data={data} query={query} mutate={mutate} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "risks" && <RiskView data={data} query={query} onEdit={setEditor} onDelete={requestDelete}/>}
-          {view === "registers" && <DomainRegisters data={data} query={query} onEdit={setEditor} onDelete={requestDelete}/>}
+          {view === "registers" && <DomainRegisters
+            data={data}
+            query={query}
+            onEdit={setEditor}
+            onDelete={requestDelete}
+            onApply={(next) => { setData(next); setDirty(true); }}
+          />}
           {view === "meetings" && <MeetingView data={data} query={query} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "steerco" && <SteercoWorkbench pmo={data} workspaceSecret={workspaceSecret}/>}
           {view === "activity" && <ActivityView data={data} storageConfigured={storageConfigured}/>} 
