@@ -12,17 +12,19 @@ import { SteercoReadOnly, SteercoWorkbench } from "./steerco-summary";
 import { loadSteercoShare } from "@/lib/steerco-client";
 import type { SteercoSnapshot } from "@/lib/steerco-schema";
 import { BrandMark } from "./brand-mark";
-import type { AgentRunEnvelope } from "@/lib/agent-contracts";
+import { AgentRunEnvelopeSchema, selectedAgentWorkflows, type AgentRunEnvelope } from "@/lib/agent-contracts";
 import { ProposalReviewInbox } from "./proposal-review-inbox";
 import type { DecisionInput, ProposalSet } from "@/lib/governed-proposals";
+import { AgentOperationsPanel, type AgentRunHistoryEntry } from "./agent-operations-panel";
 
-type View = "intake" | "review" | "overview" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
+type View = "intake" | "review" | "operations" | "overview" | "plan" | "risks" | "registers" | "meetings" | "steerco" | "activity";
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
 type DeleteTarget = { entity: Exclude<EditableEntity, "project">; id: string; label: string; blockedReason?: string };
 
 const navigation: Array<{ id: View; label: string; icon: keyof typeof Icons }> = [
   { id: "intake", label: "Workbench intake", icon: "upload" },
   { id: "review", label: "Agent review inbox", icon: "activity" },
+  { id: "operations", label: "Agent operations", icon: "activity" },
   { id: "overview", label: "Executive overview", icon: "dashboard" },
   { id: "plan", label: "Plan & deliverables", icon: "plan" },
   { id: "risks", label: "Risk register", icon: "risk" },
@@ -35,6 +37,7 @@ const navigation: Array<{ id: View; label: string; icon: keyof typeof Icons }> =
 const viewMeta: Record<View, { eyebrow: string; title: string; description: string }> = {
   intake: { eyebrow: "PMO workbench", title: "Ingest and orchestrate", description: "Convert project evidence into governed, reviewable updates." },
   review: { eyebrow: "Human governance", title: "Agent review inbox", description: "Compare, accept or reject evidence-bound proposals before canonical publication." },
+  operations: { eyebrow: "Agent operations", title: "Execution control", description: "Inspect run health, versions, latency and safe recovery lineage." },
   overview: { eyebrow: "Control tower", title: "Executive overview", description: "One live view of delivery health, decisions and exposure." },
   plan: { eyebrow: "Delivery", title: "Plan & deliverables", description: "Track gate milestones and workstream commitments." },
   risks: { eyebrow: "RAID", title: "Risk register", description: "Prioritise exposure and keep mitigation ownership visible." },
@@ -108,6 +111,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
   const [workflowResult, setWorkflowResult] = useState<AgentRunEnvelope | null>(null);
   const [proposalSets, setProposalSets] = useState<ProposalSet[]>([]);
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [runHistory, setRunHistory] = useState<AgentRunHistoryEntry[]>([]);
   const [dirty, setDirty] = useState(false);
   const [sharedSnapshot, setSharedSnapshot] = useState<SteercoSnapshot | null>(null);
   const [shareRequested, setShareRequested] = useState(false);
@@ -167,7 +171,8 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
     finally { setSaving(false); }
   }
 
-  async function runWorkflowIntake({ meta, files, textUpdate }: IntakeSubmission) {
+  async function runWorkflowIntake(submission: IntakeSubmission, recovery?: { mode: "retry" | "replay"; sourceExecutionId: string }) {
+    const { meta, files, textUpdate } = submission;
     setWorkflowSaving(true); setError(""); setWorkflowResult(null);
     try {
       const payload = await ingestEvidence(workspaceSecret, meta, files, textUpdate);
@@ -181,8 +186,16 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
       }
       if (!payload.agentRun) throw new Error("The workflow response did not contain a valid agent execution contract.");
       setWorkflowResult(payload.agentRun);
+      setRunHistory((current) => [{ run: payload.agentRun!, submission, recoveryMode: recovery?.mode, sourceExecutionId: recovery?.sourceExecutionId }, ...current]);
       if (payload.proposalSet) setProposalSets((current) => [payload.proposalSet!, ...current.filter((item) => item.id !== payload.proposalSet!.id)]);
-    } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Workflow intake failed."); }
+    } catch (reason: unknown) {
+      const message = reason instanceof Error ? reason.message : "Workflow intake failed.";
+      const timestamp = new Date().toISOString();
+      const executionId = `failed:${Date.now()}`;
+      const workflows = selectedAgentWorkflows(meta.agent_workflows);
+      const failedRun = AgentRunEnvelopeSchema.parse({ contractVersion: "agent-run-1.0", executionId, correlationId: meta.correlation_id || executionId, status: "failed", requestedAt: meta.requested_at || timestamp, completedAt: timestamp, orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: "request-boundary" }, routing: { mode: meta.routing || "selected", selectedWorkflows: workflows }, steps: [{ workflowId: workflows[0], workflowVersion: "request-boundary", status: "failed", summary: message, confidence: "not_assessed", evidenceIds: [], proposalIds: [], startedAt: meta.requested_at || timestamp, completedAt: timestamp, error: message, safeRecovery: "Retry the original input; replay only after checking workflow release notes." }], evidence: [], proposals: [], warnings: [{ code: "AGENT_EXECUTION_FAILED", message, evidenceIds: [] }], persistence: { mode: "proposal_only" }, operations: { attempt: Number(meta.recovery_attempt || 1), latencyMs: Math.max(0, Date.now() - new Date(meta.requested_at || timestamp).getTime()), retryOf: meta.retry_of, replayOf: meta.replay_of, reviewOutcome: "pending" } });
+      setWorkflowResult(failedRun); setRunHistory((current) => [{ run: failedRun, submission, recoveryMode: recovery?.mode, sourceExecutionId: recovery?.sourceExecutionId }, ...current]); setError(message);
+    }
     finally { setWorkflowSaving(false); }
   }
 
@@ -195,9 +208,16 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
       if (publication.document) setData(publication.document);
       const nextStatus = publication.acceptedProposalIds.length ? "published" : "rejected";
       setProposalSets((current) => current.map((item) => item.id === proposalSet.id ? { ...item, status: nextStatus } : item));
+      setRunHistory((current) => current.map((entry) => entry.run.executionId === proposalSet.sourceExecutionId ? { ...entry, run: { ...entry.run, operations: { ...entry.run.operations, reviewOutcome: publication.acceptedProposalIds.length && publication.rejectedProposalIds.length ? "mixed" : publication.acceptedProposalIds.length ? "accepted" : "rejected" } } } : entry));
       setSource("github"); setStorageConfigured(true); setDirty(false);
     } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Governed publication failed."); }
     finally { setReviewBusy(false); }
+  }
+
+  function recoverRun(entry: AgentRunHistoryEntry, mode: "retry" | "replay") {
+    const attempt = entry.run.operations.attempt + 1;
+    const submission = { ...entry.submission, meta: { ...entry.submission.meta, correlation_id: entry.run.correlationId, requested_at: new Date().toISOString(), recovery_attempt: String(attempt), ...(mode === "retry" ? { retry_of: entry.run.executionId } : { replay_of: entry.run.executionId }) } };
+    void runWorkflowIntake(submission, { mode, sourceExecutionId: entry.run.executionId });
   }
 
   function addRecord(type: IntakeType, values: Record<string, string>) {
@@ -294,6 +314,7 @@ export default function ControlTower({ initialData }: { initialData: PmoDocument
 
           {view === "intake" && <IntakeWorkbench saving={workflowSaving} result={workflowResult} onRun={(submission) => void runWorkflowIntake(submission)}/>}
           {view === "review" && <ProposalReviewInbox proposalSets={proposalSets} busy={reviewBusy} onSubmit={reviewProposalSet}/>}
+          {view === "operations" && <AgentOperationsPanel entries={runHistory} busy={workflowSaving} onRecover={recoverRun}/>}
           {view === "overview" && <Overview data={data} exposure={exposure} openActions={openActions} completedDeliverables={completedDeliverables} setView={setView} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "plan" && <PlanView data={data} query={query} mutate={mutate} onEdit={setEditor} onDelete={requestDelete}/>}
           {view === "risks" && <RiskView data={data} query={query} onEdit={setEditor} onDelete={requestDelete}/>}

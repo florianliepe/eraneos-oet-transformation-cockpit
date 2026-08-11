@@ -636,7 +636,11 @@
         176
       ],
       "id": "execute-selected-specialists",
-      "name": "ExecuteSelectedSpecialists"
+      "name": "ExecuteSelectedSpecialists",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -1134,7 +1138,11 @@
         512
       ],
       "id": "execute-governed-publisher",
-      "name": "ExecuteGovernedPublisher"
+      "name": "ExecuteGovernedPublisher",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -1635,7 +1643,8 @@
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
-    "availableInMCP": true
+    "availableInMCP": true,
+    "errorWorkflow": "BkHWDRmPvXOepELU"
   },
   "versionId": "pmo-orchestrator-governed-publisher-v1",
   "tags": []

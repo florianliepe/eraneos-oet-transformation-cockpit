@@ -1,0 +1,123 @@
+{
+  "name": "OET PMO Agent - Central Error and Dead-letter Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -300,
+        0
+      ],
+      "id": "agent-error-trigger",
+      "name": "Agent Workflow Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const error=$json.execution?.error||$json.error||{};const executionId=String($json.execution?.id||'unknown');const workflowId=String($json.workflow?.id||'unknown');const failedAt=new Date().toISOString();const safe=(workflowId+'-'+executionId+'-'+failedAt).replace(/[^A-Za-z0-9._-]/g,'-');const record={contractVersion:'agent-dead-letter-1.0',id:'DLQ-'+safe,executionId,workflowId,workflowName:String($json.workflow?.name||'Unknown workflow'),failedAt,status:'waiting',failedStep:String($json.execution?.lastNodeExecuted||'unknown'),error:{name:String(error.name||'WorkflowError'),message:String(error.message||'Unknown workflow failure')},recovery:{retryLimit:3,safeActions:['retry_original_input','replay_current_workflow'],originalExecutionImmutable:true},source:$json};return [{json:{record,path:'knowledge/pmo/dead-letter/'+safe+'.json',fileContent:JSON.stringify(record,null,2)+'\\n',commitMessage:'ops: dead-letter agent execution '+executionId}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -60,
+        0
+      ],
+      "id": "normalize-agent-error",
+      "name": "Normalize Failed Execution"
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "file",
+        "operation": "create",
+        "owner": {
+          "__rl": true,
+          "value": "florianliepe",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "eraneos-oet-transformation-cockpit-data",
+          "mode": "name"
+        },
+        "filePath": "={{ $json.path }}",
+        "fileContent": "={{ $json.fileContent }}",
+        "commitMessage": "={{ $json.commitMessage }}",
+        "binaryData": false,
+        "additionalParameters": {
+          "branch": {
+            "branch": "main"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        180,
+        0
+      ],
+      "id": "store-agent-dead-letter",
+      "name": "Store Agent Dead Letter",
+      "credentials": {
+        "githubApi": {
+          "id": "3V46mglu7fpoPISX",
+          "name": "GitHub data"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,deadLetter:$node['Normalize Failed Execution'].json.record,commitSha:$json.commit?.sha??$json.content?.sha}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        0
+      ],
+      "id": "format-agent-dead-letter",
+      "name": "Format Dead Letter"
+    }
+  ],
+  "connections": {
+    "Agent Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Normalize Failed Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Failed Execution": {
+      "main": [
+        [
+          {
+            "node": "Store Agent Dead Letter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Agent Dead Letter": {
+      "main": [
+        [
+          {
+            "node": "Format Dead Letter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "agent-error-handler-v1",
+  "tags": []
+}

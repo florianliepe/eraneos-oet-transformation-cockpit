@@ -274,6 +274,20 @@ svg { width: 18px; height: 18px; flex: 0 0 auto; }
   .meeting-evidence { grid-template-columns: 1fr; }.method-hero { padding: 24px 20px; }.method-flow { overflow: auto; }.method-flow span { white-space: nowrap; }.form-row { grid-template-columns: 1fr; gap: 0; }
 }
 
+.agent-operations { display: grid; gap: 18px; }
+.agent-ops-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.agent-ops-summary .panel { padding: 18px; display: grid; gap: 5px; }
+.agent-ops-summary span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.agent-ops-summary b { font-size: 28px; }
+.agent-ops-list { padding: 24px; }
+.agent-ops-list > header { margin-bottom: 18px; }
+.agent-ops-row { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(280px, 1.5fr) auto; gap: 20px; align-items: center; padding: 18px 0; border-top: 1px solid var(--line); }
+.agent-ops-row > div { display: grid; gap: 5px; }
+.agent-ops-row small, .agent-ops-row p { color: var(--muted); }
+.agent-ops-actions button { border: 1px solid var(--line); border-radius: 4px; padding: 9px 12px; background: white; text-align: left; }
+.agent-ops-actions button:disabled { opacity: .5; }
+@media (max-width: 900px) { .agent-ops-summary { grid-template-columns: repeat(2, 1fr); } .agent-ops-row { grid-template-columns: 1fr; } }
+
 .workflow-intro { display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: center; background: #fff4f6; border: 1px solid #f7d8df; border-radius: 6px; padding: 13px; margin: 18px 0; }
 .workflow-intro .n8n-logo { display: grid; place-items: center; height: 34px; border-radius: 5px; background: #fff; color: #ea4b71; font-size: 10px; font-weight: 900; }
 .workflow-intro p { margin: 0; color: #6e7772; font-size: 9px; line-height: 1.5; }

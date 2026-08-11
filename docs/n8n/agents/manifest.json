@@ -7,7 +7,7 @@
     "workflowVersion": "1.1.0",
     "file": "../../n8n-pmo-orchestrator.workflow.json",
     "webhookPath": "a2126107-4e70-4717-8f1c-545d7f310741",
-    "liveWorkflowId": "RToP0ZCeTQUTKhBE"
+    "liveWorkflowId": "pEIhI533jPQvvSzs"
   },
   "publisher": {
     "workflowId": "governed.publish",
@@ -64,5 +64,14 @@
       "file": "governance-review.workflow.json",
       "liveWorkflowId": "TOqEW8UyOFNCP7W4"
     }
-  ]
+  ],
+  "operations": {
+    "contractVersion": "agent-operations-1.0",
+    "errorWorkflowFile": "error-handler.workflow.json",
+    "boundedRetries": {
+      "maxTries": 3,
+      "waitBetweenTriesMs": 1500
+    },
+    "errorWorkflowLiveId": "BkHWDRmPvXOepELU"
+  }
 }

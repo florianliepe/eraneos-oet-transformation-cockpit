@@ -123,3 +123,20 @@ test("reviews field-level agent proposals before governed publication", async ({
   await expect(page.getByText("Published", { exact: true })).toBeVisible();
   expect(modes).toEqual(expect.arrayContaining(["pmo.ingest", "pmo.review", "pmo.publish"]));
 });
+
+test("shows immutable run history and replays the original input with lineage", async ({ page }) => {
+  const requests: Array<Record<string, unknown>> = [];
+  page.on("request", (request) => { if (request.url().includes("workflow.test/webhook")) requests.push(request.postDataJSON()); });
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake", exact: true }).click();
+  await page.getByLabel("Write a project update").fill("A traced dependency update for operations testing.");
+  await page.getByRole("button", { name: "Analyse and update workbench" }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Agent operations" }).click();
+  await expect(page.getByRole("heading", { name: "Recoverable agent executions" })).toBeVisible();
+  await expect(page.getByText(/attempt 1/).first()).toBeVisible();
+  await page.getByRole("button", { name: "Replay current version" }).click();
+  await expect(page.getByText(/Replay Of/i)).toBeVisible();
+  const ingests = requests.filter((request) => request.mode === "pmo.ingest") as Array<{ meta?: Record<string, string> }>;
+  expect(ingests).toHaveLength(2);
+  expect(ingests[1].meta?.replay_of).toBeTruthy();
+  expect(ingests[1].meta?.correlation_id).toBe(ingests[0].meta?.correlation_id);
+});
