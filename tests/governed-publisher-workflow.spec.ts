@@ -64,3 +64,11 @@ test("duplicate idempotency key cannot create another revision", () => {
   const result = execute(input("accept", document))[0].json;
   expect(result).toMatchObject({ shouldWrite: false, duplicate: true, revision: document.revision });
 });
+
+test("rejects proposal and canonical artifacts from another project scope", () => {
+  const crossScope = input("accept") as ReturnType<typeof input> & {
+    proposalSet: { scope: { organisationId: string; projectId: string } };
+  };
+  crossScope.proposalSet.scope = { ...crossScope.proposalSet.scope, projectId: "prj_other01" };
+  expect(() => execute(crossScope)).toThrow("Publisher artifacts do not share the authorized workspace scope.");
+});

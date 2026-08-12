@@ -181,6 +181,48 @@ test("extracts XML evidence into labelled project-control text before transfer",
   expect(body.extracted?.[0]?.content).toContain("/Project/Milestones/Milestone/DueDate: 2026-09-30");
 });
 
+test("extracts readable PNG evidence with OCR confidence before transfer", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake", exact: true }).click();
+  const pngBase64 = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1600; canvas.height = 500;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas is unavailable.");
+    context.fillStyle = "#ffffff"; context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#111111"; context.font = "bold 64px Arial";
+    context.fillText("PROJECT CONTROL UPDATE", 80, 120);
+    context.font = "52px Arial";
+    context.fillText("Design gate due 30 September 2026", 80, 240);
+    context.fillText("Owner Programme Lead", 80, 340);
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  await page.getByLabel("Evidence files").setInputFiles({ name: "project-control.png", mimeType: "image/png", buffer: Buffer.from(pngBase64, "base64") });
+  const intake = page.waitForRequest((request) => request.url().includes("workflow.test/webhook") && request.postDataJSON()?.mode === "pmo.ingest", { timeout: 160_000 });
+  await page.getByRole("button", { name: "Analyse and update workbench" }).click();
+  const body = (await intake).postDataJSON() as { extracted?: Array<{ name?: string; type?: string; content?: string }> };
+  expect(body.extracted).toEqual([expect.objectContaining({ name: "project-control.png", type: "image_ocr" })]);
+  expect(body.extracted?.[0]?.content).toMatch(/^## OCR text \(\d+% confidence\)/);
+  expect(body.extracted?.[0]?.content).toMatch(/Design gate due 30 September 2026/i);
+  expect(body.extracted?.[0]?.content).toMatch(/Programme Lead/i);
+});
+
+test("extracts page-labelled PDF evidence before transfer", async ({ page }) => {
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake", exact: true }).click();
+  const pdfPage = await page.context().newPage();
+  await pdfPage.setContent("<main><h1>Project Control Update</h1><p>Decision latency risk impact is high.</p><p>Owner: Programme Lead</p></main>");
+  const pdf = await pdfPage.pdf({ format: "A4" });
+  await pdfPage.close();
+  await page.getByLabel("Evidence files").setInputFiles({ name: "project-control.pdf", mimeType: "application/pdf", buffer: pdf });
+  const intake = page.waitForRequest((request) => request.url().includes("workflow.test/webhook") && request.postDataJSON()?.mode === "pmo.ingest");
+  await page.getByRole("button", { name: "Analyse and update workbench" }).click();
+  const body = (await intake).postDataJSON() as { extracted?: Array<{ name?: string; type?: string; content?: string }> };
+  expect(body.extracted).toEqual([expect.objectContaining({ name: "project-control.pdf", type: "pdf_text" })]);
+  expect(body.extracted?.[0]?.content).toContain("## Page 1");
+  expect(body.extracted?.[0]?.content).toContain("Decision latency risk impact is high.");
+  expect(body.extracted?.[0]?.content).toContain("Programme Lead");
+});
+
 test("reviews field-level agent proposals before governed publication", async ({ page }) => {
   const risk = bootstrapPmoData.risks[0];
   const proposalSet = {
