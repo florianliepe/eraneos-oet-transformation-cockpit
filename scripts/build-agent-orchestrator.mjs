@@ -18,10 +18,10 @@ const upsertNode = (node) => {
   else workflow.nodes.push(node);
 };
 
-const buildCallsCode = `const source = $json;
+const buildCallsCode = `const source = $node['BuildAssistantInput'].json;
 const allowed = ${JSON.stringify(workflowIds)};
 const bindings = ${JSON.stringify(liveIds)};
-const executionId = 'agent:' + Date.now().toString(36) + ':' + Math.random().toString(36).slice(2,10);
+const executionId = String(source.runId || ('agent:' + source.meta?.idempotency_key));
 const correlationId = String(source.meta?.correlation_id || executionId);
 const requestedAt = new Date().toISOString();
 const evidence = source.extracted.map((item,index)=>({id:String(item.id || item.name || 'evidence-'+(index+1)),name:String(item.name || item.type || 'evidence'),type:String(item.type || 'text'),content:String(item.content || '')}));
@@ -37,9 +37,9 @@ if(!selected.length) selected=['evidence.verify'];
 if(selected.some(id=>id!=='evidence.verify')&&!selected.includes('governance.review')) selected.push('governance.review');
 selected=[...new Set(selected)];
 const order=['evidence.verify','meeting.synthesise','risk.analyse','delivery.plan','controls.classify','governance.review']; selected=order.filter(id=>selected.includes(id));
-const maxSpecialists=Math.max(1,Math.min(6,Number(source.meta?.budget_max_specialists||4))); const maxTokens=Math.max(1800,Number(source.meta?.budget_max_tokens||9000)); const maxCost=Math.max(.018,Number(source.meta?.budget_max_cost_eur||.1)); const maxLatency=Math.max(8000,Number(source.meta?.budget_max_latency_ms||45000));
-const routed=selected.filter((id,index)=>index<maxSpecialists&&(index+1)*1800<=maxTokens&&(index+1)*.018<=maxCost&&(index+1)*8000<=maxLatency); const limited=routed.length<selected.length;
-return routed.map((workflowId,index)=>({json:{contractVersion:'agent-run-1.0',executionId,correlationId,requestedAt,meta:source.meta,evidence,workflowId,liveWorkflowId:bindings[workflowId],routingPlan:{policyVersion:'smart-routing-1.0',workflowId,sequence:index+1,reason:manual?'Accountable manual override':workflowId==='evidence.verify'?'Evidence verification precedes dependent analysis':(rules.find(rule=>rule[0]===workflowId)?.[2]||'Final governance review'),budget:{maxTokens,maxCostEur:maxCost,maxLatencyMs:maxLatency,estimatedTokens:routed.length*1800,estimatedCostEur:routed.length*.018,estimatedLatencyMs:routed.length*8000,limited},manualOverride:manual?{actor:String(source.meta.manual_override_actor),reason:String(source.meta.manual_override_reason)}:undefined}}}));`;
+const maxSpecialists=Math.max(1,Math.min(6,Number(source.meta?.budget_max_specialists||4))); const maxTokens=Math.max(1800,Number(source.meta?.budget_max_tokens||9000)); const maxCost=Math.max(.018,Number(source.meta?.budget_max_cost_eur||.1)); const maxLatency=Math.max(150000,Number(source.meta?.budget_max_latency_ms||360000));
+const routed=selected.filter((id,index)=>index<maxSpecialists&&(index+1)*1800<=maxTokens&&(index+1)*.018<=maxCost&&(index+1)*60000+90000<=maxLatency); const limited=routed.length<selected.length;
+return routed.map((workflowId,index)=>({json:{contractVersion:'agent-run-1.0',executionId,correlationId,requestedAt,meta:source.meta,evidence,workflowId,liveWorkflowId:bindings[workflowId],routingPlan:{policyVersion:'smart-routing-1.1.0',workflowId,sequence:index+1,reason:manual?'Accountable manual override':workflowId==='evidence.verify'?'Evidence verification precedes dependent analysis':(rules.find(rule=>rule[0]===workflowId)?.[2]||'Final governance review'),budget:{maxTokens,maxCostEur:maxCost,maxLatencyMs:maxLatency,estimatedTokens:routed.length*1800,estimatedCostEur:routed.length*.018,estimatedLatencyMs:routed.length*60000+90000,limited},manualOverride:manual?{actor:String(source.meta.manual_override_actor),reason:String(source.meta.manual_override_reason)}:undefined}}}));`;
 
 const aggregateCode = `const calls=$input.all().map(item=>item.json);
 if(!calls.length) throw new Error('No specialist result was returned.');
@@ -106,7 +106,7 @@ const commitSha=$json.commit?.sha??$json.content?.sha;
 const commitUrl=$json.commit?.html_url??$json.content?.html_url;
 const committedFiles=[normalized.jsonPath,normalized.markdownPath,'knowledge/pmo/control-tower.json'];
 const evidence=aggregate.extracted.map((item,index)=>({id:String(item.id||item.name||'evidence-'+(index+1)),label:String(item.name||item.type||'Evidence'),source:item.name?String(item.name):undefined,verified:false}));
-const plan=aggregate.routingPlan||[];const budget=plan[0]?.budget;const agentRun={contractVersion:'agent-run-1.0',executionId:aggregate.executionId,correlationId:aggregate.correlationId,requestedAt:aggregate.requestedAt,completedAt,status,orchestrator:{workflowId:'pmo.orchestrate',workflowVersion:'1.2.0'},routing:{mode:String(aggregate.meta?.manual_override_reason?'manual':'smart_auto'),selectedWorkflows:aggregate.selectedWorkflows,policyVersion:'smart-routing-1.0',explanation:plan.map(item=>({workflowId:item.workflowId||aggregate.selectedWorkflows[item.sequence-1],reason:item.reason,sequence:item.sequence})),budget,manualOverride:plan[0]?.manualOverride},steps:aggregate.steps,evidence,proposals:aggregate.proposals,warnings:aggregate.warnings,persistence:{mode:'proposal_only'}};
+const plan=aggregate.routingPlan||[];const budget=plan[0]?.budget;const agentRun={contractVersion:'agent-run-1.0',executionId:aggregate.executionId,correlationId:aggregate.correlationId,requestedAt:aggregate.requestedAt,completedAt,status,orchestrator:{workflowId:'pmo.orchestrate',workflowVersion:'1.3.0'},routing:{mode:String(aggregate.meta?.manual_override_reason?'manual':'smart_auto'),selectedWorkflows:aggregate.selectedWorkflows,policyVersion:'smart-routing-1.1.0',explanation:plan.map(item=>({workflowId:item.workflowId||aggregate.selectedWorkflows[item.sequence-1],reason:item.reason,sequence:item.sequence})),budget,manualOverride:plan[0]?.manualOverride},steps:aggregate.steps,evidence,proposals:aggregate.proposals,warnings:aggregate.warnings,persistence:{mode:'proposal_only'}};
 return [{json:{ok:true,source:'github',storageConfigured:true,wpId:normalized.wpId,committedFiles,needs_review:normalized.needs_review,appliedChanges:merged.appliedChanges,document:merged.document,commit:{sha:commitSha,url:commitUrl},agentRun}}];`;
 
 workflow.versionId = "pmo-orchestrator-smart-routing-v1";
@@ -145,4 +145,5 @@ if (existsSync(governedPublisherPath)) {
   console.log("Reapplying governed publisher protections after specialist bindings.");
   await import(`./build-governed-publisher.mjs?build=${Date.now()}`);
 }
+await import(`./build-agent-resilience.mjs?build=${Date.now()}`);
 console.log(`Built specialist orchestrator with ${workflowIds.length} workflow bindings.`);

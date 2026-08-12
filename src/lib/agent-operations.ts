@@ -84,7 +84,8 @@ export function buildAgentOperationRecord(input: {
   const now = new Date().toISOString();
   const inputRef = `recovery:${safeId(input.scope.organisationId)}:${safeId(input.scope.projectId)}:${safeId(input.run.executionId)}`;
   const rootExecutionId = input.source?.lineage.rootExecutionId || input.run.executionId;
-  const idempotencyKey = `agent:${safeId(input.scope.organisationId)}:${safeId(input.scope.projectId)}:${safeId(input.run.correlationId)}:${safeId(rootExecutionId)}`;
+  const backendKey = /^agent:[A-Za-z0-9-]{8,80}$/.test(input.run.executionId) ? input.run.executionId.slice(6) : undefined;
+  const idempotencyKey = backendKey || `agent:${safeId(input.scope.organisationId)}:${safeId(input.scope.projectId)}:${safeId(input.run.correlationId)}:${safeId(rootExecutionId)}`;
   return AgentOperationRecordSchema.parse({
     contractVersion: AGENT_OPERATIONS_CONTRACT_VERSION,
     recordVersion: 1,

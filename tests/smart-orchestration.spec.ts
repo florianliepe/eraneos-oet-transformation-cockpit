@@ -28,9 +28,9 @@ test("terminates safely before model execution when evidence is absent", () => {
 });
 
 test("enforces latency, token, cost and specialist budgets with review escalation", () => {
-  const plan = planAgentRoute({ text: "Meeting risk milestone issue decision audit", evidenceCount: 1, budget: { maxSpecialists: 2, maxTokens: 3600, maxCostEur: 0.036, maxLatencyMs: 16000 } });
+  const plan = planAgentRoute({ text: "Meeting risk milestone issue decision audit", evidenceCount: 1, budget: { maxSpecialists: 2, maxTokens: 3600, maxCostEur: 0.036, maxLatencyMs: 210000 } });
   expect(plan.selectedWorkflows).toHaveLength(2);
-  expect(plan.budget).toMatchObject({ limited: true, estimatedTokens: 3600, estimatedLatencyMs: 16000 });
+  expect(plan.budget).toMatchObject({ limited: true, estimatedTokens: 3600, estimatedLatencyMs: 210000 });
   expect(plan.humanReviewRequired).toBe(true);
 });
 
@@ -54,5 +54,5 @@ test("smart routing preserves quality while reducing estimated execution versus 
   const baselineCalls = fixtures.length * 6;
   expect(smartCalls).toBeLessThan(baselineCalls);
   expect(plans.reduce((sum, plan) => sum + plan.budget.estimatedTokens, 0)).toBeLessThan(baselineCalls * 1800);
-  expect(plans.reduce((sum, plan) => sum + plan.budget.estimatedLatencyMs, 0)).toBeLessThan(baselineCalls * 8000);
+  expect(plans.reduce((sum, plan) => sum + plan.budget.estimatedLatencyMs, 0)).toBeLessThan(fixtures.length * (6 * 60000 + 90000));
 });

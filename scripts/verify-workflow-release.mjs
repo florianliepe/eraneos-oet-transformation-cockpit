@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const release = JSON.parse(readFileSync(resolve("docs/n8n/releases/2026-08-11-zm-prod-05g.json"), "utf8"));
+const release = JSON.parse(readFileSync(resolve("docs/n8n/releases/2026-08-12-zm-prod-18.json"), "utf8"));
 const errors = [];
 if (release.releaseContract !== "workflow-release-1.0") errors.push("Invalid release contract.");
 if (release.endpoint.webhookPath !== "a2126107-4e70-4717-8f1c-545d7f310741") errors.push("Public endpoint contract changed.");
@@ -20,5 +20,14 @@ for (const forbidden of ["apiKey", "accessToken", "clientSecret", "password", "w
 }
 for (const binding of release.credentialBindings) if (!binding.scope.includes("no credential value exported")) errors.push(`Credential scope disclaimer missing: ${binding.name}`);
 if (release.recoveryEvidence.result !== "success" || !release.recoveryEvidence.assertion.includes("shouldWrite=false")) errors.push("Recovery rehearsal evidence is incomplete.");
+const orchestrator = JSON.parse(readFileSync(resolve("docs/n8n-pmo-orchestrator.workflow.json"), "utf8"));
+const names = new Set(orchestrator.nodes.map((node) => node.name));
+for (const required of ["GitHubReadAgentRunReceipt", "GitHubStoreAcceptedRunReceipt", "RespondAgentRunAccepted", "GitHubCompleteRunReceipt", "IfRunStatus", "RespondRunStatus"]) if (!names.has(required)) errors.push(`Agent resilience node is missing: ${required}`);
+if (!release.endpoint.contractModes.includes("pmo.run.status")) errors.push("Run status contract mode is missing.");
+if (orchestrator.connections.RespondAgentRunAccepted?.main?.[0]?.[0]?.node !== "BuildRunningRunReceipt") errors.push("Accepted response does not continue into governed background processing.");
+if (orchestrator.connections.FormatExistingAgentRun?.main?.[0]?.[0]?.node !== "RespondExistingAgentRun" || orchestrator.connections.RespondExistingAgentRun) errors.push("Existing idempotency receipts must respond without restarting specialists.");
+if (orchestrator.connections.FormatIngest?.main?.[0]?.[0]?.node !== "BuildCompletedRunReceipt") errors.push("Completed results do not update the durable receipt.");
+const buildCalls = orchestrator.nodes.find((node) => node.name === "BuildSpecialistCalls")?.parameters?.jsCode || "";
+if (!buildCalls.includes("executionId = String(source.runId") || !buildCalls.includes("smart-routing-1.1.0")) errors.push("Stable execution identity or honest routing policy is missing.");
 if (errors.length) { console.error(errors.join("\n")); process.exit(1); }
 console.log(`Workflow release ${release.releaseId} verified; endpoint and ${release.artifacts.length} backups are restorable.`);
