@@ -16,7 +16,8 @@ import { credentialRequired, newCorrelationId, readWorkflowResponse, workflowErr
 import { AgentOutcomeUnknownError, AgentRunAcceptedResponseSchema, AgentRunStatusResponseSchema, type AgentRunReceipt } from "@/lib/agent-run-reconciliation";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
+const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".xml", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg"]);
 
 export type PmoApiResponse = {
   ok?: boolean;
@@ -41,11 +42,11 @@ export type WorkflowIntakeResponse = {
 };
 
 export type ProposalReviewResponse = { ok?: boolean; error?: string; reviewBundle?: ReviewBundle; commit?: { sha?: string; url?: string } };
-export type ProposalPublishResponse = ProposalPublication & { document?: PmoDocument };
+export type ProposalPublishResponse = ProposalPublication & { document?: PmoDocument; error?: string };
 
 export type ExtractedEvidence = {
   name: string;
-  type: "text" | "json" | "docx_text" | "xlsx" | "pdf_text" | "image_ocr" | "text_update";
+  type: "text" | "json" | "xml_text" | "docx_text" | "xlsx" | "pdf_text" | "image_ocr" | "text_update";
   content: string;
   mediaType?: string;
   size?: number;
@@ -59,6 +60,31 @@ function webhookUrl() {
 function extension(name: string) {
   const dot = name.lastIndexOf(".");
   return dot >= 0 ? name.slice(dot).toLowerCase() : "";
+}
+
+function xmlEvidenceText(raw: string, name: string) {
+  const xml = new DOMParser().parseFromString(raw, "application/xml");
+  if (xml.querySelector("parsererror")) throw new Error(`Invalid XML document: ${name}`);
+  const root = xml.documentElement;
+  if (!root) throw new Error(`XML has no readable document body: ${name}`);
+  const lines: string[] = [];
+  const visit = (element: Element, path: string) => {
+    const currentPath = `${path}/${element.localName}`;
+    for (const attribute of Array.from(element.attributes)) {
+      lines.push(`${currentPath}/@${attribute.localName}: ${attribute.value}`);
+    }
+    const children = Array.from(element.children);
+    if (children.length === 0) {
+      const value = (element.textContent || "").replace(/\s+/g, " ").trim();
+      if (value) lines.push(`${currentPath}: ${value}`);
+      return;
+    }
+    children.forEach((child) => visit(child, currentPath));
+  };
+  visit(root, "");
+  const content = lines.join("\n");
+  if (!content.trim()) throw new Error(`XML contains no readable values: ${name}`);
+  return content;
 }
 
 function unwrap<T>(raw: unknown): T {
@@ -121,6 +147,7 @@ export async function reviewAndPublishProposalSet(secret: string, proposalSet: P
     expectedRevision,
     idempotencyKey,
   });
+  if (!published.ok) throw new Error(published.error || "The governed publisher rejected the review bundle.");
   const parsed = ProposalPublicationSchema.parse(published);
   return normalizeDocument({ ...published, ...parsed });
 }
@@ -152,6 +179,12 @@ export async function extractEvidence(files: File[]): Promise<ExtractedEvidence[
       try { content = JSON.stringify(JSON.parse(raw), null, 2); }
       catch { throw new Error(`Invalid JSON document: ${file.name}`); }
       extracted.push({ name: file.name, type: "json", content, ...metadata });
+      continue;
+    }
+
+    if (ext === ".xml") {
+      const raw = new TextDecoder().decode(bytes);
+      extracted.push({ name: file.name, type: "xml_text", content: xmlEvidenceText(raw, file.name), ...metadata });
       continue;
     }
 
@@ -200,9 +233,14 @@ export async function extractEvidence(files: File[]): Promise<ExtractedEvidence[
       continue;
     }
 
-    const Tesseract = await import("tesseract.js");
-    const result = await Tesseract.recognize(file, "eng");
-    extracted.push({ name: file.name, type: "image_ocr", content: result.data.text || "", ...metadata });
+    if (!IMAGE_EXTENSIONS.has(ext)) throw new Error(`Unsupported image type: ${file.name}`);
+    const { default: Tesseract } = await import("tesseract.js");
+    const result = await Tesseract.recognize(file, "eng+deu");
+    const content = (result.data.text || "").replace(/[^\S\r\n]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+    if (content.replace(/\W/g, "").length < 10) {
+      throw new Error(`No reliable text was detected in ${file.name}. Use a higher-resolution image or add a written description; charts and diagrams require textual labels.`);
+    }
+    extracted.push({ name: file.name, type: "image_ocr", content: `## OCR text (${Math.round(result.data.confidence)}% confidence)\n${content}`, ...metadata });
   }
   return extracted;
 }

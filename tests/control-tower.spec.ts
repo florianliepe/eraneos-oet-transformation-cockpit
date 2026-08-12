@@ -163,6 +163,24 @@ test("shows a traceable agent execution contract for legacy workflow responses",
   await expect(result.getByText("Governance reviewer")).toBeVisible();
 });
 
+test("extracts XML evidence into labelled project-control text before transfer", async ({ page }) => {
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake", exact: true }).click();
+  await page.getByLabel("Evidence files").setInputFiles({
+    name: "project-plan.xml",
+    mimeType: "application/xml",
+    buffer: Buffer.from('<?xml version="1.0"?><Project code="OET"><Milestones><Milestone><Title>Design gate</Title><DueDate>2026-09-30</DueDate></Milestone></Milestones></Project>'),
+  });
+  const intake = page.waitForRequest((request) => request.url().includes("workflow.test/webhook") && request.postDataJSON()?.mode === "pmo.ingest");
+  await page.getByRole("button", { name: "Analyse and update workbench" }).click();
+  const body = (await intake).postDataJSON() as { extracted?: Array<{ name?: string; type?: string; content?: string }> };
+  expect(body.extracted).toEqual([expect.objectContaining({
+    name: "project-plan.xml",
+    type: "xml_text",
+    content: expect.stringContaining("/Project/Milestones/Milestone/Title: Design gate"),
+  })]);
+  expect(body.extracted?.[0]?.content).toContain("/Project/Milestones/Milestone/DueDate: 2026-09-30");
+});
+
 test("reviews field-level agent proposals before governed publication", async ({ page }) => {
   const risk = bootstrapPmoData.risks[0];
   const proposalSet = {
@@ -199,9 +217,14 @@ test("reviews field-level agent proposals before governed publication", async ({
   await expect(card.getByText("Increase risk impact")).toBeVisible();
   await expect(card.getByText(String(risk.impact), { exact: true })).toBeVisible();
   await expect(card.getByText("5", { exact: true })).toBeVisible();
+  const publishButton = page.getByRole("button", { name: "Record review and publish accepted" });
+  await expect(publishButton).toBeDisabled();
   await card.getByRole("button", { name: "Accept" }).click();
+  await expect(card.getByText("Add at least 20 characters of accountable rationale.")).toBeVisible();
+  await expect(publishButton).toBeDisabled();
   await card.getByRole("textbox").fill("Verified status evidence supports this accountable risk update.");
-  await page.getByRole("button", { name: "Record review and publish accepted" }).click();
+  await expect(publishButton).toBeEnabled();
+  await publishButton.click();
   await expect(page.getByText("Published", { exact: true })).toBeVisible();
   expect(modes).toEqual(expect.arrayContaining(["pmo.ingest", "pmo.review", "pmo.publish"]));
 });

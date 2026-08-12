@@ -12,6 +12,20 @@ const liveIds = Object.fromEntries(
 );
 const workflowIds = manifest.workflows.map((item) => item.workflowId);
 
+const mergeControlTower = workflow.nodes.find((node) => node.name === "MergeIntoControlTower");
+if (!mergeControlTower) throw new Error("MergeIntoControlTower is missing.");
+if (!mergeControlTower.parameters.jsCode.includes("const projectBefore=")) {
+  mergeControlTower.parameters.jsCode = mergeControlTower.parameters.jsCode
+    .replace(
+      "const projectUpdates = ai.project_updates && typeof ai.project_updates==='object' ? ai.project_updates : {};",
+      "const projectUpdates = ai.project_updates && typeof ai.project_updates==='object' ? ai.project_updates : {};\nconst projectBefore=JSON.stringify({subtitle:document.project.subtitle,phase:document.project.phase,progress:document.project.progress,overallRag:document.project.overallRag});",
+    )
+    .replace(
+      "document.project.governance=governance(document.project.governance,evidenceIds); document.project.updatedAt=now;",
+      "const projectAfter=JSON.stringify({subtitle:document.project.subtitle,phase:document.project.phase,progress:document.project.progress,overallRag:document.project.overallRag});\nif(projectBefore!==projectAfter){document.project.governance=governance(document.project.governance,evidenceIds);document.project.updatedAt=now;}",
+    );
+}
+
 const upsertNode = (node) => {
   const index = workflow.nodes.findIndex((item) => item.name === node.name);
   if (index >= 0) workflow.nodes[index] = node;
