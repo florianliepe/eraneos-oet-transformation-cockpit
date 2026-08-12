@@ -12,7 +12,7 @@ import {
   type ReviewBundle,
 } from "@/lib/governed-proposals";
 import type { WorkspaceScope } from "@/lib/project-data-repository";
-import { credentialRequired, newCorrelationId, workflowError } from "@/lib/operational-quality";
+import { credentialRequired, newCorrelationId, readWorkflowResponse, workflowError } from "@/lib/operational-quality";
 import { AgentOutcomeUnknownError, AgentRunAcceptedResponseSchema, AgentRunStatusResponseSchema, type AgentRunReceipt } from "@/lib/agent-run-reconciliation";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
@@ -89,12 +89,8 @@ async function callWorkflow<T>(secret: string, body: unknown, requestCorrelation
     cache: "no-store",
   }); } catch (cause) { throw workflowError({ component: "pmo_workflow", correlationId, cause }); }
 
-  const contentType = response.headers.get("content-type") || "";
-  const raw: unknown = contentType.includes("application/json") ? await response.json() : await response.text();
+  const raw: unknown = await readWorkflowResponse(response, "pmo_workflow", correlationId);
   const payload = unwrap<T & { error?: string }>(raw);
-  if (!response.ok) {
-    throw workflowError({ component: "pmo_workflow", correlationId, status: response.status });
-  }
   return payload;
 }
 
