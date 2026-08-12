@@ -252,7 +252,19 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
         setDirty(false);
       }
       if (!payload.agentRun) throw new Error("The workflow response did not contain a valid agent execution contract.");
-      const recoveredRun = recovery?.mode === "replay" ? AgentRunEnvelopeSchema.parse({ ...payload.agentRun, operations: { ...payload.agentRun.operations, attempt: recovery.source.run.operations.attempt + 1, replayOf: recovery.source.executionId } }) : payload.agentRun;
+      let recoveredRun = recovery
+        ? AgentRunEnvelopeSchema.parse({
+          ...payload.agentRun,
+          operations: {
+            ...payload.agentRun.operations,
+            attempt: recovery.source.run.operations.attempt + 1,
+            ...(recovery.mode === "retry" ? { retryOf: recovery.source.executionId } : { replayOf: recovery.source.executionId }),
+          },
+        })
+        : payload.agentRun;
+      if (recoveredRun.status === "completed" && recoveredRun.proposals.length === 0) {
+        recoveredRun = AgentRunEnvelopeSchema.parse({ ...recoveredRun, operations: { ...recoveredRun.operations, reviewOutcome: "not_required" } });
+      }
       setWorkflowResult(recoveredRun);
       await persistAgentRun(recoveredRun, submission, recovery);
       if (payload.proposalSet) setProposalSets((current) => [payload.proposalSet!, ...current.filter((item) => item.id !== payload.proposalSet!.id)]);
@@ -282,9 +294,12 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
       const nextStatus = publication.acceptedProposalIds.length ? "published" : "rejected";
       setProposalSets((current) => current.map((item) => item.id === proposalSet.id ? { ...item, status: nextStatus } : item));
       const reviewOutcome = publication.acceptedProposalIds.length && publication.rejectedProposalIds.length ? "mixed" : publication.acceptedProposalIds.length ? "accepted" : "rejected";
+      setWorkflowResult((current) => current?.executionId === proposalSet.sourceExecutionId
+        ? AgentRunEnvelopeSchema.parse({ ...current, status: "completed", operations: { ...current.operations, reviewOutcome } })
+        : current);
       setRunHistory((current) => current.map((record) => {
         if (record.executionId !== proposalSet.sourceExecutionId) return record;
-        const updated = { ...record, recordVersion: record.recordVersion + 1, run: { ...record.run, operations: { ...record.run.operations, reviewOutcome } }, updatedAt: new Date().toISOString() } as AgentOperationRecord;
+        const updated = { ...record, recordVersion: record.recordVersion + 1, run: AgentRunEnvelopeSchema.parse({ ...record.run, status: "completed", operations: { ...record.run.operations, reviewOutcome } }), updatedAt: new Date().toISOString() } as AgentOperationRecord;
         void saveAgentOperationRecord(updated).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Review outcome persistence failed."));
         return updated;
       }));
@@ -388,6 +403,16 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
   if (!data) return <div className="app-loading" role="alert"><BrandMark/><p>{error || "Project data is unavailable."}</p><button className="button primary" onClick={() => void loadData()}>Try again</button></div>;
 
   const meta = viewMeta[view];
+  const workflowProposalSet = workflowResult ? proposalSets.find((item) => item.sourceExecutionId === workflowResult.executionId) : undefined;
+  const workflowReviewed = workflowProposalSet?.status === "published" || workflowProposalSet?.status === "rejected";
+  const workflowNoChange = workflowResult?.status === "completed" && workflowResult.proposals.length === 0;
+  const workflowBannerMessage = workflowNoChange
+    ? `Agent execution ${workflowResult.executionId} completed with no supported changes. Canonical state remains unchanged; no review is required.`
+    : workflowReviewed
+    ? workflowProposalSet.status === "published"
+      ? `Agent execution ${workflowResult?.executionId} was reviewed and accepted changes were published.`
+      : `Agent execution ${workflowResult?.executionId} was reviewed; no canonical changes were published.`
+    : `Agent execution ${workflowResult?.executionId} completed with ${workflowResult?.proposals.length} proposed change${workflowResult?.proposals.length === 1 ? "" : "s"}. Canonical state is unchanged pending review.`;
   return (
     <div className="app-shell">
       <a className="skip-link" href="#cockpit-content">Skip to cockpit content</a>
@@ -408,7 +433,7 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
 
         <div className="content-wrap">
           {error && <div className="error-banner" role="alert"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><Icons.close/></button></div>}
-          {workflowResult && view !== "intake" && <div className="success-banner"><span>Agent execution {workflowResult.executionId} completed with {workflowResult.proposals.length} proposed change{workflowResult.proposals.length === 1 ? "" : "s"}. Canonical state is unchanged pending review.</span><button onClick={() => setView("review")}>Review proposals</button><button onClick={() => setWorkflowResult(null)} aria-label="Dismiss agent result"><Icons.close/></button></div>}
+          {workflowResult && view !== "intake" && <div className="success-banner"><span>{workflowBannerMessage}</span>{!workflowNoChange && <button onClick={() => setView("review")}>{workflowReviewed ? "View review" : "Review proposals"}</button>}<button onClick={() => setWorkflowResult(null)} aria-label="Dismiss agent result"><Icons.close/></button></div>}
           <div className="page-heading"><div><span className="eyebrow">{meta.eyebrow}</span><h1 ref={headingRef} tabIndex={-1}>{meta.title}</h1><p>{meta.description}</p></div><div className="heading-meta"><span>Last synced</span><b>{formatDateTime(data.project.updatedAt)}</b></div></div>
           {view === "overview" && showFirstUse && <FirstUseGuide onDismiss={dismissFirstUse}/>}
 
