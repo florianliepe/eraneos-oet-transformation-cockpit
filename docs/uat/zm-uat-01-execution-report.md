@@ -11,10 +11,11 @@ Execution in progress. Azure App Service activation, Teams and SharePoint are ex
 
 | Result | Count |
 |---|---:|
-| Pass | 13 |
+| Pass | 14 |
+| Automated pass; live retest pending | 10 |
 | Fail | 0 |
 | Blocked | 0 |
-| Not run | 11 |
+| Not run | 0 |
 
 ## Evidence log
 
@@ -23,7 +24,11 @@ Execution in progress. Azure App Service activation, Teams and SharePoint are ex
 | UAT-001, UAT-002, UAT-005–UAT-009, UAT-015, UAT-018–UAT-019, UAT-021–UAT-023 | Pass | Release gates, 103 browser/domain tests, one Pages export test, responsive snapshots, accessibility, identity, governance, recovery and scope-denial contracts passed locally. Public Pages deployment is reachable. |
 | UAT-003 | Pass | Created and opened `UAT Validation Project` in organisation `Eraneos`; project ID begins `prj_c03ec8e4…`. |
 | UAT-004, UAT-016 | Pass (automated), live retest pending | UAT-ISSUE-001 is patched: workflow artifacts derive every canonical, proposal, run and work-package path from validated organisation/project scope; the publisher rejects mismatched scope. Publisher acceptance/rejection/idempotency tests pass. |
-| UAT-010–UAT-014, UAT-017, UAT-020, UAT-024 | Not run | Awaiting isolated live workflow path and subsequent live regression/deployment. |
+| UAT-010 | Pass (browser extraction), live agent outcome pending | XML extraction sends labelled element/attribute paths and verified values before transfer. |
+| UAT-011 | Pass (browser extraction), live agent outcome pending | Generated readable PNG is extracted as `image_ocr`; confidence, gate date and owner text were verified before transfer. |
+| UAT-012 | Pass (browser extraction), live agent outcome pending | Generated text PDF is extracted as `pdf_text` with page label, risk statement and owner verified before transfer. |
+| UAT-013–UAT-014, UAT-017, UAT-020 | Not run | Awaiting temporary live workflow credential in the deployed cockpit. |
+| UAT-024 | Pass | PR #36 merged at `e20183d`; main Pages workflow `31614344098` passed build, audit, lint, type-check, governance, accessibility, compatibility, exported-path tests and deployment. |
 
 ## Resolved defects awaiting live retest
 
