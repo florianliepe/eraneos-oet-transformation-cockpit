@@ -1,10 +1,10 @@
 {
   "contractVersion": "agent-run-1.0",
-  "workflowSetVersion": "1.2.1",
+  "workflowSetVersion": "1.2.2",
   "generatedBy": "scripts/build-specialist-workflows.mjs",
   "orchestrator": {
     "workflowId": "pmo.orchestrate",
-    "workflowVersion": "1.3.1",
+    "workflowVersion": "1.3.2",
     "file": "../../n8n-pmo-orchestrator.workflow.json",
     "webhookPath": "a2126107-4e70-4717-8f1c-545d7f310741",
     "liveWorkflowId": "IEv54E2lBQyd57hY"

@@ -12,6 +12,7 @@ Execute in this order:
 4. Regenerate release `2026-08-12-zm-prod-18-1`, preserve proposal-only governance and retain prior n8n versions as rollback points.
 5. Validate targeted regressions, the full release gate, browser tests and the GitHub Pages export; publish through reviewed GitHub change control.
 6. Publish the authoritative n8n orchestrator as `ZM-PROD-18.1 agent run resilience hotfix`, then verify a safe retry of the failed input reaches accepted/running/completed or needs-review with one idempotency identity and one proposal set.
+7. Treat live reconciliation as a release gate: GitHub receipt reads must return JSON metadata with base64 `content`, never a binary attachment that bypasses receipt classification.
 
 ## Acceptance gate
 
@@ -20,4 +21,5 @@ Execute in this order:
 - Empty 403/500 and malformed JSON responses never surface `Unexpected end of JSON input`.
 - The authoritative workflow contains unique node names, the neutral credential binding and a restorable prior published version.
 - The failed pre-receipt run can be retried safely; one run receipt and no duplicate proposal execution are observed.
+- A completed receipt reconciles through `pmo.run.status`, and a repeated `pmo.ingest` with the same key returns that receipt without attempting a second create or specialist execution.
 - Azure, Teams and SharePoint remain unchanged.

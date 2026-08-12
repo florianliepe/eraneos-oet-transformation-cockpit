@@ -1,7 +1,7 @@
 {
   "releaseContract": "workflow-release-1.0",
   "releaseId": "2026-08-12-zm-prod-18-1",
-  "createdAt": "2026-08-12T10:29:48.903Z",
+  "createdAt": "2026-08-12T10:56:07.574Z",
   "compatibility": {
     "n8nEdition": "cloud-compatible community feature set",
     "executionOrder": "v1",
@@ -38,7 +38,7 @@
   "artifacts": [
     {
       "file": "docs/n8n-pmo-orchestrator.workflow.json",
-      "sha256": "615de57eaacd49dc197444c4f276ef5fc9d254e272aa843195b70d64ea47194e"
+      "sha256": "2b9076c43fa2437ae3d82ea502db17eff891527ad0696be9347254c6065b399a"
     },
     {
       "file": "docs/n8n/agents/governed-publisher.workflow.json",
@@ -101,6 +101,6 @@
   "recoveryEvidence": {
     "nonProductionWorkflowId": "i2XchZ7twtvKynC9",
     "result": "success",
-    "assertion": "ZM-PROD-18.1 syntax and repeatability gates preserve canonicalWriteAllowed=false; stable receipts prevent duplicate intake and rejected or duplicate publication remains shouldWrite=false"
+    "assertion": "ZM-PROD-18.1 syntax and repeatability gates preserve canonicalWriteAllowed=false; receipt reads return JSON rather than binary data, stable receipts prevent duplicate intake and rejected or duplicate publication remains shouldWrite=false"
   }
 }

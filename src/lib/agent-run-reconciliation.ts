@@ -46,7 +46,7 @@ export function buildPendingAgentRun(meta: Record<string, string>, state: "waiti
     correlationId,
     status: state,
     requestedAt,
-    orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: "1.3.0" },
+    orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: "1.3.2" },
     routing: {
       mode: meta.routing || "smart_auto",
       selectedWorkflows: workflows,

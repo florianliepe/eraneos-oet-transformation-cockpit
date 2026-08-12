@@ -26,7 +26,7 @@ const release = {
     { name: "OpenAI account", id: "jGlNDqeYEbc5DwVT", scope: "model invocation for specialist workflows; no credential value exported" },
     { name: "Transformation Cockpit Webhook Auth", id: "XeRspTWURk5bdcPi", scope: "webhook header authentication; no credential value exported" }
   ],
-  recoveryEvidence: { nonProductionWorkflowId: "i2XchZ7twtvKynC9", result: "success", assertion: "ZM-PROD-18.1 syntax and repeatability gates preserve canonicalWriteAllowed=false; stable receipts prevent duplicate intake and rejected or duplicate publication remains shouldWrite=false" }
+  recoveryEvidence: { nonProductionWorkflowId: "i2XchZ7twtvKynC9", result: "success", assertion: "ZM-PROD-18.1 syntax and repeatability gates preserve canonicalWriteAllowed=false; receipt reads return JSON rather than binary data, stable receipts prevent duplicate intake and rejected or duplicate publication remains shouldWrite=false" }
 };
 mkdirSync(resolve("docs/n8n/releases"), { recursive: true });
 writeFileSync(resolve("docs/n8n/releases/2026-08-12-zm-prod-18-1.json"), `${JSON.stringify(release, null, 2)}\n`);
