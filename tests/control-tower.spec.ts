@@ -262,7 +262,7 @@ test("reconciles an accepted agent run with one stable idempotency key", async (
 test("shows release-aligned operational health and ownership", async ({ page }) => {
   await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Operational health" }).click();
   await expect(page.getByRole("heading", { name: "Operational health", level: 1 })).toBeVisible();
-  await expect(page.getByText("2026-08-12-zm-prod-18")).toBeVisible();
+  await expect(page.getByText("2026-08-12-zm-prod-18-1")).toBeVisible();
   await expect(page.getByText("IEv54E2lBQyd57hY")).toBeVisible();
   await expect(page.getByText("4czGSZtMjeGpKSFS")).toBeVisible();
   await expect(page.getByText("BkHWDRmPvXOepELU")).toBeVisible();

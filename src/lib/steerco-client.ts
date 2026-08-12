@@ -1,6 +1,6 @@
 import { SteercoSnapshotSchema, type SteercoEvidenceEnvelope, type SteercoSnapshot } from "./steerco-schema";
 import { publicWorkflowEndpoint } from "./public-runtime";
-import { newCorrelationId, workflowError } from "./operational-quality";
+import { newCorrelationId, readWorkflowResponse, workflowError } from "./operational-quality";
 
 export type SteercoWorkflowResponse = {
   ok?: boolean;
@@ -28,9 +28,9 @@ async function request(body: Record<string, unknown>, secret?: string, target = 
   let response: Response;
   try { response = await fetch(target, { method: "POST", headers, body: JSON.stringify(body), cache: "no-store" }); }
   catch (cause) { throw workflowError({ component: "steerco_workflow", correlationId, cause }); }
-  const raw = (response.headers.get("content-type") || "").includes("application/json") ? await response.json() : await response.text();
+  const raw = await readWorkflowResponse(response, "steerco_workflow", correlationId);
   const payload = unwrap(raw);
-  if (!response.ok || payload.ok === false) throw workflowError({ component: "steerco_workflow", correlationId, status: response.status });
+  if (payload.ok === false) throw workflowError({ component: "steerco_workflow", correlationId, status: response.status });
   if (payload.snapshot) payload.snapshot = SteercoSnapshotSchema.parse(payload.snapshot);
   return payload;
 }

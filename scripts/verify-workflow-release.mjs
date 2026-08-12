@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const release = JSON.parse(readFileSync(resolve("docs/n8n/releases/2026-08-12-zm-prod-18.json"), "utf8"));
+const release = JSON.parse(readFileSync(resolve("docs/n8n/releases/2026-08-12-zm-prod-18-1.json"), "utf8"));
 const errors = [];
 if (release.releaseContract !== "workflow-release-1.0") errors.push("Invalid release contract.");
 if (release.endpoint.webhookPath !== "a2126107-4e70-4717-8f1c-545d7f310741") errors.push("Public endpoint contract changed.");
@@ -13,6 +13,12 @@ for (const artifact of release.artifacts) {
   const workflow = JSON.parse(content);
   if (workflow.active !== false) errors.push(`Source workflow must be inactive: ${artifact.file}`);
   if (!workflow.name || !workflow.nodes?.length || !workflow.connections) errors.push(`Invalid workflow backup: ${artifact.file}`);
+  for (const node of workflow.nodes || []) {
+    const code = node.parameters?.jsCode;
+    if (!code) continue;
+    try { new Function(code); }
+    catch (reason) { errors.push(`Invalid Code node syntax: ${artifact.file} / ${node.name}: ${reason instanceof Error ? reason.message : String(reason)}`); }
+  }
 }
 const serialized = JSON.stringify(release);
 for (const forbidden of ["apiKey", "accessToken", "clientSecret", "password", "webhookSecret"]) {
@@ -29,5 +35,10 @@ if (orchestrator.connections.FormatExistingAgentRun?.main?.[0]?.[0]?.node !== "R
 if (orchestrator.connections.FormatIngest?.main?.[0]?.[0]?.node !== "BuildCompletedRunReceipt") errors.push("Completed results do not update the durable receipt.");
 const buildCalls = orchestrator.nodes.find((node) => node.name === "BuildSpecialistCalls")?.parameters?.jsCode || "";
 if (!buildCalls.includes("executionId = String(source.runId") || !buildCalls.includes("smart-routing-1.1.0")) errors.push("Stable execution identity or honest routing policy is missing.");
+const assistantCode = orchestrator.nodes.find((node) => node.name === "BuildAssistantInput")?.parameters?.jsCode || "";
+for (const identifier of ["correlationId", "idempotencyKey", "runId", "runPath"]) {
+  if ((assistantCode.match(new RegExp(`const ${identifier}\\b`, "g")) || []).length !== 1) errors.push(`BuildAssistantInput must declare ${identifier} exactly once.`);
+}
+if (new Set(orchestrator.nodes.map((node) => node.name)).size !== orchestrator.nodes.length) errors.push("Orchestrator node names are not unique.");
 if (errors.length) { console.error(errors.join("\n")); process.exit(1); }
 console.log(`Workflow release ${release.releaseId} verified; endpoint and ${release.artifacts.length} backups are restorable.`);

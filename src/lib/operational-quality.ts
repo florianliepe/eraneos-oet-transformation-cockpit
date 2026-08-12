@@ -52,6 +52,30 @@ export function workflowError(input: {
   });
 }
 
+export function invalidWorkflowResponse(component: OperationalError["component"], correlationId: string) {
+  return new CockpitClientError({
+    contractVersion: OPERATIONAL_ERROR_VERSION,
+    code: "invalid_response",
+    category: "contract",
+    safeMessage: "The workflow returned an invalid response.",
+    retryable: false,
+    retryGuidance: "Give support the reference ID and do not repeat the request until its outcome is reconciled.",
+    correlationId,
+    component,
+    occurredAt: new Date().toISOString(),
+    privacy: "operational_metadata_only",
+  });
+}
+
+export async function readWorkflowResponse(response: Response, component: OperationalError["component"], correlationId: string) {
+  if (!response.ok) throw workflowError({ component, correlationId, status: response.status });
+  const text = await response.text();
+  if (!text.trim()) throw invalidWorkflowResponse(component, correlationId);
+  if (!(response.headers.get("content-type") || "").includes("application/json")) return text;
+  try { return JSON.parse(text) as unknown; }
+  catch { throw invalidWorkflowResponse(component, correlationId); }
+}
+
 export function credentialRequired(component: OperationalError["component"]) {
   return new CockpitClientError({
     contractVersion: OPERATIONAL_ERROR_VERSION,
