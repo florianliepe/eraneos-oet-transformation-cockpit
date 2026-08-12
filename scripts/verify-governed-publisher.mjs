@@ -42,23 +42,37 @@ for (const mode of ["pmo.review", "pmo.publish"]) {
 }
 
 const publishNode = requireNode(publisher, "GitHubPublishCanonicalPMO");
-if (publishNode?.parameters?.operation !== "edit" || publishNode?.parameters?.filePath !== "knowledge/pmo/control-tower.json") {
-  errors.push("The governed publisher is not bound to the canonical PMO document.");
+if (publishNode?.parameters?.operation !== "edit" || !String(publishNode?.parameters?.filePath).includes("canonicalPath")) {
+  errors.push("The governed publisher is not bound to the authorized workspace canonical path.");
 }
 const validator = requireNode(publisher, "ValidateGovernedPublication")?.parameters?.jsCode || "";
 for (const marker of [
   "authorized!==true", "schemaVersion!=='2.0'", "sourceRevision", "expectedObjectVersion",
   "evidenceIds", "idempotencyKey", "review.decisions", "AUD-REVIEW", "AUD-PUBLISH", "objectVersions",
+  "Publisher workspace scope is invalid", "Publisher artifacts do not share the authorized workspace scope",
 ]) {
   if (!validator.includes(marker)) errors.push(`Publisher validation marker missing: ${marker}`);
 }
 
 const agentWorkflows = [orchestrator, publisher, ...manifest.workflows.map((item) => readJson(`docs/n8n/agents/${item.file}`))];
 const canonicalWriters = agentWorkflows.flatMap((workflow) => workflow.nodes
-  .filter((node) => node.type === "n8n-nodes-base.github" && node.parameters?.operation === "edit" && node.parameters?.filePath === "knowledge/pmo/control-tower.json" && node.name !== "GitHubSaveControlTower")
+  .filter((node) => node.type === "n8n-nodes-base.github" && node.parameters?.operation === "edit" && String(node.parameters?.filePath).includes("canonicalPath") && node.name !== "GitHubSaveControlTower")
   .map((node) => `${workflow.name}:${node.name}`));
 if (canonicalWriters.length !== 1 || canonicalWriters[0] !== `${publisher.name}:GitHubPublishCanonicalPMO`) {
   errors.push(`Expected exactly one agent-path canonical writer; found ${canonicalWriters.join(", ") || "none"}.`);
+}
+
+const serializedAgentArtifacts = JSON.stringify([orchestrator, publisher]);
+for (const legacyPath of ["knowledge/pmo/control-tower.json", "knowledge/pmo/proposals/", "knowledge/pmo/runs/", "knowledge/work-packages/"]) {
+  if (serializedAgentArtifacts.includes(legacyPath)) errors.push(`Legacy unscoped storage path remains in a runtime workflow: ${legacyPath}`);
+}
+const requestCode = requireNode(orchestrator, "PrepareRequest")?.parameters?.jsCode || "";
+for (const marker of ["organisationId", "projectId", "scopeRoot", "canonicalPath", "proposalRoot", "runRoot", "workPackageRoot"]) {
+  if (!requestCode.includes(marker)) errors.push(`Workspace path derivation marker missing: ${marker}`);
+}
+for (const name of ["GitHubReadControlTower", "GitHubReadControlTowerForSave", "GitHubReadControlTowerForIngest", "GitHubReadCanonicalForPublish"]) {
+  const node = requireNode(orchestrator, name);
+  if (!String(node?.parameters?.filePath).includes("canonicalPath")) errors.push(`${name} is not scoped to the requested project.`);
 }
 
 const executePublisher = requireNode(orchestrator, "ExecuteGovernedPublisher");

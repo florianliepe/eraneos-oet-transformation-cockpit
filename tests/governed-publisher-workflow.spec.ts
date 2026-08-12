@@ -17,10 +17,12 @@ const validatorCode = workflow.nodes.find((node: { name: string }) => node.name 
 const execute = new Function("$json", validatorCode) as (input: unknown) => Array<{ json: PublisherResult }>;
 
 function input(decision: "accept" | "reject", document = structuredClone(bootstrapPmoData), key = "publish-test-0001") {
+  const scope = { organisationId: "org_test01", projectId: "prj_test01" };
+  document.project.id = scope.projectId;
   const risk = document.risks[0];
   const sourceExecutionId = "agent:publisher-test";
   const proposalSet = {
-    contractVersion: "proposal-set-1.0", id: "PS-agent-publisher-test", sourceExecutionId,
+    contractVersion: "proposal-set-1.0", scope, id: "PS-agent-publisher-test", sourceExecutionId,
     correlationId: "publisher-test", sourceRevision: document.revision, status: "pending_review",
     createdAt: "2026-08-11T11:00:00.000Z",
     evidence: [{ id: "EVD-PUBLISHER-1", label: "Verified status note", source: "fixture", verified: true }],
@@ -32,12 +34,12 @@ function input(decision: "accept" | "reject", document = structuredClone(bootstr
     }],
   };
   const reviewBundle = {
-    contractVersion: "review-decision-1.0", id: "REV-PS-agent-publisher-test-20260811110500",
+    contractVersion: "review-decision-1.0", scope, id: "REV-PS-agent-publisher-test-20260811110500",
     proposalSetId: proposalSet.id, sourceExecutionId, reviewer: "Programme Sponsor", decidedAt: "2026-08-11T11:05:00.000Z",
     decisions: [{ proposalId: "PROP-PUBLISHER-1", sourceExecutionId, decision, reviewer: "Programme Sponsor", rationale: "Evidence was reviewed and supports this accountable decision.", decidedAt: "2026-08-11T11:05:00.000Z", expectedObjectVersion: risk.governance.version }],
     audit: [],
   };
-  return { authorized: true, proposalSet, reviewBundle, canonicalDocument: document, expectedRevision: document.revision, idempotencyKey: key, actor: "Programme Sponsor" };
+  return { authorized: true, scope, canonicalPath: `knowledge/pmo/workspaces/${scope.organisationId}/${scope.projectId}/control-tower.json`, proposalSet, reviewBundle, canonicalDocument: document, expectedRevision: document.revision, idempotencyKey: key, actor: "Programme Sponsor" };
 }
 
 test("accepted publication creates one revision with evidence, review, audit and object-version lineage", () => {
