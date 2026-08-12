@@ -25,6 +25,7 @@ import type { WorkspaceScope } from "@/lib/project-data-repository";
 import { scopeDocument } from "@/lib/local-project-data-repository";
 import type { CockpitView } from "@/lib/cockpit-navigation";
 import { ContextualHelp, FirstUseGuide } from "./contextual-help";
+import { AgentOutcomeUnknownError, buildPendingAgentRun, outcomeUnknownAgentRun } from "@/lib/agent-run-reconciliation";
 
 type View = CockpitView;
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
@@ -226,8 +227,14 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
   async function runWorkflowIntake(submission: IntakeSubmission, recovery?: { mode: "retry" | "replay"; source: AgentOperationRecord }) {
     const { meta, files, textUpdate } = submission;
     setWorkflowSaving(true); setError(""); setWorkflowResult(null);
+    let pendingRun = buildPendingAgentRun(meta);
+    setWorkflowResult(pendingRun);
+    await persistAgentRun(pendingRun, submission, recovery);
     try {
-      const payload = await ingestEvidence(workspaceSecret, meta, files, workspaceScope, textUpdate);
+      const payload = await ingestEvidence(workspaceSecret, meta, files, workspaceScope, textUpdate, (receipt) => {
+        pendingRun = buildPendingAgentRun(meta, receipt.state === "accepted" ? "waiting" : "running");
+        setWorkflowResult(pendingRun);
+      });
       if (!payload.ok) throw new Error(payload.error || "Workflow intake failed.");
       const refreshed = payload.document ? { ok: true, document: payload.document, source: "github" as const, storageConfigured: true } : await loadPmoDocument(workspaceSecret, workspaceScope);
       if (refreshed.document) {
@@ -237,17 +244,22 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
         setDirty(false);
       }
       if (!payload.agentRun) throw new Error("The workflow response did not contain a valid agent execution contract.");
-      const recoveredRun = recovery ? AgentRunEnvelopeSchema.parse({ ...payload.agentRun, operations: { ...payload.agentRun.operations, attempt: recovery.source.run.operations.attempt + 1, ...(recovery.mode === "retry" ? { retryOf: recovery.source.executionId } : { replayOf: recovery.source.executionId }) } }) : payload.agentRun;
+      const recoveredRun = recovery?.mode === "replay" ? AgentRunEnvelopeSchema.parse({ ...payload.agentRun, operations: { ...payload.agentRun.operations, attempt: recovery.source.run.operations.attempt + 1, replayOf: recovery.source.executionId } }) : payload.agentRun;
       setWorkflowResult(recoveredRun);
       await persistAgentRun(recoveredRun, submission, recovery);
       if (payload.proposalSet) setProposalSets((current) => [payload.proposalSet!, ...current.filter((item) => item.id !== payload.proposalSet!.id)]);
     } catch (reason: unknown) {
       const message = reason instanceof Error ? reason.message : "Workflow intake failed.";
       const timestamp = new Date().toISOString();
-      const executionId = `failed:${Date.now()}`;
       const workflows = selectedAgentWorkflows(meta.agent_workflows);
-      const failedRun = AgentRunEnvelopeSchema.parse({ contractVersion: "agent-run-1.0", executionId, correlationId: meta.correlation_id || executionId, status: "failed", requestedAt: meta.requested_at || timestamp, completedAt: timestamp, orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: "request-boundary" }, routing: { mode: meta.routing || "selected", selectedWorkflows: workflows }, steps: [{ workflowId: workflows[0], workflowVersion: "request-boundary", status: "failed", summary: message, confidence: "not_assessed", evidenceIds: [], proposalIds: [], startedAt: meta.requested_at || timestamp, completedAt: timestamp, error: message, safeRecovery: "Retry the original input; replay only after checking workflow release notes." }], evidence: [], proposals: [], warnings: [{ code: "AGENT_EXECUTION_FAILED", message, evidenceIds: [] }], persistence: { mode: "proposal_only" }, operations: { attempt: Number(meta.recovery_attempt || 1), latencyMs: Math.max(0, Date.now() - new Date(meta.requested_at || timestamp).getTime()), retryOf: meta.retry_of, replayOf: meta.replay_of, reviewOutcome: "pending" } });
-      setWorkflowResult(failedRun); await persistAgentRun(failedRun, submission, recovery); setError(message);
+      if (reason instanceof AgentOutcomeUnknownError) {
+        const unknownRun = outcomeUnknownAgentRun(pendingRun, message);
+        setWorkflowResult(unknownRun); await persistAgentRun(unknownRun, submission, recovery);
+        setError(`${message} Do not replay: reconcile the existing run first.`);
+      } else {
+        const failedRun = AgentRunEnvelopeSchema.parse({ contractVersion: "agent-run-1.0", executionId: pendingRun.executionId, correlationId: meta.correlation_id, status: "failed", requestedAt: meta.requested_at, completedAt: timestamp, orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: "request-boundary" }, routing: { mode: meta.routing || "selected", selectedWorkflows: workflows }, steps: workflows.map((workflowId) => ({ workflowId, workflowVersion: "request-boundary", status: "skipped", summary: "No specialist failure was confirmed because the request failed at the integration boundary.", confidence: "not_assessed", evidenceIds: [], proposalIds: [] })), evidence: [], proposals: [], warnings: [{ code: "REQUEST_BOUNDARY_FAILED", message, evidenceIds: [] }], persistence: { mode: "proposal_only" }, operations: { attempt: Number(meta.recovery_attempt || 1), latencyMs: Math.max(0, Date.now() - new Date(meta.requested_at).getTime()), retryOf: meta.retry_of, replayOf: meta.replay_of, reviewOutcome: "pending" } });
+        setWorkflowResult(failedRun); await persistAgentRun(failedRun, submission, recovery); setError(message);
+      }
     }
     finally { setWorkflowSaving(false); }
   }
@@ -283,7 +295,8 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
         if (!window.confirm(`Replay against current workflow versions?\n\n${detail}\n\nThe original execution remains immutable.`)) return;
       }
       const original = await loadEncryptedRecoveryInput(workspaceSecret, record.input.ref);
-      const submission = { ...original, meta: { ...original.meta, correlation_id: record.run.correlationId, requested_at: new Date().toISOString(), recovery_attempt: String(attempt), recovery_version_policy: mode === "retry" ? "source_versions" : "current_versions", source_workflow_versions: JSON.stringify(record.versions), ...(mode === "retry" ? { retry_of: record.executionId } : { replay_of: record.executionId }) } };
+      const replayKey = mode === "replay" ? crypto.randomUUID() : record.run.correlationId;
+      const submission = { ...original, meta: { ...original.meta, correlation_id: replayKey, idempotency_key: replayKey, requested_at: new Date().toISOString(), recovery_attempt: String(attempt), recovery_version_policy: mode === "retry" ? "source_versions" : "current_versions", source_workflow_versions: JSON.stringify(record.versions), ...(mode === "retry" ? { retry_of: record.executionId } : { replay_of: record.executionId }) } };
       await runWorkflowIntake(submission, { mode, source: record });
     } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Recovery failed."); }
   }

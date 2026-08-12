@@ -58,6 +58,7 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
     <form className="intake-layout" onSubmit={(event) => {
       event.preventDefault();
       if (!canSubmit) return;
+      const runKey = crypto.randomUUID();
       onRun({
         files,
         textUpdate: textUpdate.trim(),
@@ -71,17 +72,18 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
           routing,
           agents: agents.join(","),
           agent_workflows: plan?.selectedWorkflows.join(",") || "",
-          routing_policy: plan?.policyVersion || "smart-routing-1.0",
+          routing_policy: plan?.policyVersion || "smart-routing-1.1.0",
           routing_explanation: JSON.stringify(plan?.decisions || []),
           budget_max_specialists: String(maxSpecialists),
           budget_max_tokens: String(plan?.budget.maxTokens || 9000),
           budget_max_cost_eur: String(plan?.budget.maxCostEur || 0.1),
-          budget_max_latency_ms: String(plan?.budget.maxLatencyMs || 45000),
+          budget_max_latency_ms: String(plan?.budget.maxLatencyMs || 360000),
           manual_override_actor: plan?.manualOverride?.actor || "",
           manual_override_reason: plan?.manualOverride?.reason || "",
           domain_schema: "pmo-2.0",
           agent_contract_version: AGENT_CONTRACT_VERSION,
-          correlation_id: crypto.randomUUID(),
+          correlation_id: runKey,
+          idempotency_key: runKey,
           requested_at: new Date().toISOString(),
         },
       });

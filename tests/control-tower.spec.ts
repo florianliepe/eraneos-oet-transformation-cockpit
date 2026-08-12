@@ -229,13 +229,40 @@ test("shows immutable run history and replays the original input with lineage", 
   const ingests = requests.filter((request) => request.mode === "pmo.ingest") as Array<{ meta?: Record<string, string> }>;
   expect(ingests).toHaveLength(2);
   expect(ingests[1].meta?.replay_of).toBeTruthy();
-  expect(ingests[1].meta?.correlation_id).toBe(ingests[0].meta?.correlation_id);
+  expect(ingests[1].meta?.correlation_id).not.toBe(ingests[0].meta?.correlation_id);
+  expect(ingests[1].meta?.idempotency_key).toBe(ingests[1].meta?.correlation_id);
+});
+
+test("reconciles an accepted agent run with one stable idempotency key", async ({ page }) => {
+  const modes: Array<{ mode?: string; meta?: Record<string, string>; idempotencyKey?: string; runId?: string }> = [];
+  await page.unroute("https://workflow.test/webhook/**");
+  await page.route("https://workflow.test/webhook/**", async (route) => {
+    const body = route.request().postDataJSON() as { mode?: string; meta?: Record<string, string>; idempotencyKey?: string; runId?: string };
+    modes.push(body);
+    if (body.mode === "pmo.ingest") {
+      const key = body.meta!.idempotency_key;
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, accepted: true, run: { contractVersion: "agent-run-receipt-1.0", runId: `agent:${key}`, correlationId: body.meta!.correlation_id, idempotencyKey: key, state: "accepted", organisationId: body.meta!.organisation_id, projectId: body.meta!.project_id, requestedAt: body.meta!.requested_at, updatedAt: body.meta!.requested_at } }) });
+    }
+    if (body.mode === "pmo.run.status") {
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, run: { contractVersion: "agent-run-receipt-1.0", runId: body.runId, correlationId: body.idempotencyKey, idempotencyKey: body.idempotencyKey, state: "completed", organisationId: modes.find((item) => item.mode === "pmo.ingest")!.meta!.organisation_id, projectId: modes.find((item) => item.mode === "pmo.ingest")!.meta!.project_id, requestedAt: modes.find((item) => item.mode === "pmo.ingest")!.meta!.requested_at, updatedAt: new Date().toISOString(), completedAt: new Date().toISOString(), result: { ok: true, source: "github", storageConfigured: true, document: bootstrapPmoData, wpId: "INTAKE-ASYNC" } } }) });
+    }
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: false, document: bootstrapPmoData }) });
+  });
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake", exact: true }).click();
+  await page.getByLabel("Write a project update").fill("A delivery risk requires governed asynchronous reconciliation.");
+  await page.getByRole("button", { name: "Analyse and update workbench" }).click();
+  await expect(page.getByRole("button", { name: "Analyse and update workbench" })).toBeEnabled({ timeout: 10000 });
+  const ingest = modes.find((item) => item.mode === "pmo.ingest")!;
+  const status = modes.find((item) => item.mode === "pmo.run.status")!;
+  expect(ingest.meta?.correlation_id).toBe(ingest.meta?.idempotency_key);
+  expect(status.idempotencyKey).toBe(ingest.meta?.idempotency_key);
+  expect(status.runId).toBe(`agent:${ingest.meta?.idempotency_key}`);
 });
 
 test("shows release-aligned operational health and ownership", async ({ page }) => {
   await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Operational health" }).click();
   await expect(page.getByRole("heading", { name: "Operational health", level: 1 })).toBeVisible();
-  await expect(page.getByText("2026-08-11-zm-prod-05g")).toBeVisible();
+  await expect(page.getByText("2026-08-12-zm-prod-18")).toBeVisible();
   await expect(page.getByText("IEv54E2lBQyd57hY")).toBeVisible();
   await expect(page.getByText("4czGSZtMjeGpKSFS")).toBeVisible();
   await expect(page.getByText("BkHWDRmPvXOepELU")).toBeVisible();

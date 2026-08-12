@@ -13,6 +13,7 @@ import {
 } from "@/lib/governed-proposals";
 import type { WorkspaceScope } from "@/lib/project-data-repository";
 import { credentialRequired, newCorrelationId, workflowError } from "@/lib/operational-quality";
+import { AgentOutcomeUnknownError, AgentRunAcceptedResponseSchema, AgentRunStatusResponseSchema, type AgentRunReceipt } from "@/lib/agent-run-reconciliation";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
@@ -71,10 +72,10 @@ function unwrap<T>(raw: unknown): T {
   return raw as T;
 }
 
-async function callWorkflow<T>(secret: string, body: unknown): Promise<T> {
+async function callWorkflow<T>(secret: string, body: unknown, requestCorrelationId?: string): Promise<T> {
   const normalizedSecret = secret.trim();
   if (!normalizedSecret) throw credentialRequired("pmo_workflow");
-  const correlationId = newCorrelationId();
+  const correlationId = requestCorrelationId || newCorrelationId();
 
   let response: Response;
   try { response = await fetch(webhookUrl(), {
@@ -216,26 +217,56 @@ export async function ingestEvidence(
   files: File[],
   workspace: WorkspaceScope,
   textUpdate = "",
+  onProgress?: (receipt: AgentRunReceipt) => void,
 ) {
   const extracted = await extractEvidence(files);
   if (textUpdate.trim()) {
     extracted.unshift({ name: "workbench-update.md", type: "text_update", content: textUpdate.trim() });
   }
   if (extracted.length === 0) throw new Error("Add at least one document or written update.");
-  const raw = await callWorkflow<WorkflowIntakeResponse & { agentRun?: unknown }>(secret, { mode: "pmo.ingest", workspace, meta: { ...meta, organisation_id: workspace.organisationId, project_id: workspace.projectId }, extracted });
+  const correlationId = meta.correlation_id || newCorrelationId();
+  const idempotencyKey = meta.idempotency_key || correlationId;
+  const requestMeta = { ...meta, correlation_id: correlationId, idempotency_key: idempotencyKey, organisation_id: workspace.organisationId, project_id: workspace.projectId };
+  const started = await callWorkflow<WorkflowIntakeResponse & { agentRun?: unknown; accepted?: boolean; run?: unknown }>(secret, { mode: "pmo.ingest", workspace, meta: requestMeta, extracted }, correlationId);
+  let raw: WorkflowIntakeResponse & { agentRun?: unknown };
+  if (started.accepted && started.run) {
+    let receipt = AgentRunAcceptedResponseSchema.parse({ ok: true, accepted: true, run: started.run }).run;
+    onProgress?.(receipt);
+    const deadline = Date.now() + 8 * 60 * 1000;
+    let transientFailures = 0;
+    while (receipt.state === "accepted" || receipt.state === "running") {
+      if (Date.now() >= deadline) throw new AgentOutcomeUnknownError(receipt);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      try {
+        const status = await callWorkflow<unknown>(secret, { mode: "pmo.run.status", workspace, runId: receipt.runId, correlationId, idempotencyKey }, correlationId);
+        receipt = AgentRunStatusResponseSchema.parse(status).run;
+        transientFailures = 0;
+        onProgress?.(receipt);
+      } catch (reason) {
+        transientFailures += 1;
+        if (transientFailures >= 3) throw new AgentOutcomeUnknownError(receipt);
+        if (!(reason instanceof Error)) throw reason;
+      }
+    }
+    if (receipt.state === "failed") throw new Error(receipt.error?.safeMessage || "The governed workflow run failed.");
+    raw = receipt.result as WorkflowIntakeResponse & { agentRun?: unknown };
+  } else {
+    raw = started;
+  }
   const parsedRun = AgentRunEnvelopeSchema.safeParse(raw.agentRun);
+  const fallbackRun = legacyAgentRun({
+    meta: requestMeta,
+    evidence: extracted.map((item) => ({ name: item.name, contentHash: item.contentHash })),
+    appliedChanges: raw.appliedChanges,
+    needsReview: raw.needs_review,
+    revision: raw.document?.revision,
+    commitSha: raw.commit?.sha,
+    wpId: raw.wpId,
+  });
   const response: WorkflowIntakeResponse = {
     ...raw,
     proposalSet: raw.proposalSet ? ProposalSetSchema.parse(raw.proposalSet) : undefined,
-    agentRun: parsedRun.success ? parsedRun.data : legacyAgentRun({
-      meta,
-      evidence: extracted.map((item) => ({ name: item.name, contentHash: item.contentHash })),
-      appliedChanges: raw.appliedChanges,
-      needsReview: raw.needs_review,
-      revision: raw.document?.revision,
-      commitSha: raw.commit?.sha,
-      wpId: raw.wpId,
-    }),
+    agentRun: parsedRun.success ? parsedRun.data : AgentRunEnvelopeSchema.parse({ ...fallbackRun, executionId: `agent:${idempotencyKey}`, correlationId }),
   };
   return normalizeDocument(response);
 }
