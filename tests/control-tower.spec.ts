@@ -237,12 +237,28 @@ test("reviews field-level agent proposals before governed publication", async ({
     proposals: [{ id: "PROP-BROWSER-1", sourceExecutionId: "agent:browser-test", workflowId: "risk.analyse", entity: "risk", action: "update", objectId: risk.id, expectedObjectVersion: risk.governance.version, summary: "Increase risk impact", risk: "high", evidenceIds: ["EVD-BROWSER-1"], fieldChanges: [{ field: "impact", before: risk.impact, after: 5 }], proposedObject: { ...risk, impact: 5 } }],
     audit: [{ id: "PAUD-BROWSER-1", event: "proposal.generated", actor: "PMO Orchestrator", at: "2026-08-11T11:00:00.000Z", sourceExecutionId: "agent:browser-test" }],
   };
+  const agentRun = {
+    contractVersion: "agent-run-1.0",
+    executionId: "agent:browser-test",
+    correlationId: "browser-test",
+    status: "needs_review",
+    requestedAt: "2026-08-11T11:00:00.000Z",
+    completedAt: "2026-08-11T11:01:00.000Z",
+    orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: "1.3.3" },
+    routing: { mode: "auto", selectedWorkflows: ["risk.analyse"], explanation: [] },
+    steps: [{ workflowId: "risk.analyse", workflowVersion: "1.0.0", status: "needs_review", summary: "Risk update requires review.", confidence: "high", evidenceIds: ["EVD-BROWSER-1"], proposalIds: ["PROP-BROWSER-1"] }],
+    evidence: proposalSet.evidence,
+    proposals: [{ id: "PROP-BROWSER-1", workflowId: "risk.analyse", entity: "risk", action: "update", objectId: risk.id, summary: "Increase risk impact", confidence: "high", evidenceIds: ["EVD-BROWSER-1"] }],
+    warnings: [],
+    persistence: { mode: "proposal_only" },
+    operations: { attempt: 1, reviewOutcome: "pending" },
+  };
   const modes: string[] = [];
   await page.unroute("https://workflow.test/webhook/**");
   await page.route("https://workflow.test/webhook/**", async (route) => {
     const body = route.request().postDataJSON() as { mode?: string; reviewBundle?: unknown };
     modes.push(body.mode || "");
-    if (body.mode === "pmo.ingest") return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "github", storageConfigured: true, document: bootstrapPmoData, proposalSet }) });
+    if (body.mode === "pmo.ingest") return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "github", storageConfigured: true, document: bootstrapPmoData, proposalSet, agentRun }) });
     if (body.mode === "pmo.review") return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, reviewBundle: body.reviewBundle }) });
     if (body.mode === "pmo.publish") return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, duplicate: false, proposalSetId: proposalSet.id, reviewBundleId: "REV-PS-agent-browser-test-20260811110000", idempotencyKey: "REV-PS-agent-browser-test-20260811110000", acceptedProposalIds: ["PROP-BROWSER-1"], rejectedProposalIds: [], revision: bootstrapPmoData.revision + 1, document: { ...bootstrapPmoData, revision: bootstrapPmoData.revision + 1 } }) });
     return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "bootstrap", storageConfigured: false, document: bootstrapPmoData }) });
@@ -268,7 +284,52 @@ test("reviews field-level agent proposals before governed publication", async ({
   await expect(publishButton).toBeEnabled();
   await publishButton.click();
   await expect(page.getByText("Published", { exact: true })).toBeVisible();
+  await expect(page.getByText("Agent execution agent:browser-test was reviewed and accepted changes were published.")).toBeVisible();
+  await expect(page.getByText("Canonical state is unchanged pending review.")).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Agent operations" }).click();
+  const runCard = page.locator(".agent-ops-row").filter({ hasText: "agent:browser-test" });
+  await expect(runCard.getByText("Completed", { exact: true })).toBeVisible();
+  await expect(runCard.getByText("Review outcome: Accepted", { exact: true })).toBeVisible();
   expect(modes).toEqual(expect.arrayContaining(["pmo.ingest", "pmo.review", "pmo.publish"]));
+});
+
+test("closes no-change executions without a redundant review state", async ({ page }) => {
+  await page.unroute("https://workflow.test/webhook/**");
+  await page.route("https://workflow.test/webhook/**", async (route) => {
+    const body = route.request().postDataJSON() as { mode?: string };
+    if (body.mode === "pmo.ingest") {
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify({
+        ok: true,
+        source: "github",
+        storageConfigured: true,
+        document: bootstrapPmoData,
+        agentRun: {
+          contractVersion: "agent-run-1.0",
+          executionId: "agent:no-change",
+          correlationId: "no-change",
+          status: "completed",
+          requestedAt: "2026-08-11T11:00:00.000Z",
+          completedAt: "2026-08-11T11:01:00.000Z",
+          orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: "1.3.3" },
+          routing: { mode: "auto", selectedWorkflows: ["evidence.verify"], explanation: [] },
+          steps: [{ workflowId: "evidence.verify", workflowVersion: "1.0.0", status: "completed", summary: "No supported change found.", confidence: "high", evidenceIds: [], proposalIds: [] }],
+          evidence: [], proposals: [], warnings: [], persistence: { mode: "proposal_only" },
+          operations: { attempt: 1, reviewOutcome: "pending" },
+        },
+      }) });
+    }
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, source: "github", storageConfigured: true, document: bootstrapPmoData }) });
+  });
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake", exact: true }).click();
+  await page.getByLabel("Write a project update").fill("Routine confirmation with no material project changes.");
+  await page.getByRole("button", { name: "Analyse and update workbench" }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Executive overview" }).click();
+  await expect(page.getByText("Agent execution agent:no-change completed with no supported changes. Canonical state remains unchanged; no review is required.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review proposals" })).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Agent operations" }).click();
+  const runCard = page.locator(".agent-ops-row").filter({ hasText: "agent:no-change" });
+  await expect(runCard.getByText("Completed", { exact: true })).toBeVisible();
+  await expect(runCard.getByText("Review outcome: Not Required", { exact: true })).toBeVisible();
 });
 
 test("shows immutable run history and replays the original input with lineage", async ({ page }) => {
@@ -286,6 +347,7 @@ test("shows immutable run history and replays the original input with lineage", 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Replay current version" }).click();
   await expect(page.getByText(/Replay Of/i)).toBeVisible();
+  await expect(page.getByText(/attempt 2/).first()).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept("Operations lead"));
   await page.getByRole("button", { name: "Assign" }).first().click();
   await expect(page.getByText("Operations lead").first()).toBeVisible();
@@ -296,6 +358,28 @@ test("shows immutable run history and replays the original input with lineage", 
   expect(ingests[1].meta?.replay_of).toBeTruthy();
   expect(ingests[1].meta?.correlation_id).not.toBe(ingests[0].meta?.correlation_id);
   expect(ingests[1].meta?.idempotency_key).toBe(ingests[1].meta?.correlation_id);
+});
+
+test("preserves attempt and duplicate lineage when retrying original input", async ({ page }) => {
+  const requests: Array<Record<string, unknown>> = [];
+  page.on("request", (request) => { if (request.url().includes("workflow.test/webhook")) requests.push(request.postDataJSON()); });
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Workbench intake", exact: true }).click();
+  await page.getByLabel("Write a project update").fill("A traced no-change confirmation for retry testing.");
+  await page.getByRole("button", { name: "Analyse and update workbench" }).click();
+  await page.reload();
+  await page.getByLabel("Temporary workspace credential").fill("test-workspace-credential");
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Agent operations" }).click();
+  const retryRequest = page.waitForRequest((request) => request.url().includes("workflow.test/webhook") && request.postDataJSON()?.mode === "pmo.ingest");
+  await page.getByRole("button", { name: "Retry original input" }).first().click();
+  await retryRequest;
+  await expect(page.getByText(/Retry Of/i)).toBeVisible();
+  await expect(page.getByText(/attempt 2/).first()).toBeVisible();
+  const ingests = requests.filter((request) => request.mode === "pmo.ingest") as Array<{ meta?: Record<string, string> }>;
+  expect(ingests).toHaveLength(2);
+  expect(ingests[1].meta?.retry_of).toBeTruthy();
+  expect(ingests[1].meta?.correlation_id).toBe(ingests[0].meta?.correlation_id);
+  expect(ingests[1].meta?.idempotency_key).toBe(ingests[0].meta?.idempotency_key);
 });
 
 test("reconciles an accepted agent run with one stable idempotency key", async ({ page }) => {
