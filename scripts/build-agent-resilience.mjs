@@ -5,7 +5,7 @@ const workflowPath = resolve("docs/n8n-pmo-orchestrator.workflow.json");
 const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
 const githubCredential = { id: "3V46mglu7fpoPISX", name: "GitHub data" };
 const receiptVersion = "agent-run-receipt-1.0";
-const orchestratorVersion = "1.3.2";
+const orchestratorVersion = "1.3.3";
 
 const upsert = (node) => {
   const index = workflow.nodes.findIndex((item) => item.name === node.name);
@@ -121,6 +121,6 @@ workflow.connections.PrepareRunStatusRequest = { main: [[{ node: "GitHubReadRunS
 workflow.connections.GitHubReadRunStatus = { main: [[{ node: "FormatRunStatus", type: "main", index: 0 }]] };
 workflow.connections.FormatRunStatus = { main: [[{ node: "RespondRunStatus", type: "main", index: 0 }]] };
 
-workflow.versionId = "pmo-orchestrator-agent-resilience-v1-3-2";
+workflow.versionId = "pmo-orchestrator-agent-resilience-v1-3-3";
 writeFileSync(workflowPath, `${JSON.stringify(workflow, null, 2)}\n`);
 console.log("Applied stable run receipts, status reconciliation and idempotent intake gating.");

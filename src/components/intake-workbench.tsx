@@ -89,11 +89,11 @@ export function IntakeWorkbench({ saving, result, onRun }: { saving: boolean; re
       });
     }}>
       <section className="panel intake-main">
-        <div className="panel-head"><div><span className="section-kicker">01 · ADD EVIDENCE</span><h3>Documents and project updates</h3></div><span className="data-hint">PDF · Excel · Markdown · Images · Text</span></div>
+        <div className="panel-head"><div><span className="section-kicker">01 · ADD EVIDENCE</span><h3>Documents and project updates</h3></div><span className="data-hint">PDF · Excel · XML · Markdown · Images · Text</span></div>
         <button type="button" className={`drop-zone ${dragging ? "dragging" : ""}`} onClick={() => inputRef.current?.click()} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); addFiles(Array.from(event.dataTransfer.files)); }}>
           <span className="drop-icon"><Icons.upload/></span><b>Drop files here or browse</b><small>Up to 20 files and 29 MB per intake. Content is extracted locally before transfer.</small>
         </button>
-        <input ref={inputRef} className="visually-hidden" aria-label="Evidence files" type="file" multiple accept=".pdf,.md,.txt,.csv,.xlsx,.png,.jpg,.jpeg" onChange={(event) => addFiles(Array.from(event.target.files || []))}/>
+        <input ref={inputRef} className="visually-hidden" aria-label="Evidence files" type="file" multiple accept=".pdf,.docx,.json,.xml,.md,.txt,.csv,.xlsx,.png,.jpg,.jpeg" onChange={(event) => addFiles(Array.from(event.target.files || []))}/>
         {files.length > 0 && <div className="file-queue">{files.map((file) => <div key={`${file.name}:${file.size}`}><span><Icons.document/></span><div><b>{file.name}</b><small>{Math.max(1, Math.round(file.size / 1024))} KB</small></div><button type="button" onClick={() => setFiles((current) => current.filter((item) => item !== file))} aria-label={`Remove ${file.name}`}><Icons.close/></button></div>)}</div>}
         <div className="intake-divider"><span>and / or</span></div>
         <label className="update-composer"><span>Write a project update</span><textarea value={textUpdate} onChange={(event) => setTextUpdate(event.target.value)} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Paste meeting notes, describe a new risk, report progress, capture a decision or provide any other PMO-relevant update…"/><small>{textUpdate.length.toLocaleString("en-GB")} characters · Ctrl/⌘ + Enter submits</small></label>

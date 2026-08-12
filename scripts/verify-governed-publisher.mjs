@@ -21,8 +21,21 @@ for (const name of [
   "BuildPublisherInput", "ExecuteGovernedPublisher",
 ]) requireNode(orchestrator, name);
 
+for (const name of ["GitHubReadProposalForReview", "GitHubReadProposalForPublish", "GitHubReadReviewForPublish", "GitHubReadCanonicalForPublish"]) {
+  const node = requireNode(orchestrator, name);
+  if (node?.parameters?.asBinaryProperty !== false || "binaryData" in (node?.parameters || {})) {
+    errors.push(`${name} does not use the supported decoded-content GitHub read contract.`);
+  }
+}
+
 const proposalTarget = orchestrator.connections.MergeIntoControlTower?.main?.[0]?.[0]?.node;
 if (proposalTarget !== "BuildProposalSet") errors.push("Ingestion does not terminate in proposal generation.");
+const mergeCode = requireNode(orchestrator, "MergeIntoControlTower")?.parameters?.jsCode || "";
+if (!mergeCode.includes("projectBefore!==projectAfter")) errors.push("Project metadata is still mutated without a meaningful project-field change.");
+const proposalCode = requireNode(orchestrator, "BuildProposalSet")?.parameters?.jsCode || "";
+if (!proposalCode.includes("status:proposals.length?'pending_review':'rejected'")) errors.push("Empty proposal sets can still enter human review.");
+const formatIngestCode = requireNode(orchestrator, "FormatIngest")?.parameters?.jsCode || "";
+if (!formatIngestCode.includes("NO_MEANINGFUL_PMO_CHANGE")) errors.push("No-change evidence runs do not expose an actionable warning.");
 const prepareRequest = requireNode(orchestrator, "PrepareRequest")?.parameters?.jsCode || "";
 for (const mode of ["pmo.review", "pmo.publish"]) {
   if (!prepareRequest.includes(mode)) errors.push(`PrepareRequest does not allow ${mode}.`);
