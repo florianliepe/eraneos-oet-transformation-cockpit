@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ProjectControl project="UAT Validation Project" source="ZM-UAT-01">
+  <Issue id="ISS-UAT-XML-1">
+    <Title>Supplier design approval is overdue</Title>
+    <Description>The interface design approval missed the agreed governance date.</Description>
+    <Owner>UAT PMO Lead</Owner>
+    <Priority>P1</Priority>
+    <Severity>4</Severity>
+    <RaisedAt>2026-08-12</RaisedAt>
+    <DueDate>2026-08-20</DueDate>
+  </Issue>
+  <Action id="ACTN-UAT-XML-1">
+    <Title>Escalate interface approval</Title>
+    <Owner>UAT PMO Lead</Owner>
+    <Priority>P1</Priority>
+    <DueDate>2026-08-14</DueDate>
+  </Action>
+</ProjectControl>

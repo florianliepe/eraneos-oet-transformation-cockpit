@@ -169,8 +169,10 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
     setLoading(true); setError("");
     try {
       const payload = await loadPmoDocument(secret, workspaceScope);
-      if (!payload.ok || !payload.document) throw new Error(payload.error || "Unable to load project data.");
-      setData(scopeDocument(payload.document, workspaceScope)); setSource(payload.source || "bootstrap"); setStorageConfigured(Boolean(payload.storageConfigured)); setDirty(false);
+      if (!payload.ok) throw new Error(payload.error || "Unable to load project data.");
+      if (payload.document) setData(scopeDocument(payload.document, workspaceScope));
+      else setData((current) => current ? scopeDocument(current, workspaceScope) : current);
+      setSource(payload.source || "bootstrap"); setStorageConfigured(Boolean(payload.storageConfigured)); setDirty(false);
       setWorkspaceSecret(secret); setAccessOpen(false); setAccessError("");
       setRunHistory(await listAgentOperationRecords(workspaceScope));
     } catch (reason: unknown) {
@@ -231,6 +233,12 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
     setWorkflowResult(pendingRun);
     await persistAgentRun(pendingRun, submission, recovery);
     try {
+      if (!storageConfigured && data) {
+        const initialized = await savePmoDocument(workspaceSecret, data, workspaceScope);
+        if (!initialized.ok || !initialized.document) throw new Error(initialized.error || "Unable to initialize project storage.");
+        setData(scopeDocument(initialized.document, workspaceScope));
+        setSource("github"); setStorageConfigured(true); setDirty(false);
+      }
       const payload = await ingestEvidence(workspaceSecret, meta, files, workspaceScope, textUpdate, (receipt) => {
         pendingRun = buildPendingAgentRun(meta, receipt.state === "accepted" ? "waiting" : "running");
         setWorkflowResult(pendingRun);

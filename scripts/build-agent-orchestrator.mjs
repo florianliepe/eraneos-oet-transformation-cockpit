@@ -160,4 +160,5 @@ if (existsSync(governedPublisherPath)) {
   await import(`./build-governed-publisher.mjs?build=${Date.now()}`);
 }
 await import(`./build-agent-resilience.mjs?build=${Date.now()}`);
+await import(`./apply-workspace-isolation.mjs?build=${Date.now()}`);
 console.log(`Built specialist orchestrator with ${workflowIds.length} workflow bindings.`);
