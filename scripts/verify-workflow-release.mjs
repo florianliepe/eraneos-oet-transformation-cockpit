@@ -33,6 +33,10 @@ if (!release.endpoint.contractModes.includes("pmo.run.status")) errors.push("Run
 if (orchestrator.connections.RespondAgentRunAccepted?.main?.[0]?.[0]?.node !== "BuildRunningRunReceipt") errors.push("Accepted response does not continue into governed background processing.");
 if (orchestrator.connections.FormatExistingAgentRun?.main?.[0]?.[0]?.node !== "RespondExistingAgentRun" || orchestrator.connections.RespondExistingAgentRun) errors.push("Existing idempotency receipts must respond without restarting specialists.");
 if (orchestrator.connections.FormatIngest?.main?.[0]?.[0]?.node !== "BuildCompletedRunReceipt") errors.push("Completed results do not update the durable receipt.");
+for (const nodeName of ["GitHubReadAgentRunReceipt", "GitHubReadRunStatus"]) {
+  const node = orchestrator.nodes.find((item) => item.name === nodeName);
+  if (node?.parameters?.asBinaryProperty !== false || "binaryData" in (node?.parameters || {})) errors.push(`${nodeName} must return JSON metadata with base64 content, not binary file data.`);
+}
 const buildCalls = orchestrator.nodes.find((node) => node.name === "BuildSpecialistCalls")?.parameters?.jsCode || "";
 if (!buildCalls.includes("executionId = String(source.runId") || !buildCalls.includes("smart-routing-1.1.0")) errors.push("Stable execution identity or honest routing policy is missing.");
 const assistantCode = orchestrator.nodes.find((node) => node.name === "BuildAssistantInput")?.parameters?.jsCode || "";
