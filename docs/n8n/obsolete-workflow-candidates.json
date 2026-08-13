@@ -1,9 +1,10 @@
 {
   "contractVersion": "workflow-cleanup-candidates-1.0",
-  "generatedAt": "2026-08-11T12:30:00.000Z",
+  "generatedAt": "2026-08-13T12:50:00.000Z",
   "destructiveActionAllowed": false,
-  "authoritative": { "orchestrator": "W3JzojVMwfHpqgFS", "publisher": "4czGSZtMjeGpKSFS", "errorHandler": "BkHWDRmPvXOepELU" },
+  "authoritative": { "orchestrator": "2gICFodknzpc1WAc", "publisher": "4czGSZtMjeGpKSFS", "errorHandler": "BkHWDRmPvXOepELU" },
   "candidates": [
+    { "workflowId": "W3JzojVMwfHpqgFS", "kind": "orchestrator", "reason": "unpublished rollback for the ZM-PROD-09 selected-domain output guard", "requiredCheck": "preserve until the identical live canary and production evaluation gate pass" },
     { "workflowId": "IEv54E2lBQyd57hY", "kind": "orchestrator", "reason": "retained unpublished rollback for the ZM-UAT-01 stale accepted-run recovery release", "requiredCheck": "preserve until live recovery and PDF intake regression pass" },
     { "workflowId": "pEIhI533jPQvvSzs", "kind": "orchestrator", "reason": "superseded by the published ZM-PROD-05G smart-routing orchestrator", "requiredCheck": "confirm unpublished and retain as rollback evidence" },
     { "workflowId": "H8V3RtTWTTeApR7J", "kind": "orchestrator", "reason": "superseded pre-governed orchestrator", "requiredCheck": "confirm unpublished and no production executions after replacement" },

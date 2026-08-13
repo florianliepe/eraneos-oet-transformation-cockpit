@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const release = JSON.parse(readFileSync(resolve("docs/n8n/releases/2026-08-12-workbench-evidence-publisher-fix.json"), "utf8"));
+const release = JSON.parse(readFileSync(resolve("docs/n8n/releases/2026-08-13-zm-prod-09-agent-evaluation.json"), "utf8"));
 const errors = [];
 if (release.releaseContract !== "workflow-release-1.0") errors.push("Invalid release contract.");
 if (release.endpoint.webhookPath !== "a2126107-4e70-4717-8f1c-545d7f310741") errors.push("Public endpoint contract changed.");

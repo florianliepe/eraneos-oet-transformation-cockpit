@@ -34,6 +34,9 @@ const mergeCode = requireNode(orchestrator, "MergeIntoControlTower")?.parameters
 if (!mergeCode.includes("projectBefore!==projectAfter")) errors.push("Project metadata is still mutated without a meaningful project-field change.");
 const proposalCode = requireNode(orchestrator, "BuildProposalSet")?.parameters?.jsCode || "";
 if (!proposalCode.includes("status:proposals.length?'pending_review':'rejected'")) errors.push("Empty proposal sets can still enter human review.");
+for (const marker of ["selectedWorkflows", "eligibleChanges", "UNSELECTED_DOMAIN_OUTPUT_DROPPED"]) {
+  if (!proposalCode.includes(marker)) errors.push(`Selected-specialist proposal boundary marker missing: ${marker}.`);
+}
 const formatIngestCode = requireNode(orchestrator, "FormatIngest")?.parameters?.jsCode || "";
 if (!formatIngestCode.includes("NO_MEANINGFUL_PMO_CHANGE")) errors.push("No-change evidence runs do not expose an actionable warning.");
 const prepareRequest = requireNode(orchestrator, "PrepareRequest")?.parameters?.jsCode || "";

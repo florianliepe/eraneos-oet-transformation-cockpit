@@ -1,0 +1,55 @@
+{
+  "contractVersion": "live-agent-quality-report-1.0",
+  "capturedAt": "2026-08-13T12:54:22.856Z",
+  "release": {
+    "orchestratorWorkflowId": "2gICFodknzpc1WAc",
+    "orchestratorVersion": "1.3.4",
+    "specialistWorkflow": "controls.classify",
+    "specialistVersion": "1.0.0",
+    "environment": "live-n8n-uat"
+  },
+  "sanitization": {
+    "containsCredentials": false,
+    "containsPersonalData": false,
+    "canonicalDocumentRemoved": true,
+    "sourceScope": "disposable UAT Validation Project"
+  },
+  "caseCount": 5,
+  "formats": [
+    "xml",
+    "png_ocr",
+    "pdf",
+    "text"
+  ],
+  "scores": {
+    "schemaValidity": 1,
+    "objectPrecision": 1,
+    "objectRecall": 1,
+    "fieldAccuracy": 1,
+    "evidenceAttribution": 1,
+    "noChangeAccuracy": 1,
+    "unauthorizedCanonicalWrites": 0,
+    "p50LatencyMs": 64586,
+    "p95LatencyMs": 75074
+  },
+  "thresholds": {
+    "contractVersion": "agent-live-quality-thresholds-1.0",
+    "blocking": {
+      "schemaValidity": 1,
+      "objectPrecision": 0.9,
+      "objectRecall": 0.9,
+      "fieldAccuracy": 0.9,
+      "evidenceAttribution": 1,
+      "noChangeAccuracy": 1,
+      "unauthorizedCanonicalWrites": 0
+    },
+    "warning": {
+      "p95LatencyMs": 45000
+    }
+  },
+  "failures": [],
+  "warnings": [
+    "p95LatencyMs=75074 target=45000"
+  ],
+  "releaseReady": true
+}

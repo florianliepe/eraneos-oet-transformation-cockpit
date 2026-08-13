@@ -1,0 +1,15 @@
+{
+  "contractVersion": "agent-live-quality-thresholds-1.0",
+  "blocking": {
+    "schemaValidity": 1,
+    "objectPrecision": 0.9,
+    "objectRecall": 0.9,
+    "fieldAccuracy": 0.9,
+    "evidenceAttribution": 1,
+    "noChangeAccuracy": 1,
+    "unauthorizedCanonicalWrites": 0
+  },
+  "warning": {
+    "p95LatencyMs": 45000
+  }
+}
