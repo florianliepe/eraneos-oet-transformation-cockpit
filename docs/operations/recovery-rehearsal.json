@@ -1,13 +1,14 @@
 {
-  "contractVersion": "recovery-rehearsal-1.0",
-  "performedAt": "2026-08-11T12:00:00.000Z",
+  "contractVersion": "recovery-rehearsal-1.1",
+  "performedAt": "2026-08-13T14:06:20.000Z",
   "scope": "GitHub Pages plus n8n pilot",
   "destructiveActions": false,
   "passed": true,
   "scenarios": [
-    { "name": "browser-local workspace backup and restore", "evidence": "tests/local-workspace-backup.spec.ts", "passed": true },
-    { "name": "checksummed n8n release restore", "evidence": "npm run verify:workflow-release", "passed": true },
-    { "name": "failed Pages release rollback", "evidence": "docs/github-pages-go-live.md#verified-release-and-recovery", "passed": true },
-    { "name": "non-destructive workflow rejection and duplicate smoke", "evidence": "docs/n8n/release-recovery-runbook.md", "passed": true }
+    { "name": "browser-local workspace backup and restore", "evidence": { "kind": "path", "reference": "tests/local-workspace-backup.spec.ts", "result": "3 backup and restore cases passed inside the 110-test browser suite" }, "passed": true },
+    { "name": "checksummed n8n release restore", "evidence": { "kind": "command", "reference": "npm run verify:workflow-release", "result": "release 2026-08-13-zm-prod-14-smart-routing and 11 backups verified" }, "passed": true },
+    { "name": "failed Pages release rollback", "evidence": { "kind": "path", "reference": "docs/github-pages-go-live.md", "result": "revert and redeploy procedure remains checksummed and non-destructive" }, "passed": true },
+    { "name": "non-destructive workflow rejection and duplicate smoke", "evidence": { "kind": "path", "reference": "docs/n8n/release-recovery-runbook.md", "result": "rejected and duplicate publication preserve canonical revision" }, "passed": true },
+    { "name": "signed GitHub Pages deployment", "evidence": { "kind": "github_actions", "runId": "31708190577", "commitSha": "57fbc8b0cedc9780ef77cbc6a6a32d3b529d341e", "result": "build and deployment passed" }, "passed": true }
   ]
 }
