@@ -30,5 +30,9 @@ produced zero proposals, remained `proposal_only`, and wrote no canonical
 project change. The persisted receipt commit is
 `c07a8cceecb6b87acd40a1386cae6680fb9eb374`.
 
-Post-merge GitHub Pages verification and a reviewable non-operational canary
-remain the final promotion checks.
+GitHub Pages deployment run `31705712427` then promoted merge commit
+`9c07b7ece0858b91a8f6682dfe60325f58a3efb4`. The refreshed production
+frontend selected exactly two specialists for the same routine issue/action
+route, estimated 3,600 tokens, EUR 0.036 and 44 seconds, and omitted the
+governance reviewer. Together with the persisted live receipt, this closes the
+promotion gate without creating or publishing a synthetic project record.
