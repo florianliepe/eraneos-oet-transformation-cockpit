@@ -1,6 +1,6 @@
 import { z } from "zod";
 import manifest from "../../docs/n8n/agents/manifest.json";
-import release from "../../docs/n8n/releases/2026-08-12-workbench-evidence-publisher-fix.json";
+import release from "../../docs/n8n/releases/2026-08-13-zm-prod-09-agent-evaluation.json";
 import { SPECIALIST_AGENTS, type AgentRunEnvelope } from "@/lib/agent-contracts";
 import type { AgentOperationRecord } from "@/lib/agent-operations";
 

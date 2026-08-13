@@ -1,0 +1,108 @@
+{
+  "contractVersion": "live-agent-evaluation-corpus-1.0",
+  "capturedAt": "2026-08-13T12:54:22.856Z",
+  "release": {
+    "orchestratorWorkflowId": "2gICFodknzpc1WAc",
+    "orchestratorVersion": "1.3.4",
+    "specialistWorkflow": "controls.classify",
+    "specialistVersion": "1.0.0",
+    "environment": "live-n8n-uat"
+  },
+  "sanitization": {
+    "containsCredentials": false,
+    "containsPersonalData": false,
+    "canonicalDocumentRemoved": true,
+    "sourceScope": "disposable UAT Validation Project"
+  },
+  "cases": [
+    {
+      "id": "LIVE-XML-001",
+      "format": "xml",
+      "scenario": "positive",
+      "executionId": "agent:8ae9b15b-830f-4c52-94cf-339e57cc694b",
+      "requestedAt": "2026-08-13T08:18:43.265Z",
+      "completedAt": "2026-08-13T08:19:47.851Z",
+      "canonicalRevisionBefore": 2,
+      "canonicalRevisionAfter": 2,
+      "persistenceMode": "proposal_only",
+      "expected": [
+        { "entity": "issue", "action": "create", "objectId": "ISS-UAT-XML-1", "fields": { "title": "Supplier design approval is overdue", "dueDate": "2026-08-20" } },
+        { "entity": "action", "action": "create", "objectId": "ACTN-UAT-XML-1", "fields": { "title": "Escalate interface approval", "dueDate": "2026-08-14" } }
+      ],
+      "actual": [
+        { "entity": "issue", "action": "create", "objectId": "ISS-UAT-XML-1", "evidenceIds": ["EVD-LIVE-XML-1"], "fields": { "title": "Supplier design approval is overdue", "dueDate": "2026-08-20" } },
+        { "entity": "action", "action": "create", "objectId": "ACTN-UAT-XML-1", "evidenceIds": ["EVD-LIVE-XML-1"], "fields": { "title": "Escalate interface approval", "dueDate": "2026-08-14" } }
+      ]
+    },
+    {
+      "id": "LIVE-PNG-001",
+      "format": "png_ocr",
+      "scenario": "positive",
+      "executionId": "agent:caf61fb4-3018-4fdd-9567-d0ce39e96346",
+      "requestedAt": "2026-08-13T08:21:20.562Z",
+      "completedAt": "2026-08-13T08:22:25.538Z",
+      "canonicalRevisionBefore": 2,
+      "canonicalRevisionAfter": 2,
+      "persistenceMode": "proposal_only",
+      "expected": [
+        { "entity": "issue", "action": "create", "objectId": "ISS-UAT-PNG-1", "fields": { "title": "Supplier data mapping is incomplete" } },
+        { "entity": "action", "action": "create", "objectId": "ACTN-UAT-PNG-1", "fields": { "title": "Resolve supplier data mapping issue", "dueDate": "2026-08-28" } }
+      ],
+      "actual": [
+        { "entity": "issue", "action": "create", "objectId": "ISS-UAT-PNG-1", "evidenceIds": ["EVD-LIVE-PNG-1"], "fields": { "title": "Supplier data mapping is incomplete" } },
+        { "entity": "action", "action": "create", "objectId": "ACTN-UAT-PNG-1", "evidenceIds": ["EVD-LIVE-PNG-1"], "fields": { "title": "Resolve supplier data mapping issue", "dueDate": "2026-08-28" } }
+      ]
+    },
+    {
+      "id": "LIVE-PDF-001",
+      "format": "pdf",
+      "scenario": "positive_recovered",
+      "executionId": "agent:0d468843-b58a-4d8d-a574-a4c8a9d0a800",
+      "requestedAt": "2026-08-13T08:50:33.684Z",
+      "completedAt": "2026-08-13T08:51:25.590Z",
+      "canonicalRevisionBefore": 2,
+      "canonicalRevisionAfter": 2,
+      "persistenceMode": "proposal_only",
+      "expected": [
+        { "entity": "issue", "action": "create", "objectId": "ISS-UAT-PDF-1", "fields": { "title": "Test environment readiness unconfirmed" } },
+        { "entity": "action", "action": "create", "objectId": "ACTN-UAT-PDF-1", "fields": { "title": "Confirm test environment readiness", "dueDate": "2026-08-27" } }
+      ],
+      "actual": [
+        { "entity": "issue", "action": "create", "objectId": "ISS-UAT-PDF-1", "evidenceIds": ["EVD-LIVE-PDF-1"], "fields": { "title": "Test environment readiness unconfirmed" } },
+        { "entity": "action", "action": "create", "objectId": "ACTN-UAT-PDF-1", "evidenceIds": ["EVD-LIVE-PDF-1"], "fields": { "title": "Confirm test environment readiness", "dueDate": "2026-08-27" } }
+      ]
+    },
+    {
+      "id": "LIVE-CANARY-002",
+      "format": "text",
+      "scenario": "positive_domain_guard",
+      "executionId": "agent:e58f634a-6578-4fc2-a077-b0c5a3f37a71",
+      "requestedAt": "2026-08-13T12:53:07.782Z",
+      "completedAt": "2026-08-13T12:54:22.856Z",
+      "canonicalRevisionBefore": 2,
+      "canonicalRevisionAfter": 2,
+      "persistenceMode": "proposal_only",
+      "expected": [
+        { "entity": "issue", "action": "create", "objectId": "ISS-EVAL-20260813-1", "fields": { "title": "Release-readiness evidence review incomplete" } },
+        { "entity": "action", "action": "create", "objectId": "ACTN-EVAL-20260813-1", "fields": { "title": "Complete release-readiness evidence review", "dueDate": "2026-08-21" } }
+      ],
+      "actual": [
+        { "entity": "issue", "action": "create", "objectId": "ISS-EVAL-20260813-1", "evidenceIds": ["EVD-INTAKE-202608131253-1"], "fields": { "title": "Release-readiness evidence review incomplete" } },
+        { "entity": "action", "action": "create", "objectId": "ACTN-EVAL-20260813-1", "evidenceIds": ["EVD-INTAKE-202608131253-1"], "fields": { "title": "Complete release-readiness evidence review", "dueDate": "2026-08-21" } }
+      ]
+    },
+    {
+      "id": "LIVE-NOCHANGE-001",
+      "format": "text",
+      "scenario": "no_change",
+      "executionId": "agent:98c161f1-d23f-4ae6-8f96-25a88bd4ddcb",
+      "requestedAt": "2026-08-12T16:19:50.019Z",
+      "completedAt": "2026-08-12T16:20:39.119Z",
+      "canonicalRevisionBefore": 2,
+      "canonicalRevisionAfter": 2,
+      "persistenceMode": "proposal_only",
+      "expected": [],
+      "actual": []
+    }
+  ]
+}

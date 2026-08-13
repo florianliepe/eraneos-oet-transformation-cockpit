@@ -411,14 +411,14 @@ test("reconciles an accepted agent run with one stable idempotency key", async (
 test("shows release-aligned operational health and ownership", async ({ page }) => {
   await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("button", { name: "Operational health" }).click();
   await expect(page.getByRole("heading", { name: "Operational health", level: 1 })).toBeVisible();
-  await expect(page.getByText("2026-08-12-zm-prod-18-1")).toBeVisible();
-  await expect(page.getByText("IEv54E2lBQyd57hY")).toBeVisible();
+  await expect(page.getByText("2026-08-13-zm-prod-09-agent-evaluation")).toBeVisible();
+  await expect(page.getByText("2gICFodknzpc1WAc")).toBeVisible();
   await expect(page.getByText("4czGSZtMjeGpKSFS")).toBeVisible();
   await expect(page.getByText("BkHWDRmPvXOepELU")).toBeVisible();
   await expect(page.getByText(/30 cases/)).toBeVisible();
   await expect(page.getByText(/48% less execution/)).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Baseline versus candidate quality" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Deterministic and live n8n quality" })).toBeVisible();
   await expect(page.getByText("quality-expanded-1.1")).toBeVisible();
-  await expect(page.getByText("None. Candidate meets every blocking and warning threshold.")).toBeVisible();
+  await expect(page.getByText(/P95 75s.*0 unauthorized writes/)).toBeVisible();
   await expect(page.getByText("OET AI Suite workflow administrator")).toBeVisible();
 });
