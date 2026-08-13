@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const release = JSON.parse(readFileSync(resolve("docs/n8n/releases/2026-08-13-zm-prod-09-agent-evaluation.json"), "utf8"));
+const release = JSON.parse(readFileSync(resolve("docs/n8n/releases/2026-08-13-zm-prod-14-smart-routing.json"), "utf8"));
 const errors = [];
 if (release.releaseContract !== "workflow-release-1.0") errors.push("Invalid release contract.");
 if (release.endpoint.webhookPath !== "a2126107-4e70-4717-8f1c-545d7f310741") errors.push("Public endpoint contract changed.");
@@ -61,7 +61,7 @@ for (const nodeName of ["GitHubReadAgentRunReceipt", "GitHubReadRunStatus"]) {
   if (node?.parameters?.asBinaryProperty !== false || "binaryData" in (node?.parameters || {})) errors.push(`${nodeName} must return JSON metadata with base64 content, not binary file data.`);
 }
 const buildCalls = orchestrator.nodes.find((node) => node.name === "BuildSpecialistCalls")?.parameters?.jsCode || "";
-if (!buildCalls.includes("executionId = String(source.runId") || !buildCalls.includes("smart-routing-1.1.0")) errors.push("Stable execution identity or honest routing policy is missing.");
+if (!buildCalls.includes("executionId = String(source.runId") || !buildCalls.includes("smart-routing-1.2.0")) errors.push("Stable execution identity or honest routing policy is missing.");
 const assistantCode = orchestrator.nodes.find((node) => node.name === "BuildAssistantInput")?.parameters?.jsCode || "";
 for (const identifier of ["correlationId", "idempotencyKey", "runId", "runPath"]) {
   if ((assistantCode.match(new RegExp(`const ${identifier}\\b`, "g")) || []).length !== 1) errors.push(`BuildAssistantInput must declare ${identifier} exactly once.`);

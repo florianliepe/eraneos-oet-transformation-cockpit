@@ -19,7 +19,6 @@
   "expectedSelectedWorkflows": [
     "evidence.verify",
     "risk.analyse",
-    "delivery.plan",
-    "governance.review"
+    "delivery.plan"
   ]
 }

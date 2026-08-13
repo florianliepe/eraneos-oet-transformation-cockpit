@@ -51,7 +51,7 @@ export function buildPendingAgentRun(meta: Record<string, string>, state: "waiti
     routing: {
       mode: meta.routing || "smart_auto",
       selectedWorkflows: workflows,
-      policyVersion: meta.routing_policy || "smart-routing-1.1.0",
+      policyVersion: meta.routing_policy || "smart-routing-1.2.0",
       explanation: parseRoutingExplanation(meta.routing_explanation),
     },
     steps: workflows.map((workflowId) => ({

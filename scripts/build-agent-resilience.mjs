@@ -5,7 +5,7 @@ const workflowPath = resolve("docs/n8n-pmo-orchestrator.workflow.json");
 const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
 const githubCredential = { id: "3V46mglu7fpoPISX", name: "GitHub data" };
 const receiptVersion = "agent-run-receipt-1.0";
-const orchestratorVersion = "1.3.4";
+const orchestratorVersion = "1.3.5";
 const staleAcceptedMs = 8 * 60 * 1000;
 
 const upsert = (node) => {
@@ -63,14 +63,14 @@ const buildCalls = workflow.nodes.find((node) => node.name === "BuildSpecialistC
 buildCalls.parameters.jsCode = buildCalls.parameters.jsCode
   .replace("const source = $json;", "const source = $node['BuildAssistantInput'].json;")
   .replace("const executionId = 'agent:' + Date.now().toString(36) + ':' + Math.random().toString(36).slice(2,10);", "const executionId = String(source.runId);")
-  .replace("smart-routing-1.0", "smart-routing-1.1.0")
-  .replace(/\(index\+1\)\*8000<=maxLatency/g, "(index+1)*60000+90000<=maxLatency")
-  .replace(/estimatedLatencyMs:routed\.length\*8000/g, "estimatedLatencyMs:routed.length*60000+90000");
+  .replace("smart-routing-1.0", "smart-routing-1.2.0")
+  .replace(/\(index\+1\)\*8000<=maxLatency/g, "(index+1)*18000+8000<=maxLatency")
+  .replace(/estimatedLatencyMs:routed\.length\*8000/g, "estimatedLatencyMs:routed.length*18000+8000");
 
 const formatIngest = workflow.nodes.find((node) => node.name === "FormatIngest");
 formatIngest.parameters.jsCode = formatIngest.parameters.jsCode
   .replace(/workflowVersion:'1\.[0-9]+\.[0-9]+'/, `workflowVersion:'${orchestratorVersion}'`)
-  .replace("routing:{mode:String(aggregate.meta?.routing||'selected'),selectedWorkflows:aggregate.selectedWorkflows}", "routing:{mode:String(aggregate.meta?.routing||'selected'),selectedWorkflows:aggregate.selectedWorkflows,policyVersion:'smart-routing-1.1.0',explanation:(aggregate.routingPlan||[]).map(item=>({workflowId:item.workflowId,reason:item.reason,sequence:item.sequence})),budget:aggregate.routingPlan?.[0]?.budget}");
+  .replace("routing:{mode:String(aggregate.meta?.routing||'selected'),selectedWorkflows:aggregate.selectedWorkflows}", "routing:{mode:String(aggregate.meta?.routing||'selected'),selectedWorkflows:aggregate.selectedWorkflows,policyVersion:'smart-routing-1.2.0',explanation:(aggregate.routingPlan||[]).map(item=>({workflowId:item.workflowId,reason:item.reason,sequence:item.sequence})),budget:aggregate.routingPlan?.[0]?.budget}");
 
 const classifyExisting = `const source=$node['BuildAssistantInput'].json;const raw=$json||{};let existing=null;if(raw.content){try{existing=JSON.parse(Buffer.from(raw.content,'base64').toString('utf8'));}catch{existing=null;}}const receiptExists=Boolean(existing&&existing.contractVersion==='${receiptVersion}'&&existing.idempotencyKey===source.idempotencyKey);const sameScope=receiptExists&&existing.organisationId===String(source.workspace?.organisationId||source.meta.organisation_id)&&existing.projectId===String(source.workspace?.projectId||source.meta.project_id);if(receiptExists&&!sameScope)throw new Error('Existing run receipt does not match the requested workspace scope.');const retryRequested=String(source.meta?.retry_of||'')===String(existing?.runId||'')&&String(source.meta?.recovery_version_policy||'')==='source_versions';const staleAccepted=receiptExists&&existing.state==='accepted'&&Date.now()-new Date(existing.updatedAt).getTime()>=${staleAcceptedMs};return [{json:{...source,receiptExists,resumeEligible:Boolean(sameScope&&retryRequested&&staleAccepted),existingReceipt:existing}}];`;
 const buildAccepted = `const source=$node['BuildAssistantInput'].json;const now=new Date().toISOString();const receipt={contractVersion:'${receiptVersion}',runId:source.runId,correlationId:source.correlationId,idempotencyKey:source.idempotencyKey,state:'accepted',organisationId:String(source.workspace?.organisationId||source.meta.organisation_id),projectId:String(source.workspace?.projectId||source.meta.project_id),requestedAt:String(source.meta.requested_at||now),updatedAt:now};return [{json:{...source,receipt,fileContent:JSON.stringify(receipt,null,2)+'\\n',commitMessage:'pmo: accept governed agent run '+source.idempotencyKey}}];`;
@@ -132,6 +132,6 @@ workflow.connections.PrepareRunStatusRequest = { main: [[{ node: "GitHubReadRunS
 workflow.connections.GitHubReadRunStatus = { main: [[{ node: "FormatRunStatus", type: "main", index: 0 }]] };
 workflow.connections.FormatRunStatus = { main: [[{ node: "RespondRunStatus", type: "main", index: 0 }]] };
 
-workflow.versionId = "pmo-orchestrator-agent-resilience-v1-3-4";
+workflow.versionId = "pmo-orchestrator-agent-resilience-v1-3-5";
 writeFileSync(workflowPath, `${JSON.stringify(workflow, null, 2)}\n`);
 console.log("Applied stable run receipts, status reconciliation and idempotent intake gating.");

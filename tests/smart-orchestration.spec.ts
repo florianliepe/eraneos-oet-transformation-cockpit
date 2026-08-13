@@ -5,18 +5,19 @@ import type { AgentProposal, AgentStep } from "../src/lib/agent-contracts";
 const step = (workflowId: AgentStep["workflowId"], confidence: AgentStep["confidence"] = "high"): AgentStep => ({ workflowId, workflowVersion: "1.2.0", status: "completed", summary: "Completed", confidence, evidenceIds: ["E-1"], proposalIds: [], attempt: 1 });
 const proposal = (workflowId: AgentProposal["workflowId"], action: AgentProposal["action"], summary: string): AgentProposal => ({ id: `${workflowId}-${action}-${summary}`, workflowId, entity: "risk", action, objectId: "R-1", summary, confidence: "high", evidenceIds: ["E-1"] });
 
-test("routes only evidence, risk and governance specialists for a risk update", () => {
+test("routes only evidence and risk specialists for a routine risk update", () => {
   const plan = planAgentRoute({ text: "A new supplier risk has high impact and needs mitigation.", evidenceCount: 1 });
-  expect(plan.selectedWorkflows).toEqual(["evidence.verify", "risk.analyse", "governance.review"]);
+  expect(plan.selectedWorkflows).toEqual(["evidence.verify", "risk.analyse"]);
   expect(plan.selectedWorkflows).not.toContain("meeting.synthesise");
-  expect(plan.decisions.map((item) => item.sequence)).toEqual([1, 2, 3]);
+  expect(plan.decisions.map((item) => item.sequence)).toEqual([1, 2]);
 });
 
 test("covers every required specialist across representative evidence classes without over-routing", () => {
   const cases = [
-    ["Workshop minutes list attendees, a decision and an action.", ["evidence.verify", "meeting.synthesise", "controls.classify", "governance.review"]],
-    ["Milestone schedule delay changes delivery progress.", ["evidence.verify", "delivery.plan", "governance.review"]],
-    ["A dependency issue requires a change request approval.", ["evidence.verify", "controls.classify", "governance.review"]],
+    ["Workshop minutes list attendees, a decision and an action.", ["evidence.verify", "meeting.synthesise", "controls.classify"]],
+    ["Milestone schedule delay changes delivery progress.", ["evidence.verify", "delivery.plan"]],
+    ["A dependency issue requires a change request approval.", ["evidence.verify", "controls.classify"]],
+    ["An audit finding reports a compliance breach.", ["evidence.verify", "governance.review"]],
   ] as const;
   for (const [text, expected] of cases) expect(planAgentRoute({ text, evidenceCount: 1 }).selectedWorkflows).toEqual(expected);
 });
@@ -28,9 +29,9 @@ test("terminates safely before model execution when evidence is absent", () => {
 });
 
 test("enforces latency, token, cost and specialist budgets with review escalation", () => {
-  const plan = planAgentRoute({ text: "Meeting risk milestone issue decision audit", evidenceCount: 1, budget: { maxSpecialists: 2, maxTokens: 3600, maxCostEur: 0.036, maxLatencyMs: 210000 } });
+  const plan = planAgentRoute({ text: "Meeting risk milestone issue decision audit finding", evidenceCount: 1, budget: { maxSpecialists: 2, maxTokens: 3600, maxCostEur: 0.036, maxLatencyMs: 44000 } });
   expect(plan.selectedWorkflows).toHaveLength(2);
-  expect(plan.budget).toMatchObject({ limited: true, estimatedTokens: 3600, estimatedLatencyMs: 210000 });
+  expect(plan.budget).toMatchObject({ limited: true, estimatedTokens: 3600, estimatedLatencyMs: 44000 });
   expect(plan.humanReviewRequired).toBe(true);
 });
 
@@ -49,10 +50,11 @@ test("conflicts and low confidence always route to human review without canonica
 test("smart routing preserves quality while reducing estimated execution versus all-specialist baseline", () => {
   const fixtures = ["Supplier risk impact and mitigation", "Milestone schedule progress", "Meeting minutes and attendees", "Dependency issue and action"];
   const plans = fixtures.map((text) => planAgentRoute({ text, evidenceCount: 1 }));
-  expect(plans.every((plan) => plan.selectedWorkflows.includes("evidence.verify") && plan.selectedWorkflows.includes("governance.review"))).toBe(true);
+  expect(plans.every((plan) => plan.selectedWorkflows.includes("evidence.verify"))).toBe(true);
+  expect(plans.every((plan) => !plan.selectedWorkflows.includes("governance.review"))).toBe(true);
   const smartCalls = plans.reduce((sum, plan) => sum + plan.selectedWorkflows.length, 0);
   const baselineCalls = fixtures.length * 6;
   expect(smartCalls).toBeLessThan(baselineCalls);
   expect(plans.reduce((sum, plan) => sum + plan.budget.estimatedTokens, 0)).toBeLessThan(baselineCalls * 1800);
-  expect(plans.reduce((sum, plan) => sum + plan.budget.estimatedLatencyMs, 0)).toBeLessThan(fixtures.length * (6 * 60000 + 90000));
+  expect(plans.reduce((sum, plan) => sum + plan.budget.estimatedLatencyMs, 0)).toBeLessThan(fixtures.length * (6 * 18000 + 8000));
 });
