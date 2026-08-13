@@ -5,7 +5,8 @@ const workflowPath = resolve("docs/n8n-pmo-orchestrator.workflow.json");
 const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
 const githubCredential = { id: "3V46mglu7fpoPISX", name: "GitHub data" };
 const receiptVersion = "agent-run-receipt-1.0";
-const orchestratorVersion = "1.3.3";
+const orchestratorVersion = "1.3.4";
+const staleAcceptedMs = 8 * 60 * 1000;
 
 const upsert = (node) => {
   const index = workflow.nodes.findIndex((item) => item.name === node.name);
@@ -71,11 +72,13 @@ formatIngest.parameters.jsCode = formatIngest.parameters.jsCode
   .replace(/workflowVersion:'1\.[0-9]+\.[0-9]+'/, `workflowVersion:'${orchestratorVersion}'`)
   .replace("routing:{mode:String(aggregate.meta?.routing||'selected'),selectedWorkflows:aggregate.selectedWorkflows}", "routing:{mode:String(aggregate.meta?.routing||'selected'),selectedWorkflows:aggregate.selectedWorkflows,policyVersion:'smart-routing-1.1.0',explanation:(aggregate.routingPlan||[]).map(item=>({workflowId:item.workflowId,reason:item.reason,sequence:item.sequence})),budget:aggregate.routingPlan?.[0]?.budget}");
 
-const classifyExisting = `const source=$node['BuildAssistantInput'].json;const raw=$json||{};let existing=null;if(raw.content){try{existing=JSON.parse(Buffer.from(raw.content,'base64').toString('utf8'));}catch{existing=null;}}return [{json:{...source,receiptExists:Boolean(existing&&existing.contractVersion==='${receiptVersion}'&&existing.idempotencyKey===source.idempotencyKey),existingReceipt:existing}}];`;
+const classifyExisting = `const source=$node['BuildAssistantInput'].json;const raw=$json||{};let existing=null;if(raw.content){try{existing=JSON.parse(Buffer.from(raw.content,'base64').toString('utf8'));}catch{existing=null;}}const receiptExists=Boolean(existing&&existing.contractVersion==='${receiptVersion}'&&existing.idempotencyKey===source.idempotencyKey);const sameScope=receiptExists&&existing.organisationId===String(source.workspace?.organisationId||source.meta.organisation_id)&&existing.projectId===String(source.workspace?.projectId||source.meta.project_id);if(receiptExists&&!sameScope)throw new Error('Existing run receipt does not match the requested workspace scope.');const retryRequested=String(source.meta?.retry_of||'')===String(existing?.runId||'')&&String(source.meta?.recovery_version_policy||'')==='source_versions';const staleAccepted=receiptExists&&existing.state==='accepted'&&Date.now()-new Date(existing.updatedAt).getTime()>=${staleAcceptedMs};return [{json:{...source,receiptExists,resumeEligible:Boolean(sameScope&&retryRequested&&staleAccepted),existingReceipt:existing}}];`;
 const buildAccepted = `const source=$node['BuildAssistantInput'].json;const now=new Date().toISOString();const receipt={contractVersion:'${receiptVersion}',runId:source.runId,correlationId:source.correlationId,idempotencyKey:source.idempotencyKey,state:'accepted',organisationId:String(source.workspace?.organisationId||source.meta.organisation_id),projectId:String(source.workspace?.projectId||source.meta.project_id),requestedAt:String(source.meta.requested_at||now),updatedAt:now};return [{json:{...source,receipt,fileContent:JSON.stringify(receipt,null,2)+'\\n',commitMessage:'pmo: accept governed agent run '+source.idempotencyKey}}];`;
 const formatAccepted = `return [{json:{ok:true,accepted:true,run:$node['BuildAcceptedRunReceipt'].json.receipt}}];`;
 const formatExisting = `return [{json:{ok:true,accepted:true,run:$json.existingReceipt}}];`;
+const formatResumed = `return [{json:{ok:true,accepted:true,resumed:true,run:$json.existingReceipt}}];`;
 const buildRunning = `const source=$node['BuildAcceptedRunReceipt'].json;const receipt={...source.receipt,state:'running',updatedAt:new Date().toISOString()};return [{json:{...source,receipt,fileContent:JSON.stringify(receipt,null,2)+'\\n',commitMessage:'pmo: start governed agent run '+source.idempotencyKey}}];`;
+const buildResumedRunning = `const source=$node['ClassifyAgentRunReceipt'].json;const receipt={...source.existingReceipt,state:'running',updatedAt:new Date().toISOString()};return [{json:{...source,receipt,fileContent:JSON.stringify(receipt,null,2)+'\\n',commitMessage:'pmo: resume stale accepted agent run '+source.idempotencyKey}}];`;
 const buildCompleted = `const result=$node['FormatIngest'].json;const source=$node['BuildAssistantInput'].json;const now=new Date().toISOString();const receipt={contractVersion:'${receiptVersion}',runId:source.runId,correlationId:source.correlationId,idempotencyKey:source.idempotencyKey,state:'completed',organisationId:String(source.workspace?.organisationId||source.meta.organisation_id),projectId:String(source.workspace?.projectId||source.meta.project_id),requestedAt:String(source.meta.requested_at),updatedAt:now,completedAt:now,result};return [{json:{...source,receipt,fileContent:JSON.stringify(receipt,null,2)+'\\n',commitMessage:'pmo: complete governed agent run '+source.idempotencyKey}}];`;
 const prepareStatus = `const body=$json.body||{};const key=String(body.idempotencyKey||'');const runId=String(body.runId||'');if(!/^[A-Za-z0-9-]{8,80}$/.test(key)||runId!=='agent:'+key)throw new Error('Invalid run status request.');return [{json:{runId,idempotencyKey:key,runPath:'knowledge/pmo/runs/'+key+'.json'}}];`;
 const formatStatus = `let receipt=null;if($json.content){try{receipt=JSON.parse(Buffer.from($json.content,'base64').toString('utf8'));}catch{receipt=null;}}if(!receipt)return [{json:{ok:false,error:'Run receipt was not found.'}}];return [{json:{ok:true,run:receipt}}];`;
@@ -84,8 +87,12 @@ upsert(githubNode("GitHubReadAgentRunReceipt", "get", "={{ $json.runPath }}", [7
 workflow.nodes.find((node) => node.name === "GitHubReadAgentRunReceipt").onError = "continueRegularOutput";
 upsert(codeNode("ClassifyAgentRunReceipt", classifyExisting, [960, -16]));
 upsert(ifNode("IfAgentRunReceiptExists", "={{ $json.receiptExists }}", [1200, -16]));
-upsert(codeNode("FormatExistingAgentRun", formatExisting, [1440, -144]));
-upsert(respondNode("RespondExistingAgentRun", [1680, -144]));
+upsert(ifNode("IfStaleAcceptedRunCanResume", "={{ $json.resumeEligible }}", [1440, -144]));
+upsert(codeNode("FormatExistingAgentRun", formatExisting, [1680, -272]));
+upsert(respondNode("RespondExistingAgentRun", [1920, -272]));
+upsert(codeNode("FormatResumedAgentRun", formatResumed, [1680, -80]));
+upsert(respondNode("RespondResumedAgentRun", [1920, -80]));
+upsert(codeNode("BuildResumedRunningRunReceipt", buildResumedRunning, [2160, 112]));
 upsert(codeNode("BuildAcceptedRunReceipt", buildAccepted, [1440, 112]));
 upsert(githubNode("GitHubStoreAcceptedRunReceipt", "create", "={{ $json.runPath }}", [1680, 112], { fileContent: "={{ $json.fileContent }}", commitMessage: "={{ $json.commitMessage }}" }));
 upsert(codeNode("FormatAgentRunAccepted", formatAccepted, [1920, -16]));
@@ -104,8 +111,12 @@ upsert(respondNode("RespondRunStatus", [1680, 608], "={{ $json.ok ? 200 : 404 }}
 workflow.connections.BuildAssistantInput = { main: [[{ node: "GitHubReadAgentRunReceipt", type: "main", index: 0 }]] };
 workflow.connections.GitHubReadAgentRunReceipt = { main: [[{ node: "ClassifyAgentRunReceipt", type: "main", index: 0 }]] };
 workflow.connections.ClassifyAgentRunReceipt = { main: [[{ node: "IfAgentRunReceiptExists", type: "main", index: 0 }]] };
-workflow.connections.IfAgentRunReceiptExists = { main: [[{ node: "FormatExistingAgentRun", type: "main", index: 0 }], [{ node: "BuildAcceptedRunReceipt", type: "main", index: 0 }]] };
+workflow.connections.IfAgentRunReceiptExists = { main: [[{ node: "IfStaleAcceptedRunCanResume", type: "main", index: 0 }], [{ node: "BuildAcceptedRunReceipt", type: "main", index: 0 }]] };
+workflow.connections.IfStaleAcceptedRunCanResume = { main: [[{ node: "FormatResumedAgentRun", type: "main", index: 0 }], [{ node: "FormatExistingAgentRun", type: "main", index: 0 }]] };
 workflow.connections.FormatExistingAgentRun = { main: [[{ node: "RespondExistingAgentRun", type: "main", index: 0 }]] };
+workflow.connections.FormatResumedAgentRun = { main: [[{ node: "RespondResumedAgentRun", type: "main", index: 0 }]] };
+workflow.connections.RespondResumedAgentRun = { main: [[{ node: "BuildResumedRunningRunReceipt", type: "main", index: 0 }]] };
+workflow.connections.BuildResumedRunningRunReceipt = { main: [[{ node: "GitHubMarkRunRunning", type: "main", index: 0 }]] };
 workflow.connections.BuildAcceptedRunReceipt = { main: [[{ node: "GitHubStoreAcceptedRunReceipt", type: "main", index: 0 }]] };
 workflow.connections.GitHubStoreAcceptedRunReceipt = { main: [[{ node: "FormatAgentRunAccepted", type: "main", index: 0 }]] };
 workflow.connections.FormatAgentRunAccepted = { main: [[{ node: "RespondAgentRunAccepted", type: "main", index: 0 }]] };
@@ -121,6 +132,6 @@ workflow.connections.PrepareRunStatusRequest = { main: [[{ node: "GitHubReadRunS
 workflow.connections.GitHubReadRunStatus = { main: [[{ node: "FormatRunStatus", type: "main", index: 0 }]] };
 workflow.connections.FormatRunStatus = { main: [[{ node: "RespondRunStatus", type: "main", index: 0 }]] };
 
-workflow.versionId = "pmo-orchestrator-agent-resilience-v1-3-3";
+workflow.versionId = "pmo-orchestrator-agent-resilience-v1-3-4";
 writeFileSync(workflowPath, `${JSON.stringify(workflow, null, 2)}\n`);
 console.log("Applied stable run receipts, status reconciliation and idempotent intake gating.");

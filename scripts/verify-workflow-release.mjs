@@ -28,10 +28,33 @@ for (const binding of release.credentialBindings) if (!binding.scope.includes("n
 if (release.recoveryEvidence.result !== "success" || !release.recoveryEvidence.assertion.includes("shouldWrite=false")) errors.push("Recovery rehearsal evidence is incomplete.");
 const orchestrator = JSON.parse(readFileSync(resolve("docs/n8n-pmo-orchestrator.workflow.json"), "utf8"));
 const names = new Set(orchestrator.nodes.map((node) => node.name));
-for (const required of ["GitHubReadAgentRunReceipt", "GitHubStoreAcceptedRunReceipt", "RespondAgentRunAccepted", "GitHubCompleteRunReceipt", "IfRunStatus", "RespondRunStatus"]) if (!names.has(required)) errors.push(`Agent resilience node is missing: ${required}`);
+for (const required of ["GitHubReadAgentRunReceipt", "GitHubStoreAcceptedRunReceipt", "RespondAgentRunAccepted", "IfStaleAcceptedRunCanResume", "RespondResumedAgentRun", "BuildResumedRunningRunReceipt", "GitHubCompleteRunReceipt", "IfRunStatus", "RespondRunStatus"]) if (!names.has(required)) errors.push(`Agent resilience node is missing: ${required}`);
 if (!release.endpoint.contractModes.includes("pmo.run.status")) errors.push("Run status contract mode is missing.");
 if (orchestrator.connections.RespondAgentRunAccepted?.main?.[0]?.[0]?.node !== "BuildRunningRunReceipt") errors.push("Accepted response does not continue into governed background processing.");
 if (orchestrator.connections.FormatExistingAgentRun?.main?.[0]?.[0]?.node !== "RespondExistingAgentRun" || orchestrator.connections.RespondExistingAgentRun) errors.push("Existing idempotency receipts must respond without restarting specialists.");
+if (orchestrator.connections.IfStaleAcceptedRunCanResume?.main?.[0]?.[0]?.node !== "FormatResumedAgentRun" || orchestrator.connections.RespondResumedAgentRun?.main?.[0]?.[0]?.node !== "BuildResumedRunningRunReceipt" || orchestrator.connections.BuildResumedRunningRunReceipt?.main?.[0]?.[0]?.node !== "GitHubMarkRunRunning") errors.push("Explicit retries must safely resume only stale accepted receipts before specialist execution.");
+const classifyExistingCode = orchestrator.nodes.find((node) => node.name === "ClassifyAgentRunReceipt")?.parameters?.jsCode || "";
+for (const marker of ["resumeEligible", "retry_of", "recovery_version_policy", "existing.state==='accepted'", "existing.organisationId", "existing.projectId"]) if (!classifyExistingCode.includes(marker)) errors.push(`Stale accepted-run recovery guard is missing: ${marker}`);
+try {
+  const classify = new Function("$node", "$json", "Buffer", classifyExistingCode);
+  const key = "3e62eae7-b23f-4aab-88e4-c371700a4b20";
+  const runId = `agent:${key}`;
+  const scope = { organisationId: "org_test01", projectId: "prj_test01" };
+  const receipt = { contractVersion: "agent-run-receipt-1.0", runId, correlationId: key, idempotencyKey: key, state: "accepted", ...scope, requestedAt: "2026-08-12T10:00:00.000Z", updatedAt: "2026-08-12T10:00:01.000Z" };
+  const source = { correlationId: key, idempotencyKey: key, runId, runPath: `knowledge/pmo/runs/${key}.json`, workspace: scope, meta: { organisation_id: scope.organisationId, project_id: scope.projectId, retry_of: runId, recovery_version_policy: "source_versions" } };
+  const classifyReceipt = (value, input = source) => classify({ BuildAssistantInput: { json: input } }, { content: Buffer.from(JSON.stringify(value)).toString("base64") }, Buffer)[0].json;
+  if (!classifyReceipt(receipt).resumeEligible) errors.push("A scoped explicit retry did not resume a stale accepted receipt.");
+  if (classifyReceipt({ ...receipt, state: "completed", result: { ok: true } }).resumeEligible) errors.push("A completed receipt was incorrectly eligible for resume.");
+  if (classifyReceipt(receipt, { ...source, meta: { ...source.meta, retry_of: undefined } }).resumeEligible) errors.push("A stale receipt resumed without an explicit source-version retry.");
+  try {
+    classifyReceipt({ ...receipt, projectId: "prj_other01" });
+    errors.push("A receipt with a different project scope was accepted.");
+  } catch (reason) {
+    if (!(reason instanceof Error) || !reason.message.includes("workspace scope")) errors.push("Wrong-scope receipt failed without the expected safety diagnostic.");
+  }
+} catch (reason) {
+  errors.push(`Unable to execute stale accepted-run recovery verification: ${reason instanceof Error ? reason.message : String(reason)}`);
+}
 if (orchestrator.connections.FormatIngest?.main?.[0]?.[0]?.node !== "BuildCompletedRunReceipt") errors.push("Completed results do not update the durable receipt.");
 for (const nodeName of ["GitHubReadAgentRunReceipt", "GitHubReadRunStatus"]) {
   const node = orchestrator.nodes.find((item) => item.name === nodeName);

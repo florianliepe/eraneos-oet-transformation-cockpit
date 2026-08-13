@@ -490,7 +490,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const stored=$node['BuildProposalSet'].json;const aggregate=$node['AggregateSpecialistResults'].json;const completedAt=new Date().toISOString();const proposals=stored.proposalSet.proposals.map(item=>({id:item.id,workflowId:item.workflowId,entity:item.entity,action:item.action,objectId:item.objectId,summary:item.summary,confidence:item.risk==='high'?'high':item.risk==='medium'?'medium':'low',evidenceIds:item.evidenceIds}));const warnings=[...(aggregate.warnings||[])];if(!proposals.length)warnings.push({code:'NO_MEANINGFUL_PMO_CHANGE',message:'Evidence was processed, but no supported PMO field or record could be extracted. Add clearer text or a written description and retry.',evidenceIds:stored.proposalSet.evidence.map(item=>item.id)});const agentRun={contractVersion:'agent-run-1.0',executionId:aggregate.executionId,correlationId:aggregate.correlationId,requestedAt:aggregate.requestedAt,completedAt,status:proposals.length?'needs_review':'completed',orchestrator:{workflowId:'pmo.orchestrate',workflowVersion:'1.3.3'},routing:{mode:String(aggregate.meta?.routing||'selected'),selectedWorkflows:aggregate.selectedWorkflows,policyVersion:'smart-routing-1.1.0',explanation:(aggregate.routingPlan||[]).map(item=>({workflowId:item.workflowId,reason:item.reason,sequence:item.sequence})),budget:aggregate.routingPlan?.[0]?.budget},steps:aggregate.steps,evidence:stored.proposalSet.evidence,proposals,warnings,persistence:{mode:'proposal_only',commitSha:$json.commit?.sha??$json.content?.sha}};return [{json:{ok:true,source:'github',storageConfigured:true,wpId:$node['NormalizeCanonical'].json.wpId,document:stored.document,proposalSet:stored.proposalSet,committedFiles:[stored.proposalPath],needs_review:proposals.map(item=>item.summary),appliedChanges:[],commit:{sha:$json.commit?.sha??$json.content?.sha,url:$json.commit?.html_url??$json.content?.html_url},agentRun}}];"
+        "jsCode": "const stored=$node['BuildProposalSet'].json;const aggregate=$node['AggregateSpecialistResults'].json;const completedAt=new Date().toISOString();const proposals=stored.proposalSet.proposals.map(item=>({id:item.id,workflowId:item.workflowId,entity:item.entity,action:item.action,objectId:item.objectId,summary:item.summary,confidence:item.risk==='high'?'high':item.risk==='medium'?'medium':'low',evidenceIds:item.evidenceIds}));const warnings=[...(aggregate.warnings||[])];if(!proposals.length)warnings.push({code:'NO_MEANINGFUL_PMO_CHANGE',message:'Evidence was processed, but no supported PMO field or record could be extracted. Add clearer text or a written description and retry.',evidenceIds:stored.proposalSet.evidence.map(item=>item.id)});const agentRun={contractVersion:'agent-run-1.0',executionId:aggregate.executionId,correlationId:aggregate.correlationId,requestedAt:aggregate.requestedAt,completedAt,status:proposals.length?'needs_review':'completed',orchestrator:{workflowId:'pmo.orchestrate',workflowVersion:'1.3.4'},routing:{mode:String(aggregate.meta?.routing||'selected'),selectedWorkflows:aggregate.selectedWorkflows,policyVersion:'smart-routing-1.1.0',explanation:(aggregate.routingPlan||[]).map(item=>({workflowId:item.workflowId,reason:item.reason,sequence:item.sequence})),budget:aggregate.routingPlan?.[0]?.budget},steps:aggregate.steps,evidence:stored.proposalSet.evidence,proposals,warnings,persistence:{mode:'proposal_only',commitSha:$json.commit?.sha??$json.content?.sha}};return [{json:{ok:true,source:'github',storageConfigured:true,wpId:$node['NormalizeCanonical'].json.wpId,document:stored.document,proposalSet:stored.proposalSet,committedFiles:[stored.proposalPath],needs_review:proposals.map(item=>item.summary),appliedChanges:[],commit:{sha:$json.commit?.sha??$json.content?.sha,url:$json.commit?.html_url??$json.content?.html_url},agentRun}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1232,7 +1232,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const source=$node['BuildAssistantInput'].json;const raw=$json||{};let existing=null;if(raw.content){try{existing=JSON.parse(Buffer.from(raw.content,'base64').toString('utf8'));}catch{existing=null;}}return [{json:{...source,receiptExists:Boolean(existing&&existing.contractVersion==='agent-run-receipt-1.0'&&existing.idempotencyKey===source.idempotencyKey),existingReceipt:existing}}];"
+        "jsCode": "const source=$node['BuildAssistantInput'].json;const raw=$json||{};let existing=null;if(raw.content){try{existing=JSON.parse(Buffer.from(raw.content,'base64').toString('utf8'));}catch{existing=null;}}const receiptExists=Boolean(existing&&existing.contractVersion==='agent-run-receipt-1.0'&&existing.idempotencyKey===source.idempotencyKey);const sameScope=receiptExists&&existing.organisationId===String(source.workspace?.organisationId||source.meta.organisation_id)&&existing.projectId===String(source.workspace?.projectId||source.meta.project_id);if(receiptExists&&!sameScope)throw new Error('Existing run receipt does not match the requested workspace scope.');const retryRequested=String(source.meta?.retry_of||'')===String(existing?.runId||'')&&String(source.meta?.recovery_version_policy||'')==='source_versions';const staleAccepted=receiptExists&&existing.state==='accepted'&&Date.now()-new Date(existing.updatedAt).getTime()>=480000;return [{json:{...source,receiptExists,resumeEligible:Boolean(sameScope&&retryRequested&&staleAccepted),existingReceipt:existing}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1585,8 +1585,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1440,
-        -144
+        1680,
+        -272
       ],
       "id": "formatexistingagentrun",
       "name": "FormatExistingAgentRun"
@@ -1600,8 +1600,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        1680,
-        -144
+        1920,
+        -272
       ],
       "id": "respondexistingagentrun",
       "name": "RespondExistingAgentRun"
@@ -1716,6 +1716,81 @@
       ],
       "id": "ifcanonicalexistsforsave",
       "name": "IfCanonicalExistsForSave"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "IfStaleAcceptedRunCanResume-condition",
+              "leftValue": "={{ $json.resumeEligible }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -144
+      ],
+      "id": "ifstaleacceptedruncanresume",
+      "name": "IfStaleAcceptedRunCanResume"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,accepted:true,resumed:true,run:$json.existingReceipt}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -80
+      ],
+      "id": "formatresumedagentrun",
+      "name": "FormatResumedAgentRun"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1920,
+        -80
+      ],
+      "id": "respondresumedagentrun",
+      "name": "RespondResumedAgentRun"
+    },
+    {
+      "parameters": {
+        "jsCode": "const source=$node['ClassifyAgentRunReceipt'].json;const receipt={...source.existingReceipt,state:'running',updatedAt:new Date().toISOString()};return [{json:{...source,receipt,fileContent:JSON.stringify(receipt,null,2)+'\\n',commitMessage:'pmo: resume stale accepted agent run '+source.idempotencyKey}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        112
+      ],
+      "id": "buildresumedrunningrunreceipt",
+      "name": "BuildResumedRunningRunReceipt"
     }
   ],
   "connections": {
@@ -2209,7 +2284,7 @@
       "main": [
         [
           {
-            "node": "FormatExistingAgentRun",
+            "node": "IfStaleAcceptedRunCanResume",
             "type": "main",
             "index": 0
           }
@@ -2396,6 +2471,57 @@
         [
           {
             "node": "FormatSave",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfStaleAcceptedRunCanResume": {
+      "main": [
+        [
+          {
+            "node": "FormatResumedAgentRun",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FormatExistingAgentRun",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatResumedAgentRun": {
+      "main": [
+        [
+          {
+            "node": "RespondResumedAgentRun",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RespondResumedAgentRun": {
+      "main": [
+        [
+          {
+            "node": "BuildResumedRunningRunReceipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BuildResumedRunningRunReceipt": {
+      "main": [
+        [
+          {
+            "node": "GitHubMarkRunRunning",
             "type": "main",
             "index": 0
           }

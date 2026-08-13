@@ -1,4 +1,5 @@
 import { z } from "zod";
+import manifest from "../../docs/n8n/agents/manifest.json";
 import { AgentWorkflowIdSchema, AgentRunEnvelopeSchema, selectedAgentWorkflows, type AgentRunEnvelope } from "@/lib/agent-contracts";
 
 export const AGENT_RUN_RECEIPT_VERSION = "agent-run-receipt-1.0" as const;
@@ -46,7 +47,7 @@ export function buildPendingAgentRun(meta: Record<string, string>, state: "waiti
     correlationId,
     status: state,
     requestedAt,
-    orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: "1.3.2" },
+    orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: manifest.orchestrator.workflowVersion },
     routing: {
       mode: meta.routing || "smart_auto",
       selectedWorkflows: workflows,
