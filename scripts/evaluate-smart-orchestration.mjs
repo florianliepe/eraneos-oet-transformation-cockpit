@@ -3,13 +3,12 @@ import { resolve } from "node:path";
 
 const input = JSON.parse(readFileSync(resolve("tests/fixtures/agent-workflows/orchestration-evaluations.json"), "utf8"));
 const order = ["evidence.verify", "meeting.synthesise", "risk.analyse", "delivery.plan", "controls.classify", "governance.review"];
-const rules = [["meeting.synthesise", /meeting|minutes|attendee|agenda|workshop|discussion/i], ["risk.analyse", /risk|threat|probability|impact|mitigation|exposure/i], ["delivery.plan", /milestone|deliverable|deadline|schedule|plan|progress|delay/i], ["controls.classify", /issue|action|decision|dependency|assumption|change request|approval/i], ["governance.review", /audit|governance|evidence|review|compliance|approve/i]];
+const rules = [["meeting.synthesise", /meeting|minutes|attendee|agenda|workshop|discussion/i], ["risk.analyse", /risk|threat|probability|impact|mitigation|exposure/i], ["delivery.plan", /milestone|deliverable|deadline|schedule|plan|progress|delay/i], ["controls.classify", /issue|action|decision|dependency|assumption|change request|approval/i], ["governance.review", /audit finding|compliance breach|policy exception|segregation of duties|conflict of interest/i]];
 const route = (item) => {
   if (!item.text.trim() && !item.evidenceCount) return [];
   const selected = rules.filter(([, regex]) => regex.test(item.text)).map(([id]) => id);
   if (item.evidenceCount) selected.unshift("evidence.verify");
   if (!selected.length) selected.push("evidence.verify");
-  if (selected.some((id) => id !== "evidence.verify") && !selected.includes("governance.review")) selected.push("governance.review");
   return order.filter((id) => new Set(selected).has(id)).slice(0, 4);
 };
 let tp = 0, fp = 0, fn = 0, calls = 0;

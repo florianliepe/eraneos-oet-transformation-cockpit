@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 const read = (path) => JSON.parse(readFileSync(resolve(path), "utf8"));
 const manifest = read("docs/n8n/agents/manifest.json");
-const currentReleaseFile = "2026-08-13-zm-prod-09-agent-evaluation.json";
+const currentReleaseFile = "2026-08-13-zm-prod-14-smart-routing.json";
 const release = read(`docs/n8n/releases/${currentReleaseFile}`);
 const policy = read("config/operational-policy.json");
 const cleanup = read("docs/n8n/obsolete-workflow-candidates.json");
