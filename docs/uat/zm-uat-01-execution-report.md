@@ -2,18 +2,18 @@
 
 Date: 2026-08-13
 Tester: Codex with accountable user authorization
-Release under test: `1b52717` plus the ZM-UAT-01 stale-run recovery release in this change
+Release under test: `6f70a49`
 Disposable scope: `UAT Validation Project`
 
 ## Summary
 
-Live execution is complete except for the final GitHub Pages deployment regression. Azure App Service activation, Teams and SharePoint are excluded by scope. XML, PNG and PDF were extracted in Chrome, processed by live n8n specialists, reviewed and rejected as synthetic evidence without changing canonical revision 2.
+Live execution and deployment regression are complete. Azure App Service activation, Teams and SharePoint are excluded by scope. XML, PNG and PDF were extracted in Chrome, processed by live n8n specialists, reviewed and rejected as synthetic evidence without changing canonical revision 2.
 
 | Result | Count |
 |---|---:|
-| Pass | 23 |
+| Pass | 24 |
 | Automated extraction pass; live upload blocked | 0 |
-| Pending deployment regression | 1 |
+| Pending deployment regression | 0 |
 | Fail | 0 |
 | Blocked | 0 |
 | Not run | 0 |
@@ -32,7 +32,7 @@ Live execution is complete except for the final GitHub Pages deployment regressi
 | UAT-014 | Pass | Live execution `agent:98c161f1-d23f-4ae6-8f96-25a88bd4ddcb` completed with zero proposals and `NO_MEANINGFUL_PMO_CHANGE`; canonical revision remained 2. |
 | UAT-015-UAT-017 | Pass | Proposal set `PS-agent-6bb20947-e852-4a2d-b7dd-c82b6937d596` required decisions and high-impact rationale. Four proposals were accepted, three derivative risks rejected, and revision 2 contains only the accepted risk, issue, action and change request. |
 | UAT-020 | Pass | Live retry reused the original idempotency key, was classified as a duplicate and retained retry lineage. UAT-ISSUE-003 records the discovered attempt-counter reconciliation defect and its regression fix. Replay and boundary-failure paths remain covered automatically. |
-| UAT-024 | Pending | The current reconciliation fixes pass `npm run verify:release` and all 108 Playwright tests; merge, Pages deployment and public smoke retest remain. |
+| UAT-024 | Pass | PR #39 passed both credential-free CI workflows and was squash-merged as `6f70a49`. GitHub Pages run `31684304201` passed build and deployment; a cache-busted public Chrome smoke confirmed the branded landing page, public navigation, governance/security boundary and account entry points. |
 
 ## Defects
 
@@ -42,11 +42,11 @@ Severity: 1. Root cause: the frontend sent organisation and project IDs, but n8n
 
 ### UAT-ISSUE-002 - Published runs remain labelled Needs Review
 
-Severity: 3. After successful governed publication, canonical records and revision 2 were correct, but the run card remained `Needs Review` and the global banner still claimed canonical state was unchanged. Resolution: reconcile the matching run to `Completed`, persist its review outcome, and render published/rejected/no-change-specific status copy. Targeted and full regression pass; deployed retest remains.
+Severity: 3. After successful governed publication, canonical records and revision 2 were correct, but the run card remained `Needs Review` and the global banner still claimed canonical state was unchanged. Resolution: reconcile the matching run to `Completed`, persist its review outcome, and render published/rejected/no-change-specific status copy. Targeted and full regression pass in the deployed revision.
 
 ### UAT-ISSUE-003 - Completed retry reverts to attempt 1
 
-Severity: 3. A live idempotent retry correctly showed duplicate lineage while waiting, but the completed backend receipt replaced attempt 2 with the immutable original attempt 1. Resolution: overlay the client-owned recovery attempt plus `retryOf`/`replayOf` lineage after backend reconciliation. Targeted and full regression pass; deployed retest remains.
+Severity: 3. A live idempotent retry correctly showed duplicate lineage while waiting, but the completed backend receipt replaced attempt 2 with the immutable original attempt 1. Resolution: overlay the client-owned recovery attempt plus `retryOf`/`replayOf` lineage after backend reconciliation. Targeted and full regression pass in the deployed revision.
 
 ### UAT-ISSUE-004 - Accepted receipt can be orphaned before specialist execution
 
@@ -54,4 +54,4 @@ Severity: 2. PDF intake created a durable `accepted` receipt, but the original n
 
 ## Exit decision
 
-Pending merge, GitHub Pages deployment and final public smoke regression only.
+Passed. All 24 in-scope tests pass, all Severity 1-2 defects are closed, the current main revision is deployed, and the public smoke regression is green.
