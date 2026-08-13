@@ -18,6 +18,8 @@ for (const tool of tools) {
   if (workflow.connections[tool.name]?.ai_tool?.[0]?.[0]?.node !== "Lean PMO Agent") fail(`${tool.name} is not connected as an AI tool.`);
 }
 const agent = byName.get("Lean PMO Agent");
+const assistant = byName.get("BuildAssistantInput");
+if (!assistant.parameters.jsCode.includes("metadata does not match the requested workspace scope")) fail("Cross-project intake metadata is not rejected before persistence.");
 const model = byName.get("OpenAI Chat Model");
 if (model?.parameters?.options?.temperature !== 1) fail("Managed Claude route requires temperature=1.");
 if (agent.onError !== "continueErrorOutput") fail("Lean agent failures must continue through the governed error output.");

@@ -27,6 +27,7 @@ const getNode = (name) => {
 
 const buildAssistant = getNode("BuildAssistantInput");
 buildAssistant.parameters.jsCode = buildAssistant.parameters.jsCode
+  .replace("const request=$node['PrepareRequest'].json;const runId=", "const request=$node['PrepareRequest'].json;const metaOrganisationId=String(meta.organisation_id||'');const metaProjectId=String(meta.project_id||'');if(metaOrganisationId!==request.workspace.organisationId||metaProjectId!==request.workspace.projectId)throw new Error('Evidence intake metadata does not match the requested workspace scope.');const runId=")
   .replace("if (totalCharacters > 200000) throw new Error('Extracted evidence exceeds the 200,000 character limit.');", "if (totalCharacters > 80000) throw new Error('Extracted evidence exceeds the 80,000 character reliability limit. Split the intake into evidence-focused runs.');")
   .replace("String(f.content || '').slice(0, 120000)", "String(f.content || '').slice(0, 30000)");
 
