@@ -11,8 +11,8 @@ Environment: GitHub Pages lean-runtime opt-in, Chrome on Windows, n8n workflow `
 | LA-01 routine update, attempt 3 | Failed | Cockpit `01640d99-33cc-4a2d-9387-696568ca5f08`; n8n `17798` | The lean agent completed in 20.577 seconds, then `MergeIntoControlTower` referenced the removed legacy `PMO Assistant` node. The downstream error left the durable receipt accepted. |
 | LA-01 routine update, attempt 4 | Failed | Cockpit `cf407bf8-beeb-456b-9f93-50a178a78a0b` | Terminal receipt completed in 18.928 seconds, but runtime step IDs `pmo.orchestrate` and `tool.*` failed the deployed specialist-step schema and triggered the legacy fallback. |
 | LA-01 routine update, attempt 5 | Pass | Cockpit `9b7256b0-1a5b-439e-8d74-dd3d5dfe2e7b` | Completed with `lean-routing-2.0.0`, evidence plus delivery routing, zero exceptional tool calls, valid proposal-only persistence and an honest no-change result. |
-| LA-02 XML evidence | Blocked | Chrome extension setting | Live file selection requires Chrome extension access to `file://` URLs. The automated XML extraction contract remains covered by Playwright. |
-| LA-03 PNG OCR | Blocked | Chrome extension setting | Live file selection requires Chrome extension access to `file://` URLs. The automated OCR confidence and text extraction contract remains covered by Playwright. |
+| LA-02 XML evidence | Pass | Cockpit `b9215c91-b57c-4ef5-8aa4-42c8cff08bc3` | Local XML extraction preserved the controlled issue and action facts. The lean agent created two evidence-bound proposals; both were reviewed and rejected as synthetic evidence, leaving canonical revision 3 unchanged. |
+| LA-03 PNG OCR | Pass | Cockpit `360f2623-b813-47aa-a16c-250b6ba1391b` | Browser OCR preserved both controlled identifiers, titles, owner role, priority and due date. The lean agent created two low-confidence evidence-bound proposals; both were reviewed and rejected as synthetic evidence, leaving canonical revision 3 unchanged. |
 | LA-04 review and publish | Pass | Cockpit `2f2eba64-2da5-442e-be97-10c0b5a70c6d` | Accepted action `ACTN-UAT-LEAN-1` published exactly once: canonical revision 2 to 3 with approved governance, review ID, audit event and object version 1. |
 | LA-05 semantic duplicate | Pass | Cockpit `b1af8e2e-8401-4dbf-a748-30b6975cefd0` | Repeating the already-published action produced no proposal and no canonical revision change. |
 | LA-06 cross-project boundary | Pending | — | Requires an isolated wrong-project request or the catalogued automated boundary test. |
@@ -68,6 +68,13 @@ Environment: GitHub Pages lean-runtime opt-in, Chrome on Windows, n8n workflow `
 - Cause: LA-08 supplied Programme Sponsor as accountable owner, but the proposed change request defaulted to PMO Lead and omitted some impact fields.
 - Action: the accountable reviewer correctly rejected the proposal. Add owner-role and change-impact accuracy cases to the evaluation corpus before promotion.
 
+### UAT-02-008 — terminal latency missing from the lean envelope
+
+- Priority: P1
+- Cause: the durable receipt reached a terminal state, but the lean `agentRun` omitted `operations.latencyMs`; the Cockpit therefore displayed `Pending` after completion.
+- Fix: measure latency from the request and completion timestamps, persist it on each lean step and the terminal operations contract, and expose the configured model and prompt version in orchestrator metadata.
+- Verification: generator and structural verification cover the corrected contract; publish the refreshed candidate and confirm a new live terminal run displays measured latency.
+
 ## Promotion state
 
-Keep the candidate lean endpoint available for UAT, but do not archive any superseded Transformation Cockpit workflow yet. LA-02 and LA-03 still require live file uploads, LA-06 requires a live cross-project isolation check, the corrected terminal failure path needs one controlled negative-path run, and the minimum LA-14/LA-15 latency and reliability samples have not yet been collected.
+Keep the candidate lean endpoint available for UAT, but do not archive any superseded Transformation Cockpit workflow yet. LA-06 requires a live cross-project isolation check, the corrected terminal failure and latency paths need controlled live verification, LA-09 and LA-10 remain open, and the minimum LA-14/LA-15 latency and reliability samples have not yet been collected.

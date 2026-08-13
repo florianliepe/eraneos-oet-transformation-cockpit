@@ -3,7 +3,7 @@
 | ID | Priority | Test | Expected result | Automation |
 | --- | --- | --- | --- | --- |
 | LA-01 | P0 | Routine project update text | Proposal-only receipt; direct lean-agent step; no exceptional tool call | Live + fixture |
-| LA-02 | P0 | Risk and milestone XML | XML-derived text creates evidence-bound risk/milestone proposals | Live + fixture |
+| LA-02 | P0 | Issue and action XML | XML-derived text creates evidence-bound issue/action proposals | Live + fixture |
 | LA-03 | P0 | PNG with legible PMO text | Browser OCR text reaches n8n and creates evidence-bound proposals | Live + browser |
 | LA-04 | P0 | Review and publish accepted | Human rationale persists; publisher revalidates; one canonical revision | Live + browser |
 | LA-05 | P0 | Duplicate idempotency key | Existing terminal receipt returned; no duplicate proposal/commit | Live |
