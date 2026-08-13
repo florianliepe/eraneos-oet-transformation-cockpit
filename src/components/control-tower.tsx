@@ -133,12 +133,26 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
   const [helpOpen, setHelpOpen] = useState(false);
   const [showFirstUse, setShowFirstUse] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileNavCloseRef = useRef<HTMLButtonElement>(null);
   const priorView = useRef<View>(initialView);
   const closeHelp = useCallback(() => setHelpOpen(false), []);
 
   useEffect(() => {
     queueMicrotask(() => setShowFirstUse(window.localStorage.getItem("oet-cockpit-first-use-dismissed") !== "true"));
   }, []);
+
+  useEffect(() => {
+    if (!mobileNav) return;
+    mobileNavCloseRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMobileNav(false);
+      requestAnimationFrame(() => mobileNavTriggerRef.current?.focus());
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobileNav]);
 
   useEffect(() => {
     if (priorView.current !== view) {
@@ -417,8 +431,8 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
     <div className="app-shell">
       <a className="skip-link" href="#cockpit-content">Skip to cockpit content</a>
       {mobileNav && <button className="nav-scrim mobile-only" aria-label="Close navigation" onClick={() => setMobileNav(false)}/>}
-      <aside className={cx("sidebar", mobileNav && "sidebar-open")} aria-label="Project navigation">
-        <div className="sidebar-head"><BrandMark/><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Close navigation"><Icons.close/></button></div>
+      <aside id="project-navigation" className={cx("sidebar", mobileNav && "sidebar-open")} aria-label="Project navigation">
+        <div className="sidebar-head"><BrandMark/><button ref={mobileNavCloseRef} className="icon-button mobile-only" onClick={() => { setMobileNav(false); requestAnimationFrame(() => mobileNavTriggerRef.current?.focus()); }} aria-label="Close navigation"><Icons.close/></button></div>
         <div className="project-switcher"><span className="project-monogram">TC</span><div><b>{workspaceScope.projectName}</b><small>{workspaceScope.projectId}</small></div><Icons.chevron/></div>
         <nav aria-label="Primary navigation">
           <span className="nav-label">Project control</span>
@@ -429,7 +443,7 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
       </aside>
 
       <main className="main-area" id="cockpit-content" tabIndex={-1}>
-        <header className="topbar"><button className="icon-button mobile-only" aria-expanded={mobileNav} onClick={() => setMobileNav(true)} aria-label="Open navigation"><Icons.menu/></button><GlobalSearch data={data} value={search} onChange={setSearch} onNavigate={(target, resultQuery) => { setView(target); setSearch(resultQuery); }}/><div className="top-actions"><button className="sync-state" onClick={() => void loadData()} aria-label="Refresh project data"><span className={source === "github" ? "sync-live" : "sync-seed"}/>{source === "github" ? "GitHub live" : "Starter data"}<Icons.refresh/></button><button className="button secondary" onClick={() => setView("intake")}><span className="n8n-button-mark">n8n</span>Workbench intake</button><button className="button secondary" onClick={() => setPublishOpen(true)} disabled={!dirty}><Icons.github/>{dirty ? "Publish changes" : "All changes saved"}</button><button className="button ghost help-button" aria-expanded={helpOpen} onClick={() => setHelpOpen(true)}><span aria-hidden="true">?</span>Help</button><button className="button primary" onClick={() => setIntakeOpen(true)}><Icons.plus/>Quick add</button></div></header>
+        <header className="topbar"><button ref={mobileNavTriggerRef} className="icon-button mobile-only" aria-expanded={mobileNav} aria-controls="project-navigation" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Icons.menu/></button><GlobalSearch data={data} value={search} onChange={setSearch} onNavigate={(target, resultQuery) => { setView(target); setSearch(resultQuery); }}/><div className="top-actions"><button className="sync-state" onClick={() => void loadData()} aria-label="Refresh project data"><span className={source === "github" ? "sync-live" : "sync-seed"}/>{source === "github" ? "GitHub live" : "Starter data"}<Icons.refresh/></button><button className="button secondary" onClick={() => setView("intake")}><span className="n8n-button-mark">n8n</span>Workbench intake</button><button className="button secondary" onClick={() => setPublishOpen(true)} disabled={!dirty}><Icons.github/>{dirty ? "Publish changes" : "All changes saved"}</button><button className="button ghost help-button" aria-expanded={helpOpen} onClick={() => setHelpOpen(true)}><span aria-hidden="true">?</span>Help</button><button className="button primary" onClick={() => setIntakeOpen(true)}><Icons.plus/>Quick add</button></div></header>
 
         <div className="content-wrap">
           {error && <div className="error-banner" role="alert"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><Icons.close/></button></div>}
