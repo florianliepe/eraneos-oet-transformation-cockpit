@@ -160,7 +160,9 @@ test("shows a traceable agent execution contract for legacy workflow responses",
   await expect(result.getByText("Legacy Direct")).toBeVisible();
   await expect(result.getByText("LEGACY_DIRECT_PERSISTENCE")).toBeVisible();
   await expect(result.getByText("Evidence verifier")).toBeVisible();
-  await expect(result.getByText("Governance reviewer")).toBeVisible();
+  await expect(result.getByText("Delivery planner")).toBeVisible();
+  await expect(result.getByText("PMO controls analyst")).toBeVisible();
+  await expect(result.getByText("Governance reviewer")).toHaveCount(0);
 });
 
 test("extracts XML evidence into labelled project-control text before transfer", async ({ page }) => {

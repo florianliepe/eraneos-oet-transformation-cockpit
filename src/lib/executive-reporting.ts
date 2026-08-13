@@ -12,6 +12,8 @@ export const ReportScopeSchema = z.object({
   organisationId: z.string().min(8),
   targetKind: z.enum(["project", "portfolio"]),
   targetIds: z.array(z.string().min(8)).min(1),
+}).superRefine((scope, context) => {
+  if (new Set(scope.targetIds).size !== scope.targetIds.length) context.addIssue({ code: "custom", path: ["targetIds"], message: "Report targets must be unique." });
 });
 
 export const DecisionRequestSchema = z.object({
@@ -80,6 +82,13 @@ export function assertExecutiveReportPublishable(report: ExecutiveReportPackage,
 
 export function appendPublicationReceipt(report: ExecutiveReportPackage, action: "approved" | "published" | "revoked" | "restored", actor: string, reason?: string, at = new Date().toISOString()) {
   const previous = report.publicationHistory.at(-1);
+  const allowedPrevious: Record<typeof action, Array<typeof previous extends undefined ? never : NonNullable<typeof previous>["action"] | undefined>> = {
+    approved: [undefined], published: ["approved"], revoked: ["published", "restored"], restored: ["revoked"],
+  };
+  if (!allowedPrevious[action].includes(previous?.action)) throw new Error(`Report publication transition ${previous?.action || "none"} -> ${action} is not allowed.`);
+  if (action === "approved" && report.review.status !== "approved") throw new Error("An approved assigned-review decision is required before recording report approval.");
+  if ((action === "revoked" || action === "restored") && !reason?.trim()) throw new Error(`${action === "revoked" ? "Revocation" : "Restore"} rationale is required.`);
+  if (previous && new Date(at).getTime() < new Date(previous.at).getTime()) throw new Error("Publication receipts must be recorded in chronological order.");
   const receipt = PublicationReceiptSchema.parse({
     id: `report-receipt-${report.publicationHistory.length + 1}-${report.snapshot.revision}`, action, actor: actor.trim(), at,
     snapshotId: report.snapshot.id, snapshotRevision: report.snapshot.revision, sourceFingerprint: report.sourceFingerprint,
@@ -96,6 +105,7 @@ export const PortfolioDecisionPackSchema = z.object({
 });
 
 export function buildPortfolioDecisionPack(organisationId: string, sources: Array<{ projectId: string; snapshot?: SteercoSnapshot }>, at = new Date().toISOString()) {
+  if (new Set(sources.map((source) => source.projectId)).size !== sources.length) throw new Error("Portfolio report sources must bind each project exactly once.");
   const missing = sources.filter((source) => !source.snapshot).map((source) => `${source.projectId}: no approved snapshot supplied.`);
   const approved = sources.flatMap((source) => source.snapshot && ["approved", "published", "revoked"].includes(source.snapshot.status) && source.snapshot.approvedBy ? [{ projectId: source.projectId, snapshot: source.snapshot }] : []);
   missing.push(...sources.filter((source) => source.snapshot && !approved.some((item) => item.projectId === source.projectId)).map((source) => `${source.projectId}: latest snapshot is not approved.`));

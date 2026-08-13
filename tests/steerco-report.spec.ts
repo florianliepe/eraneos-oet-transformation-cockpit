@@ -100,6 +100,13 @@ test("binds project reporting to scope, assigned review and immutable publicatio
   expect(() => assertExecutiveReportPublishable(reviewed, { ...approved, sourceRevision: { ...approved.sourceRevision, pmo: approved.sourceRevision.pmo + 1 } })).toThrow(/sources changed/);
   const published = appendPublicationReceipt(appendPublicationReceipt(reviewed, "approved", "Programme Sponsor", "Approved.", "2026-08-11T12:01:00.000Z"), "published", "Programme Sponsor", undefined, "2026-08-11T12:02:00.000Z");
   expect(published.publicationHistory[1]).toMatchObject({ action: "published", previousReceiptId: published.publicationHistory[0].id });
+  expect(() => appendPublicationReceipt(reviewed, "published", "Programme Sponsor", undefined, "2026-08-11T12:02:00.000Z")).toThrow(/transition none -> published/);
+  expect(() => appendPublicationReceipt(published, "restored", "Programme Sponsor", "Restore.", "2026-08-11T12:03:00.000Z")).toThrow(/transition published -> restored/);
+  expect(() => appendPublicationReceipt(published, "revoked", "Programme Sponsor", "", "2026-08-11T12:03:00.000Z")).toThrow(/rationale is required/);
+  const revoked = appendPublicationReceipt(published, "revoked", "Programme Sponsor", "Superseded by a corrected pack.", "2026-08-11T12:03:00.000Z");
+  const restored = appendPublicationReceipt(revoked, "restored", "Programme Sponsor", "Correction verified.", "2026-08-11T12:04:00.000Z");
+  expect(restored.publicationHistory.map((receipt) => receipt.action)).toEqual(["approved", "published", "revoked", "restored"]);
+  expect(() => appendPublicationReceipt(restored, "revoked", "Programme Sponsor", "Late receipt.", "2026-08-11T12:03:30.000Z")).toThrow(/chronological order/);
 });
 
 test("builds a portfolio pack only from approved snapshots and keeps missing projects explicit", () => {
@@ -111,6 +118,8 @@ test("builds a portfolio pack only from approved snapshots and keeps missing pro
   expect(pack.attention[0]).toMatchObject({ projectId: "prj_test01" });
   expect(pack.missing).toEqual(["prj_test02: no approved snapshot supplied."]);
   expect(pack.projects[0].sourceFingerprint).toBe(reportSourceFingerprint(approved));
+  expect(() => buildPortfolioDecisionPack("org_test01", [{ projectId: "prj_test01", snapshot: approved }, { projectId: "prj_test01", snapshot: approved }])).toThrow(/exactly once/);
+  expect(() => buildExecutiveReportPackage({ snapshot: approved, scope: { organisationId: "org_test01", targetKind: "portfolio", targetIds: ["prj_test01", "prj_test01"] }, reviewer: "Sponsor" })).toThrow(/unique/);
 });
 
 test("blocks unsupported material claims and creates a reproducible PowerPoint package after review", async () => {
