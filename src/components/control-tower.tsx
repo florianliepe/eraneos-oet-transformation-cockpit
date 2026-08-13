@@ -420,7 +420,10 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
   const workflowProposalSet = workflowResult ? proposalSets.find((item) => item.sourceExecutionId === workflowResult.executionId) : undefined;
   const workflowReviewed = workflowProposalSet?.status === "published" || workflowProposalSet?.status === "rejected";
   const workflowNoChange = workflowResult?.status === "completed" && workflowResult.proposals.length === 0;
-  const workflowBannerMessage = workflowNoChange
+  const workflowPending = workflowResult?.status === "waiting" || workflowResult?.status === "running";
+  const workflowBannerMessage = workflowPending
+    ? `Agent execution ${workflowResult.executionId} is ${workflowResult.status}. Its terminal receipt has not been confirmed yet.`
+    : workflowNoChange
     ? `Agent execution ${workflowResult.executionId} completed with no supported changes. Canonical state remains unchanged; no review is required.`
     : workflowReviewed
     ? workflowProposalSet.status === "published"
@@ -447,7 +450,7 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
 
         <div className="content-wrap">
           {error && <div className="error-banner" role="alert"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><Icons.close/></button></div>}
-          {workflowResult && view !== "intake" && <div className="success-banner"><span>{workflowBannerMessage}</span>{!workflowNoChange && <button onClick={() => setView("review")}>{workflowReviewed ? "View review" : "Review proposals"}</button>}<button onClick={() => setWorkflowResult(null)} aria-label="Dismiss agent result"><Icons.close/></button></div>}
+          {workflowResult && view !== "intake" && <div className="success-banner"><span>{workflowBannerMessage}</span>{!workflowPending && !workflowNoChange && <button onClick={() => setView("review")}>{workflowReviewed ? "View review" : "Review proposals"}</button>}<button onClick={() => setWorkflowResult(null)} aria-label="Dismiss agent result"><Icons.close/></button></div>}
           <div className="page-heading"><div><span className="eyebrow">{meta.eyebrow}</span><h1 ref={headingRef} tabIndex={-1}>{meta.title}</h1><p>{meta.description}</p></div><div className="heading-meta"><span>Last synced</span><b>{formatDateTime(data.project.updatedAt)}</b></div></div>
           {view === "overview" && showFirstUse && <FirstUseGuide onDismiss={dismissFirstUse}/>}
 

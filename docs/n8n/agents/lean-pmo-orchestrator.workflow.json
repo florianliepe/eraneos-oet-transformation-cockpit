@@ -319,7 +319,8 @@
         176
       ],
       "id": "lean-pmo-agent",
-      "name": "Lean PMO Agent"
+      "name": "Lean PMO Agent",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -331,7 +332,7 @@
         },
         "builtInTools": {},
         "options": {
-          "temperature": 0.1
+          "temperature": 1
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
@@ -360,7 +361,8 @@
         176
       ],
       "id": "4ee5cf4c-2e44-485f-a909-1ede319ccf79",
-      "name": "NormalizeCanonical"
+      "name": "NormalizeCanonical",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -400,7 +402,8 @@
           "id": "3V46mglu7fpoPISX",
           "name": "Transformation Cockpit GitHub Data"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -440,7 +443,8 @@
           "id": "3V46mglu7fpoPISX",
           "name": "Transformation Cockpit GitHub Data"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -477,11 +481,11 @@
           "name": "Transformation Cockpit GitHub Data"
         }
       },
-      "onError": "continueRegularOutput"
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "jsCode": "if (!$json.content) throw new Error('The canonical PMO document is missing from GitHub.');\nconst document = JSON.parse(Buffer.from($json.content, 'base64').toString('utf8'));\nif (document.schemaVersion !== '2.0') throw new Error('The generic data repository must contain PMO schemaVersion 2.0.');\nconst normalized = $node['NormalizeCanonical'].json;\nconst source = $node['BuildAssistantInput'].json;\nconst meta = source.meta ?? {};\nlet ai = $node['PMO Assistant'].json.output ?? $node['PMO Assistant'].json.text ?? $node['PMO Assistant'].json;\nif (typeof ai === 'string') ai = JSON.parse(ai.replace(/^\\`\\`\\`(?:json)?/i, '').replace(/\\`\\`\\`$/i, '').trim());\nconst arr = value => Array.isArray(value) ? value : [];\nconst str = (value, fallback = '') => typeof value === 'string' && value.trim() ? value.trim() : fallback;\nconst dateOk = value => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(value || ''));\nconst clamp = (value, min, max, fallback) => Math.max(min, Math.min(max, Number.isFinite(Number(value)) ? Math.round(Number(value)) : fallback));\nconst safeId = (prefix, raw, index) => str(raw, prefix + '-' + normalized.wpId + '-' + (index + 1)).replace(/[^A-Za-z0-9._-]/g, '-').slice(0, 80);\nconst now = new Date().toISOString();\nconst today = now.slice(0, 10);\nconst actor = 'n8n PMO Orchestrator';\nconst changes = [];\nconst governance = (current, evidenceIds) => ({version:Math.max(0,Number(current?.version || 0))+1,reviewStatus:'pending',evidenceIds:[...new Set([...(current?.evidenceIds || []),...evidenceIds])],reviewIds:current?.reviewIds || [],createdAt:current?.createdAt || now,createdBy:current?.createdBy || actor,updatedAt:now,updatedBy:actor});\nconst evidenceIds = arr(source.extracted).map((file,index) => safeId('EVD', 'EVD-' + normalized.wpId + '-' + (index+1), index));\narr(source.extracted).forEach((file,index) => { const id=evidenceIds[index]; if(!document.evidence.some(item=>item.id===id)) document.evidence.unshift({id,title:str(file.name,'Evidence ' + (index+1)),kind:file.type==='image_ocr'?'image':file.type==='text_update'?'correspondence':'document',source:'workbench:' + normalized.wpId,classification:'internal',status:'proposed',capturedAt:now,capturedBy:actor,contentHash:file.contentHash||undefined,relatedObjects:[{type:'project',id:document.project.id}]}); });\nconst recordVersion = (type, record, previous) => { const action=previous?'update':'create'; const label=record.title||record.name||record.id; changes.push({entity:type,action,id:record.id,summary:label}); document.audit.unshift({id:'AUD-'+Date.now()+'-'+type+'-'+record.id,timestamp:now,actor,action,object:{type,id:record.id},message:(previous?'Updated ':'Created ')+label+' from '+normalized.wpId+'.',changes:[],evidenceIds}); document.objectVersions.unshift({id:'VER-'+type+'-'+record.id+'-'+record.governance.version,object:{type,id:record.id},version:record.governance.version,createdAt:now,createdBy:actor,changeSummary:(previous?'Updated ':'Created ')+'from '+normalized.wpId+'.',evidenceIds,snapshot:record}); };\nconst upsert = (collection, type, raw) => { const title=String(raw.title||raw.name||'').toLowerCase(); const at=collection.findIndex(item=>item.id===raw.id||(title&&String(item.title||item.name||'').toLowerCase()===title)); const previous=at>=0?collection[at]:undefined; const record={...(previous||{}),...raw,id:previous?.id||raw.id,governance:governance(previous?.governance,evidenceIds)}; if(at>=0) collection[at]=record; else collection.unshift(record); recordVersion(type,record,previous); return record.id; };\nconst projectUpdates = ai.project_updates && typeof ai.project_updates==='object' ? ai.project_updates : {};\nconst projectBefore=JSON.stringify({subtitle:document.project.subtitle,phase:document.project.phase,progress:document.project.progress,overallRag:document.project.overallRag});\nfor(const key of ['subtitle','phase']) if(str(projectUpdates[key])) document.project[key]=str(projectUpdates[key]);\nif(projectUpdates.progress!==undefined) document.project.progress=clamp(projectUpdates.progress,0,100,document.project.progress);\nif(['green','amber','red','grey'].includes(projectUpdates.overallRag)) document.project.overallRag=projectUpdates.overallRag;\nconst projectAfter=JSON.stringify({subtitle:document.project.subtitle,phase:document.project.phase,progress:document.project.progress,overallRag:document.project.overallRag});\nif(projectBefore!==projectAfter){document.project.governance=governance(document.project.governance,evidenceIds);document.project.updatedAt=now;}\narr(ai.milestones).forEach((item,index)=>{if(str(item?.title)&&dateOk(item?.date))upsert(document.milestones,'milestone',{id:safeId('M',item.id,index),title:str(item.title),phase:str(item.phase,document.project.phase),date:item.date,status:['upcoming','at_risk','complete'].includes(item.status)?item.status:'upcoming',owner:str(item.owner,meta.owner_role||'PMO Lead'),description:str(item.description)});});\nconst workstream=document.workstreams[0]?.id||'WS-1';\narr(ai.deliverables).forEach((item,index)=>{const title=str(item?.title,str(item?.name));if(title&&dateOk(item?.dueDate))upsert(document.deliverables,'deliverable',{id:safeId('DEL',item.id,index),title,workstream,dueDate:item.dueDate,status:['not_started','in_progress','at_risk','blocked','done'].includes(item.status)?item.status:'not_started',owner:str(item.owner,meta.owner_role||'PMO Lead'),progress:clamp(item.progress,0,100,0),priority:['P1','P2','P3'].includes(item.priority)?item.priority:'P2'});});\narr(ai.risks).forEach((item,index)=>{if(str(item?.title))upsert(document.risks,'risk',{id:safeId('R',item.id,index),title:str(item.title),description:str(item.description),probability:clamp(item.probability,1,5,3),impact:clamp(item.impact,1,5,3),state:['open','mitigating','monitoring','closed'].includes(item.state)?item.state:'open',owner:str(item.owner,meta.owner_role||'PMO Lead'),mitigation:str(item.mitigation),updatedAt:today});});\narr(ai.issues).forEach((item,index)=>{if(str(item?.title))upsert(document.issues,'issue',{id:safeId('ISS',item.id,index),title:str(item.title),description:str(item.description),owner:str(item.owner,meta.owner_role||'PMO Lead'),status:['open','in_progress','blocked','resolved','closed'].includes(item.status)?item.status:'open',priority:['P1','P2','P3'].includes(item.priority)?item.priority:'P2',severity:clamp(item.severity,1,5,3),raisedAt:dateOk(item.raisedAt)?item.raisedAt:today,dueDate:dateOk(item.dueDate)?item.dueDate:undefined,resolution:str(item.resolution),relatedRiskIds:arr(item.relatedRiskIds).map(String)});});\narr(ai.actions).forEach((item,index)=>{if(str(item?.title)&&dateOk(item?.dueDate))upsert(document.actions,'action',{id:safeId('ACTN',item.id,index),title:str(item.title),description:str(item.description),owner:str(item.owner,meta.owner_role||'PMO Lead'),status:['open','in_progress','blocked','done','cancelled'].includes(item.status)?item.status:'open',priority:['P1','P2','P3'].includes(item.priority)?item.priority:'P2',dueDate:item.dueDate,relatedObjects:[]});});\narr(ai.decisions).forEach((item,index)=>{if(str(item?.title)&&str(item?.decision)&&dateOk(item?.decisionDate))upsert(document.decisions,'decision',{id:safeId('DEC',item.id,index),title:str(item.title),context:str(item.context),decision:str(item.decision),owner:str(item.owner,meta.owner_role||'PMO Lead'),status:['proposed','pending_approval','approved','rejected','superseded'].includes(item.status)?item.status:'proposed',decisionDate:item.decisionDate,impact:str(item.impact),relatedObjects:[]});});\narr(ai.dependencies).forEach((item,index)=>{if(str(item?.title)&&dateOk(item?.neededBy))upsert(document.dependencies,'dependency',{id:safeId('DEP',item.id,index),title:str(item.title),description:str(item.description),owner:str(item.owner,meta.owner_role||'PMO Lead'),provider:str(item.provider,'External party'),type:['internal','external'].includes(item.type)?item.type:'external',direction:['inbound','outbound','mutual'].includes(item.direction)?item.direction:'inbound',status:['open','confirmed','at_risk','blocked','satisfied','cancelled'].includes(item.status)?item.status:'open',criticality:['low','medium','high','critical'].includes(item.criticality)?item.criticality:'medium',neededBy:item.neededBy,relatedObjects:[]});});\narr(ai.assumptions).forEach((item,index)=>{if(str(item?.title)&&str(item?.statement)&&dateOk(item?.validationDueDate))upsert(document.assumptions,'assumption',{id:safeId('ASM',item.id,index),title:str(item.title),statement:str(item.statement),owner:str(item.owner,meta.owner_role||'PMO Lead'),status:['active','validated','invalidated','retired'].includes(item.status)?item.status:'active',criticality:['low','medium','high','critical'].includes(item.criticality)?item.criticality:'medium',validationDueDate:item.validationDueDate,validationMethod:str(item.validationMethod,'PMO review'),impactIfFalse:str(item.impactIfFalse,'Requires reassessment')});});\narr(ai.changeRequests).forEach((item,index)=>{if(str(item?.title))upsert(document.changeRequests,'change_request',{id:safeId('CR',item.id,index),title:str(item.title),description:str(item.description),requester:str(item.requester,meta.owner_role||'PMO Lead'),owner:str(item.owner,meta.owner_role||'PMO Lead'),status:['draft','submitted','under_review','approved','rejected','implemented','withdrawn'].includes(item.status)?item.status:'draft',priority:['P1','P2','P3'].includes(item.priority)?item.priority:'P2',submittedAt:dateOk(item.submittedAt)?item.submittedAt:today,decisionDueDate:dateOk(item.decisionDueDate)?item.decisionDueDate:undefined,scopeImpact:str(item.scopeImpact),scheduleImpact:str(item.scheduleImpact),costImpact:str(item.costImpact),benefitImpact:str(item.benefitImpact),riskImpact:str(item.riskImpact)});});\narr(ai.meetings).forEach((item,index)=>{if(str(item?.title)&&str(item?.summary)&&dateOk(item?.date))upsert(document.meetings,'meeting',{id:safeId('MTG',item.id,index),title:str(item.title),date:item.date,type:['steering','working_session','workstream','decision'].includes(item.type)?item.type:'working_session',participants:arr(item.participants).map(String),summary:str(item.summary),decisionIds:arr(item.decisionIds).map(String),actionIds:arr(item.actionIds).map(String)});});\ndocument.revision=Math.max(1,Number(document.revision||1))+1;\ndocument.audit.unshift({id:'AUD-'+Date.now()+'-ingest',timestamp:now,actor,action:'import',object:{type:'project',id:document.project.id},message:'Applied '+changes.length+' governed change'+(changes.length===1?'':'s')+' from '+normalized.wpId+'.',changes:[],evidenceIds});\nreturn [{json:{document,appliedChanges:changes,fileContent:JSON.stringify(document,null,2)+'\\n',commitMessage:'pmo: orchestrate '+normalized.wpId+' into revision '+document.revision}}];"
+        "jsCode": "if (!$json.content) throw new Error('The canonical PMO document is missing from GitHub.');\nconst document = JSON.parse(Buffer.from($json.content, 'base64').toString('utf8'));\nif (document.schemaVersion !== '2.0') throw new Error('The generic data repository must contain PMO schemaVersion 2.0.');\nconst normalized = $node['NormalizeCanonical'].json;\nconst source = $node['BuildAssistantInput'].json;\nconst meta = source.meta ?? {};\nlet ai = $node['BuildLeanRunContext'].json.output ?? $node['BuildLeanRunContext'].json.text ?? $node['BuildLeanRunContext'].json;\nif (typeof ai === 'string') ai = JSON.parse(ai.replace(/^\\`\\`\\`(?:json)?/i, '').replace(/\\`\\`\\`$/i, '').trim());\nconst arr = value => Array.isArray(value) ? value : [];\nconst str = (value, fallback = '') => typeof value === 'string' && value.trim() ? value.trim() : fallback;\nconst dateOk = value => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(value || ''));\nconst clamp = (value, min, max, fallback) => Math.max(min, Math.min(max, Number.isFinite(Number(value)) ? Math.round(Number(value)) : fallback));\nconst safeId = (prefix, raw, index) => str(raw, prefix + '-' + normalized.wpId + '-' + (index + 1)).replace(/[^A-Za-z0-9._-]/g, '-').slice(0, 80);\nconst now = new Date().toISOString();\nconst today = now.slice(0, 10);\nconst actor = 'n8n PMO Orchestrator';\nconst changes = [];\nconst governance = (current, evidenceIds) => ({version:Math.max(0,Number(current?.version || 0))+1,reviewStatus:'pending',evidenceIds:[...new Set([...(current?.evidenceIds || []),...evidenceIds])],reviewIds:current?.reviewIds || [],createdAt:current?.createdAt || now,createdBy:current?.createdBy || actor,updatedAt:now,updatedBy:actor});\nconst evidenceIds = arr(source.extracted).map((file,index) => safeId('EVD', 'EVD-' + normalized.wpId + '-' + (index+1), index));\narr(source.extracted).forEach((file,index) => { const id=evidenceIds[index]; if(!document.evidence.some(item=>item.id===id)) document.evidence.unshift({id,title:str(file.name,'Evidence ' + (index+1)),kind:file.type==='image_ocr'?'image':file.type==='text_update'?'correspondence':'document',source:'workbench:' + normalized.wpId,classification:'internal',status:'proposed',capturedAt:now,capturedBy:actor,contentHash:file.contentHash||undefined,relatedObjects:[{type:'project',id:document.project.id}]}); });\nconst recordVersion = (type, record, previous) => { const action=previous?'update':'create'; const label=record.title||record.name||record.id; changes.push({entity:type,action,id:record.id,summary:label}); document.audit.unshift({id:'AUD-'+Date.now()+'-'+type+'-'+record.id,timestamp:now,actor,action,object:{type,id:record.id},message:(previous?'Updated ':'Created ')+label+' from '+normalized.wpId+'.',changes:[],evidenceIds}); document.objectVersions.unshift({id:'VER-'+type+'-'+record.id+'-'+record.governance.version,object:{type,id:record.id},version:record.governance.version,createdAt:now,createdBy:actor,changeSummary:(previous?'Updated ':'Created ')+'from '+normalized.wpId+'.',evidenceIds,snapshot:record}); };\nconst upsert = (collection, type, raw) => { const title=String(raw.title||raw.name||'').toLowerCase(); const at=collection.findIndex(item=>item.id===raw.id||(title&&String(item.title||item.name||'').toLowerCase()===title)); const previous=at>=0?collection[at]:undefined; const record={...(previous||{}),...raw,id:previous?.id||raw.id,governance:governance(previous?.governance,evidenceIds)}; if(at>=0) collection[at]=record; else collection.unshift(record); recordVersion(type,record,previous); return record.id; };\nconst projectUpdates = ai.project_updates && typeof ai.project_updates==='object' ? ai.project_updates : {};\nconst projectBefore=JSON.stringify({subtitle:document.project.subtitle,phase:document.project.phase,progress:document.project.progress,overallRag:document.project.overallRag});\nfor(const key of ['subtitle','phase']) if(str(projectUpdates[key])) document.project[key]=str(projectUpdates[key]);\nif(projectUpdates.progress!==undefined) document.project.progress=clamp(projectUpdates.progress,0,100,document.project.progress);\nif(['green','amber','red','grey'].includes(projectUpdates.overallRag)) document.project.overallRag=projectUpdates.overallRag;\nconst projectAfter=JSON.stringify({subtitle:document.project.subtitle,phase:document.project.phase,progress:document.project.progress,overallRag:document.project.overallRag});\nif(projectBefore!==projectAfter){document.project.governance=governance(document.project.governance,evidenceIds);document.project.updatedAt=now;}\narr(ai.milestones).forEach((item,index)=>{if(str(item?.title)&&dateOk(item?.date))upsert(document.milestones,'milestone',{id:safeId('M',item.id,index),title:str(item.title),phase:str(item.phase,document.project.phase),date:item.date,status:['upcoming','at_risk','complete'].includes(item.status)?item.status:'upcoming',owner:str(item.owner,meta.owner_role||'PMO Lead'),description:str(item.description)});});\nconst workstream=document.workstreams[0]?.id||'WS-1';\narr(ai.deliverables).forEach((item,index)=>{const title=str(item?.title,str(item?.name));if(title&&dateOk(item?.dueDate))upsert(document.deliverables,'deliverable',{id:safeId('DEL',item.id,index),title,workstream,dueDate:item.dueDate,status:['not_started','in_progress','at_risk','blocked','done'].includes(item.status)?item.status:'not_started',owner:str(item.owner,meta.owner_role||'PMO Lead'),progress:clamp(item.progress,0,100,0),priority:['P1','P2','P3'].includes(item.priority)?item.priority:'P2'});});\narr(ai.risks).forEach((item,index)=>{if(str(item?.title))upsert(document.risks,'risk',{id:safeId('R',item.id,index),title:str(item.title),description:str(item.description),probability:clamp(item.probability,1,5,3),impact:clamp(item.impact,1,5,3),state:['open','mitigating','monitoring','closed'].includes(item.state)?item.state:'open',owner:str(item.owner,meta.owner_role||'PMO Lead'),mitigation:str(item.mitigation),updatedAt:today});});\narr(ai.issues).forEach((item,index)=>{if(str(item?.title))upsert(document.issues,'issue',{id:safeId('ISS',item.id,index),title:str(item.title),description:str(item.description),owner:str(item.owner,meta.owner_role||'PMO Lead'),status:['open','in_progress','blocked','resolved','closed'].includes(item.status)?item.status:'open',priority:['P1','P2','P3'].includes(item.priority)?item.priority:'P2',severity:clamp(item.severity,1,5,3),raisedAt:dateOk(item.raisedAt)?item.raisedAt:today,dueDate:dateOk(item.dueDate)?item.dueDate:undefined,resolution:str(item.resolution),relatedRiskIds:arr(item.relatedRiskIds).map(String)});});\narr(ai.actions).forEach((item,index)=>{if(str(item?.title)&&dateOk(item?.dueDate))upsert(document.actions,'action',{id:safeId('ACTN',item.id,index),title:str(item.title),description:str(item.description),owner:str(item.owner,meta.owner_role||'PMO Lead'),status:['open','in_progress','blocked','done','cancelled'].includes(item.status)?item.status:'open',priority:['P1','P2','P3'].includes(item.priority)?item.priority:'P2',dueDate:item.dueDate,relatedObjects:[]});});\narr(ai.decisions).forEach((item,index)=>{if(str(item?.title)&&str(item?.decision)&&dateOk(item?.decisionDate))upsert(document.decisions,'decision',{id:safeId('DEC',item.id,index),title:str(item.title),context:str(item.context),decision:str(item.decision),owner:str(item.owner,meta.owner_role||'PMO Lead'),status:['proposed','pending_approval','approved','rejected','superseded'].includes(item.status)?item.status:'proposed',decisionDate:item.decisionDate,impact:str(item.impact),relatedObjects:[]});});\narr(ai.dependencies).forEach((item,index)=>{if(str(item?.title)&&dateOk(item?.neededBy))upsert(document.dependencies,'dependency',{id:safeId('DEP',item.id,index),title:str(item.title),description:str(item.description),owner:str(item.owner,meta.owner_role||'PMO Lead'),provider:str(item.provider,'External party'),type:['internal','external'].includes(item.type)?item.type:'external',direction:['inbound','outbound','mutual'].includes(item.direction)?item.direction:'inbound',status:['open','confirmed','at_risk','blocked','satisfied','cancelled'].includes(item.status)?item.status:'open',criticality:['low','medium','high','critical'].includes(item.criticality)?item.criticality:'medium',neededBy:item.neededBy,relatedObjects:[]});});\narr(ai.assumptions).forEach((item,index)=>{if(str(item?.title)&&str(item?.statement)&&dateOk(item?.validationDueDate))upsert(document.assumptions,'assumption',{id:safeId('ASM',item.id,index),title:str(item.title),statement:str(item.statement),owner:str(item.owner,meta.owner_role||'PMO Lead'),status:['active','validated','invalidated','retired'].includes(item.status)?item.status:'active',criticality:['low','medium','high','critical'].includes(item.criticality)?item.criticality:'medium',validationDueDate:item.validationDueDate,validationMethod:str(item.validationMethod,'PMO review'),impactIfFalse:str(item.impactIfFalse,'Requires reassessment')});});\narr(ai.changeRequests).forEach((item,index)=>{if(str(item?.title))upsert(document.changeRequests,'change_request',{id:safeId('CR',item.id,index),title:str(item.title),description:str(item.description),requester:str(item.requester,meta.owner_role||'PMO Lead'),owner:str(item.owner,meta.owner_role||'PMO Lead'),status:['draft','submitted','under_review','approved','rejected','implemented','withdrawn'].includes(item.status)?item.status:'draft',priority:['P1','P2','P3'].includes(item.priority)?item.priority:'P2',submittedAt:dateOk(item.submittedAt)?item.submittedAt:today,decisionDueDate:dateOk(item.decisionDueDate)?item.decisionDueDate:undefined,scopeImpact:str(item.scopeImpact),scheduleImpact:str(item.scheduleImpact),costImpact:str(item.costImpact),benefitImpact:str(item.benefitImpact),riskImpact:str(item.riskImpact)});});\narr(ai.meetings).forEach((item,index)=>{if(str(item?.title)&&str(item?.summary)&&dateOk(item?.date))upsert(document.meetings,'meeting',{id:safeId('MTG',item.id,index),title:str(item.title),date:item.date,type:['steering','working_session','workstream','decision'].includes(item.type)?item.type:'working_session',participants:arr(item.participants).map(String),summary:str(item.summary),decisionIds:arr(item.decisionIds).map(String),actionIds:arr(item.actionIds).map(String)});});\ndocument.revision=Math.max(1,Number(document.revision||1))+1;\ndocument.audit.unshift({id:'AUD-'+Date.now()+'-ingest',timestamp:now,actor,action:'import',object:{type:'project',id:document.project.id},message:'Applied '+changes.length+' governed change'+(changes.length===1?'':'s')+' from '+normalized.wpId+'.',changes:[],evidenceIds});\nreturn [{json:{document,appliedChanges:changes,fileContent:JSON.stringify(document,null,2)+'\\n',commitMessage:'pmo: orchestrate '+normalized.wpId+' into revision '+document.revision}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -490,7 +494,8 @@
         176
       ],
       "id": "0a0a960d-5560-4ab5-963c-f893ac5f0eb6",
-      "name": "MergeIntoControlTower"
+      "name": "MergeIntoControlTower",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -503,7 +508,8 @@
         176
       ],
       "id": "9ceb64da-6110-4ef2-86cc-f9c5903168d2",
-      "name": "FormatIngest"
+      "name": "FormatIngest",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -550,7 +556,8 @@
         176
       ],
       "id": "build-proposal-set",
-      "name": "BuildProposalSet"
+      "name": "BuildProposalSet",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -590,7 +597,8 @@
           "id": "3V46mglu7fpoPISX",
           "name": "GitHub data"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1243,59 +1251,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const source=$node['BuildAcceptedRunReceipt'].json;const receipt={...source.receipt,state:'running',updatedAt:new Date().toISOString()};return [{json:{...source,receipt,fileContent:JSON.stringify(receipt,null,2)+'\\n',commitMessage:'pmo: start governed agent run '+source.idempotencyKey}}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2400,
-        112
-      ],
-      "id": "buildrunningrunreceipt",
-      "name": "BuildRunningRunReceipt"
-    },
-    {
-      "parameters": {
-        "authentication": "accessToken",
-        "resource": "file",
-        "operation": "edit",
-        "owner": {
-          "__rl": true,
-          "value": "florianliepe",
-          "mode": "name"
-        },
-        "repository": {
-          "__rl": true,
-          "value": "eraneos-oet-transformation-cockpit-data",
-          "mode": "name"
-        },
-        "filePath": "={{ $json.runPath }}",
-        "binaryData": false,
-        "additionalParameters": {
-          "branch": {
-            "branch": "main"
-          }
-        },
-        "fileContent": "={{ $json.fileContent }}",
-        "commitMessage": "={{ $json.commitMessage }}"
-      },
-      "type": "n8n-nodes-base.github",
-      "typeVersion": 1.1,
-      "position": [
-        2640,
-        112
-      ],
-      "id": "githubmarkrunrunning",
-      "name": "GitHubMarkRunRunning",
-      "credentials": {
-        "githubApi": {
-          "id": "3V46mglu7fpoPISX",
-          "name": "GitHub data"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "const result=$node['FormatIngest'].json;const source=$node['BuildAssistantInput'].json;const now=new Date().toISOString();const receipt={contractVersion:'agent-run-receipt-1.0',runId:source.runId,correlationId:source.correlationId,idempotencyKey:source.idempotencyKey,state:'completed',organisationId:String(source.workspace?.organisationId||source.meta.organisation_id),projectId:String(source.workspace?.projectId||source.meta.project_id),requestedAt:String(source.meta.requested_at),updatedAt:now,completedAt:now,result};return [{json:{...source,receipt,fileContent:JSON.stringify(receipt,null,2)+'\\n',commitMessage:'pmo: complete governed agent run '+source.idempotencyKey}}];"
       },
       "type": "n8n-nodes-base.code",
@@ -1305,7 +1260,8 @@
         176
       ],
       "id": "buildcompletedrunreceipt",
-      "name": "BuildCompletedRunReceipt"
+      "name": "BuildCompletedRunReceipt",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1345,7 +1301,11 @@
           "id": "3V46mglu7fpoPISX",
           "name": "GitHub data"
         }
-      }
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -1664,20 +1624,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const source=$node['ClassifyAgentRunReceipt'].json;const receipt={...source.existingReceipt,state:'running',updatedAt:new Date().toISOString()};return [{json:{...source,receipt,fileContent:JSON.stringify(receipt,null,2)+'\\n',commitMessage:'pmo: resume stale accepted agent run '+source.idempotencyKey}}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2160,
-        112
-      ],
-      "id": "buildresumedrunningrunreceipt",
-      "name": "BuildResumedRunningRunReceipt"
-    },
-    {
-      "parameters": {
-        "jsCode": "const source=$node['BuildAssistantInput'].json;\nconst combined=(source.extracted||[]).map(item=>String(item.content||'')).join('\\n')+'\\n'+String(source.meta?.text_update||source.meta?.title||'');\nconst rules=[['meeting.synthesise',/meeting|minutes|attendee|agenda|workshop|discussion/i,'Meeting evidence'],['risk.analyse',/risk|threat|probability|impact|mitigation|exposure/i,'Risk evidence'],['delivery.plan',/milestone|deliverable|deadline|schedule|plan|progress|delay/i,'Delivery evidence'],['controls.classify',/issue|action|decision|dependency|assumption|change request|approval/i,'PMO control evidence'],['governance.review',/audit finding|compliance breach|policy exception|segregation of duties|conflict of interest/i,'Material governance exception']];\nlet selected=(source.extracted||[]).length?['evidence.verify']:[];for(const rule of rules)if(rule[1].test(combined))selected.push(rule[0]);if(!selected.length)selected=['evidence.verify'];selected=[...new Set(selected)];\nconst order=['evidence.verify','meeting.synthesise','risk.analyse','delivery.plan','controls.classify','governance.review'];selected=order.filter(id=>selected.includes(id));\nconst manual=Boolean(String(source.meta?.manual_override_reason||'').trim());const requested=String(source.meta?.agent_workflows||'').split(',').map(value=>value.trim()).filter(value=>order.includes(value));if(manual){if(!String(source.meta?.manual_override_actor||'').trim()||!requested.length)throw new Error('Manual routing requires actor, reason and specialists.');selected=order.filter(id=>requested.includes(id));}\nconst route=selected.map((workflowId,index)=>({workflowId,sequence:index+1,reason:manual?'Accountable manual override':workflowId==='evidence.verify'?'Evidence quality is always checked':(rules.find(rule=>rule[0]===workflowId)?.[2]||'Scoped PMO evidence')}));\nconst routingContext='\\n\\nTrusted deterministic routing plan (analysis domains, not permission to write):\\n'+JSON.stringify(route)+'\\nUse a workflow tool only when its stated exceptional trigger is present. Routine evidence should be handled in one direct model pass.';\nreturn [{json:{...source,assistant_input:source.assistant_input+routingContext,selectedWorkflows:selected,routingPlan:route,policyVersion:'lean-routing-2.0.0'}}];"
+        "jsCode": "const source=$node['BuildAssistantInput'].json;\nconst combined=(source.extracted||[]).map(item=>String(item.content||'')).join('\\n')+'\\n'+String(source.meta?.text_update||source.meta?.title||'');\nconst rules=[['meeting.synthesise',/meeting|minutes|attendee|agenda|workshop|discussion/i,'Meeting evidence'],['risk.analyse',/risk|threat|probability|impact|mitigation|exposure/i,'Risk evidence'],['delivery.plan',/milestone|deliverable|deadline|schedule|plan|progress|delay|work package|checkpoint|on track|percent complete/i,'Delivery evidence'],['controls.classify',/issue|action|decision|dependency|assumption|change request|approval/i,'PMO control evidence'],['governance.review',/audit finding|compliance breach|policy exception|segregation of duties|conflict of interest/i,'Material governance exception']];\nlet selected=(source.extracted||[]).length?['evidence.verify']:[];for(const rule of rules)if(rule[1].test(combined))selected.push(rule[0]);if(!selected.length)selected=['evidence.verify'];selected=[...new Set(selected)];\nconst order=['evidence.verify','meeting.synthesise','risk.analyse','delivery.plan','controls.classify','governance.review'];selected=order.filter(id=>selected.includes(id));\nconst manual=Boolean(String(source.meta?.manual_override_reason||'').trim());const requested=String(source.meta?.agent_workflows||'').split(',').map(value=>value.trim()).filter(value=>order.includes(value));if(manual){if(!String(source.meta?.manual_override_actor||'').trim()||!requested.length)throw new Error('Manual routing requires actor, reason and specialists.');selected=order.filter(id=>requested.includes(id));}\nconst route=selected.map((workflowId,index)=>({workflowId,sequence:index+1,reason:manual?'Accountable manual override':workflowId==='evidence.verify'?'Evidence quality is always checked':(rules.find(rule=>rule[0]===workflowId)?.[2]||'Scoped PMO evidence')}));\nconst routingContext='\\n\\nTrusted deterministic routing plan (analysis domains, not permission to write):\\n'+JSON.stringify(route)+'\\nUse a workflow tool only when its stated exceptional trigger is present. Routine evidence should be handled in one direct model pass.';\nreturn [{json:{...source,assistant_input:source.assistant_input+routingContext,selectedWorkflows:selected,routingPlan:route,policyVersion:'lean-routing-2.0.0'}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1738,7 +1685,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const route=$node['BuildLeanRouting'].json;const raw=$json.output??$json.text??$json;const intermediate=Array.isArray($json.intermediateSteps)?$json.intermediateSteps:[];const tools=intermediate.map(item=>String(item.action?.tool||item.tool||'workflow_tool')).filter(Boolean);const completedAt=new Date().toISOString();const steps=[{workflowId:'pmo.orchestrate',workflowVersion:'2.0.0',promptVersion:'2.0.0',model:'claude-sonnet-5',status:'completed',summary:'Lean PMO analysis completed with '+tools.length+' exceptional tool call(s).',confidence:'not_assessed',evidenceIds:(route.extracted||[]).map((item,index)=>String(item.id||item.name||'evidence-'+(index+1))),proposalIds:[],startedAt:String(route.meta?.requested_at||completedAt),completedAt},...tools.map(tool=>({workflowId:'tool.'+tool,workflowVersion:'inline-1.0.0',promptVersion:'deterministic',model:'none',status:'completed',summary:'Exceptional validation tool executed.',confidence:'not_assessed',evidenceIds:[],proposalIds:[],startedAt:completedAt,completedAt}))];return [{json:{...route,output:raw,executionId:String(route.runId),correlationId:String(route.correlationId),requestedAt:String(route.meta?.requested_at||completedAt),steps,warnings:[],toolCalls:tools}}];"
+        "jsCode": "const route=$node['BuildLeanRouting'].json;const raw=$json.output??$json.text??$json;const intermediate=Array.isArray($json.intermediateSteps)?$json.intermediateSteps:[];const tools=intermediate.map(item=>String(item.action?.tool||item.tool||'workflow_tool')).filter(Boolean);const completedAt=new Date().toISOString();const evidenceIds=(route.extracted||[]).map((item,index)=>String(item.id||item.name||'evidence-'+(index+1)));const selected=Array.isArray(route.selectedWorkflows)&&route.selectedWorkflows.length?route.selectedWorkflows:['evidence.verify'];const steps=selected.map((workflowId,index)=>({workflowId,workflowVersion:'2.0.0',promptVersion:'2.0.0',model:'claude-sonnet-5',status:'completed',summary:(index===0?'Lean PMO analysis completed with '+tools.length+' exceptional tool call(s).':'Domain included in the lean PMO analysis pass.'),confidence:'not_assessed',evidenceIds,proposalIds:[],startedAt:String(route.meta?.requested_at||completedAt),completedAt}));return [{json:{...route,output:raw,executionId:String(route.runId),correlationId:String(route.correlationId),requestedAt:String(route.meta?.requested_at||completedAt),steps,warnings:[],toolCalls:tools}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1747,7 +1694,64 @@
         176
       ],
       "id": "build-lean-run-context",
-      "name": "BuildLeanRunContext"
+      "name": "BuildLeanRunContext",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const source=$node['BuildAssistantInput'].json;const now=new Date().toISOString();const raw=String($json.error?.message||$json.message||'Lean workflow execution failed.');const category=/temperature|unsupportedparams/i.test(raw)?'MODEL_PARAMETER_REJECTED':'PIPELINE_EXECUTION_FAILED';const receipt={contractVersion:'agent-run-receipt-1.0',runId:source.runId,correlationId:source.correlationId,idempotencyKey:source.idempotencyKey,state:'failed',organisationId:String(source.workspace?.organisationId||source.meta.organisation_id),projectId:String(source.workspace?.projectId||source.meta.project_id),requestedAt:String(source.meta.requested_at||now),updatedAt:now,completedAt:now,error:{code:category,safeMessage:'The lean PMO workflow failed before a terminal result was stored. Retry once after checking the published workflow release.',retryable:true,reference:String(source.correlationId)}};return [{json:{...source,receipt,fileContent:JSON.stringify(receipt,null,2)+'\\n',commitMessage:'pmo: fail governed agent run '+source.idempotencyKey}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        304
+      ],
+      "id": "build-failed-run-receipt",
+      "name": "BuildFailedRunReceipt"
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "file",
+        "operation": "edit",
+        "owner": {
+          "__rl": true,
+          "value": "florianliepe",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "eraneos-oet-transformation-cockpit-data",
+          "mode": "name"
+        },
+        "filePath": "={{ $json.runPath }}",
+        "binaryData": false,
+        "additionalParameters": {
+          "branch": {
+            "branch": "main"
+          }
+        },
+        "fileContent": "={{ $json.fileContent }}",
+        "commitMessage": "={{ $json.commitMessage }}"
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        304
+      ],
+      "id": "github-fail-run-receipt",
+      "name": "GitHubFailRunReceipt",
+      "credentials": {
+        "githubApi": {
+          "id": "3V46mglu7fpoPISX",
+          "name": "GitHub data"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     }
   ],
   "connections": {
@@ -1901,6 +1905,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1909,6 +1920,13 @@
         [
           {
             "node": "GitHubCreateWorkPackageMarkdown",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
             "type": "main",
             "index": 0
           }
@@ -1923,6 +1941,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1934,6 +1959,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1942,6 +1974,13 @@
         [
           {
             "node": "BuildProposalSet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
             "type": "main",
             "index": 0
           }
@@ -1967,6 +2006,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1989,6 +2035,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1997,6 +2050,13 @@
         [
           {
             "node": "FormatIngest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
             "type": "main",
             "index": 0
           }
@@ -2248,28 +2308,6 @@
       "main": [
         [
           {
-            "node": "BuildRunningRunReceipt",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "BuildRunningRunReceipt": {
-      "main": [
-        [
-          {
-            "node": "GitHubMarkRunRunning",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GitHubMarkRunRunning": {
-      "main": [
-        [
-          {
             "node": "BuildLeanRouting",
             "type": "main",
             "index": 0
@@ -2282,6 +2320,13 @@
         [
           {
             "node": "GitHubCompleteRunReceipt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
             "type": "main",
             "index": 0
           }
@@ -2423,18 +2468,7 @@
       "main": [
         [
           {
-            "node": "BuildResumedRunningRunReceipt",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "BuildResumedRunningRunReceipt": {
-      "main": [
-        [
-          {
-            "node": "GitHubMarkRunRunning",
+            "node": "BuildLeanRouting",
             "type": "main",
             "index": 0
           }
@@ -2493,6 +2527,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -2501,6 +2542,36 @@
         [
           {
             "node": "NormalizeCanonical",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BuildFailedRunReceipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BuildFailedRunReceipt": {
+      "main": [
+        [
+          {
+            "node": "GitHubFailRunReceipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHubCompleteRunReceipt": {
+      "main": [
+        null,
+        [
+          {
+            "node": "BuildFailedRunReceipt",
             "type": "main",
             "index": 0
           }
