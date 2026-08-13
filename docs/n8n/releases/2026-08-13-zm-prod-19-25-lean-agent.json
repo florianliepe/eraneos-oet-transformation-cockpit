@@ -1,0 +1,18 @@
+{
+  "release": "2026-08-13-zm-prod-19-25-lean-agent",
+  "status": "uat_candidate",
+  "workflowId": "KNwZZBkaTdAqwlyT",
+  "workflowName": "Eraneos Transformation Cockpit - Lean PMO Orchestrator v2",
+  "workflowVersion": "2.0.0",
+  "webhookPath": "8d92d8ef-4267-4e67-88e8-8daab51c9361",
+  "rollbackWorkflowId": "0ZJDa3r5hGoB9SLq",
+  "rollbackWebhookPath": "a2126107-4e70-4717-8f1c-545d7f310741",
+  "promotionState": "not_promoted",
+  "cleanupAllowed": false,
+  "notes": [
+    "Candidate is independently published for authenticated UAT.",
+    "The public default endpoint remains the rollback workflow.",
+    "Use the explicit runtime=lean query parameter during UAT.",
+    "Archive superseded project workflows only after ZM-UAT-02 passes."
+  ]
+}

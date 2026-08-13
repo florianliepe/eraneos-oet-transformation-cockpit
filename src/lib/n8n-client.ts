@@ -1,5 +1,5 @@
 import { migratePmoDocument, type PmoDocument } from "@/lib/pmo-schema";
-import { defaultPmoWorkflowUrl, publicWorkflowEndpoint } from "@/lib/public-runtime";
+import { selectedPmoWorkflowUrl } from "@/lib/public-runtime";
 import { AgentRunEnvelopeSchema, legacyAgentRun, type AgentRunEnvelope } from "@/lib/agent-contracts";
 import {
   ProposalPublicationSchema,
@@ -54,7 +54,7 @@ export type ExtractedEvidence = {
 };
 
 function webhookUrl() {
-  return publicWorkflowEndpoint(process.env.NEXT_PUBLIC_N8N_PMO_WEBHOOK_URL, defaultPmoWorkflowUrl);
+  return selectedPmoWorkflowUrl(process.env.NEXT_PUBLIC_N8N_PMO_WEBHOOK_URL);
 }
 
 function extension(name: string) {

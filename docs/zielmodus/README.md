@@ -12,6 +12,8 @@ The active roadmap is delivered as small, independently verifiable work packages
 | 6 | [ZM-PROD-10](zm-prod-10-multi-tenant-workspace-foundation.md) | Landing page, local identity boundary, organisation governance and isolated multi-project workspaces | Identity, tenancy, accessibility, regression and Pages gates pass |
 | 7 | [ZM-PROD-11–17](zm-prod-11-17-improvement-programme.md) | Local safety, portfolio steering, delivery workbench, agent control, reporting, design and operational quality | Each sequential package is merged, deployed and verified before the next begins |
 
+| 8 | [ZM-PROD-19–25](zm-prod-19-25-lean-agent-runtime.md) | Lean n8n agent runtime, exceptional workflow tools, resilience, observability and production UAT | Separate UAT workflow passes governance, quality, latency and hosted regression gates before promotion |
+
 Azure production identity and persistence activation, SharePoint integration and Teams integration are explicitly deferred until they become relevant and the required platform access exists. ZM-PROD-10 prepares replaceable adapters without treating local browser identity as production security.
 
 ## Standing delivery rules
