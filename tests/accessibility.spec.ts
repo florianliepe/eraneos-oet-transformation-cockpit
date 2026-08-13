@@ -74,3 +74,15 @@ test("honours reduced-motion preferences and keeps first-use guidance dismissibl
   await expect(page.getByRole("heading", { name: "Three controls keep the cockpit trustworthy." })).toBeHidden();
   expect(await page.evaluate(() => localStorage.getItem("oet-cockpit-first-use-dismissed"))).toBe("true");
 });
+
+test("moves mobile navigation focus in, closes on Escape and restores its trigger", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const opener = page.getByRole("button", { name: "Open navigation" });
+  await opener.click();
+  await expect(opener).toHaveAttribute("aria-expanded", "true");
+  await expect(opener).toHaveAttribute("aria-controls", "project-navigation");
+  await expect(page.getByRole("button", { name: "Close navigation" }).last()).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(opener).toHaveAttribute("aria-expanded", "false");
+  await expect(opener).toBeFocused();
+});
