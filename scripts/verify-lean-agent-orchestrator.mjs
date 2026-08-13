@@ -20,6 +20,17 @@ for (const tool of tools) {
 const agent = byName.get("Lean PMO Agent");
 const assistant = byName.get("BuildAssistantInput");
 if (!assistant.parameters.jsCode.includes("metadata does not match the requested workspace scope")) fail("Cross-project intake metadata is not rejected before persistence.");
+const executeAssistant = new Function("$json", "$node", assistant.parameters.jsCode);
+const scope = { organisationId: "org_isolation01", projectId: "prj_alpha01" };
+const intake = { body: { meta: { correlation_id: "a6060000-0000-4000-8000-000000000006", idempotency_key: "a6060000-0000-4000-8000-000000000006", organisation_id: scope.organisationId, project_id: scope.projectId, wpId: "LA-06", title: "Isolation fixture" }, extracted: [{ name: "fixture.txt", type: "text", content: "No change." }] } };
+const prepared = { json: { workspace: scope, runRoot: "knowledge/pmo/workspaces/org_isolation01/prj_alpha01/runs", scopeRoot: "knowledge/pmo/workspaces/org_isolation01/prj_alpha01", canonicalPath: "knowledge/pmo/workspaces/org_isolation01/prj_alpha01/control-tower.json", workPackageRoot: "knowledge/pmo/workspaces/org_isolation01/prj_alpha01/work-packages" } };
+executeAssistant(intake, { PrepareRequest: prepared });
+try {
+  executeAssistant({ body: { ...intake.body, meta: { ...intake.body.meta, project_id: "prj_beta001" } } }, { PrepareRequest: prepared });
+  fail("Cross-project intake metadata passed executable boundary validation.");
+} catch (reason) {
+  if (!(reason instanceof Error) || !reason.message.includes("workspace scope")) throw reason;
+}
 const model = byName.get("OpenAI Chat Model");
 if (model?.parameters?.options?.temperature !== 1) fail("Managed Claude route requires temperature=1.");
 if (agent.onError !== "continueErrorOutput") fail("Lean agent failures must continue through the governed error output.");
@@ -48,6 +59,7 @@ if (!runContextCode.includes("latencyMs") || !runContextCode.includes("completed
 const formatIngestCode = byName.get("FormatIngest").parameters.jsCode;
 if (!formatIngestCode.includes("model:'claude-sonnet-5'") || !formatIngestCode.includes("promptVersion:'2.0.0'")) fail("Lean run metadata must identify the configured model and prompt version.");
 if (!formatIngestCode.includes("operations:{") || !formatIngestCode.includes("latencyMs:Number(aggregate.latencyMs||0)")) fail("Lean terminal envelopes must expose measured latency through the operations contract.");
+if (!formatIngestCode.includes("EVIDENCE_REQUIRES_REVIEW") || !formatIngestCode.includes("status:requiresReview?'needs_review':'completed'")) fail("Evidence-only review requirements are not propagated to the terminal run.");
 const publisher = byName.get("ExecuteGovernedPublisher");
 if (publisher.maxTries !== 2 || publisher.waitBetweenTries !== 2000) fail("Publisher retry policy is not bounded.");
 console.log(`Lean orchestrator verified: ${workflow.nodes.length} nodes, ${tools.length} read-only tools, bounded retries and evidence context.`);

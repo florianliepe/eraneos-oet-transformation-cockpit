@@ -135,6 +135,13 @@ for (const node of workflow.nodes) {
 const formatIngest = getNode("FormatIngest");
 formatIngest.parameters.jsCode = formatIngest.parameters.jsCode
   .replace(
+    "const warnings=[...(aggregate.warnings||[])];if(!proposals.length)warnings.push({code:'NO_MEANINGFUL_PMO_CHANGE',message:'Evidence was processed, but no supported PMO field or record could be extracted. Add clearer text or a written description and retry.',evidenceIds:stored.proposalSet.evidence.map(item=>item.id)});const agentRun=",
+    "const normalized=$node['NormalizeCanonical'].json;const needsReview=[...new Set([...(normalized.needs_review||[]),...proposals.map(item=>item.summary)])];const requiresReview=needsReview.length>0;const warnings=[...(aggregate.warnings||[])];if(!proposals.length&&!requiresReview)warnings.push({code:'NO_MEANINGFUL_PMO_CHANGE',message:'Evidence was processed, but no supported PMO field or record could be extracted. Add clearer text or a written description and retry.',evidenceIds:stored.proposalSet.evidence.map(item=>item.id)});if(requiresReview&&!proposals.length)warnings.push({code:'EVIDENCE_REQUIRES_REVIEW',message:'The evidence needs accountable review even though no PMO object change was proposed.',evidenceIds:stored.proposalSet.evidence.map(item=>item.id)});const agentRun=",
+  )
+  .replace("status:proposals.length?'needs_review':'completed'", "status:requiresReview?'needs_review':'completed'")
+  .replace("reviewOutcome:'pending'", "reviewOutcome:requiresReview?'pending':'not_required'")
+  .replace("needs_review:proposals.map(item=>item.summary)", "needs_review:needsReview")
+  .replace(
     "orchestrator:{workflowId:'pmo.orchestrate',workflowVersion:'2.0.0'},",
     "orchestrator:{workflowId:'pmo.orchestrate',workflowVersion:'2.0.0',promptVersion:'2.0.0',model:'claude-sonnet-5'},",
   )
