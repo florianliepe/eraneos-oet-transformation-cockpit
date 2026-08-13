@@ -4,7 +4,7 @@
 
 This catalog validates the public GitHub Pages MVP and its live n8n/GitHub data path. The disposable test scope is **UAT Validation Project**. Azure App Service activation, Teams and SharePoint are excluded.
 
-Release under test: `d7afe88` or later. Browser: current stable Chrome on Windows, plus automated responsive emulation. Evidence must not contain credentials, authentication codes or confidential client information.
+Release under test: `6f70a49`. Browser: current stable Chrome on Windows, plus automated responsive emulation. Evidence must not contain credentials, authentication codes or confidential client information.
 
 ## Status and severity
 
@@ -45,7 +45,7 @@ Entry requires a green main-branch build, reachable GitHub Pages frontend, authe
 | UAT-021 | Reporting | Build a SteerCo snapshot with evidence-bound narrative; review and approve it. Unsupported claims and stale revisions are blocked. | Automated | Pass |
 | UAT-022 | Backup | Export an encrypted local workspace, reject wrong passphrase, restore it, and verify project isolation and governance. | Automated | Pass |
 | UAT-023 | Security boundary | Verify public bundles contain no configured credentials or client markers; unsafe webhook endpoints and cross-scope reads/writes fail closed. | Automated release gates | Pass |
-| UAT-024 | Deployment regression | Merge approved fixes and verify main CI, Pages deployment, public URL, and critical smoke journey. | CI + live Chrome | Pending current fix deployment |
+| UAT-024 | Deployment regression | Merge approved fixes and verify main CI, Pages deployment, public URL, and critical smoke journey. | CI + live Chrome | Pass |
 
 ## Manual UAT checklist
 
@@ -65,8 +65,8 @@ Entry requires a green main-branch build, reachable GitHub Pages frontend, authe
 | Issue | Test | Severity | Observation | Resolution | Retest |
 |---|---|---:|---|---|---|
 | UAT-ISSUE-001 | UAT-004, UAT-016 | 1 | Live n8n used global repository paths even though requests contained organisation/project scope. | Added project-rooted paths, first-use upsert, stored proposal/review scope and publisher scope validation. | Automated and live pass |
-| UAT-ISSUE-002 | UAT-016, UAT-020 | 3 | Published canonical records were correct, but execution status and banner remained `Needs Review`/pending. | Reconcile the matching run to `Completed`, persist review outcome, and render status-specific banner copy. | Automated pass; deployed retest pending |
-| UAT-ISSUE-003 | UAT-020 | 3 | Idempotent retry retained duplicate lineage but reverted from attempt 2 to attempt 1 after completion. | Preserve client-owned recovery attempt and `retryOf`/`replayOf` lineage when reconciling the backend result. | Automated pass; deployed retest pending |
+| UAT-ISSUE-002 | UAT-016, UAT-020 | 3 | Published canonical records were correct, but execution status and banner remained `Needs Review`/pending. | Reconcile the matching run to `Completed`, persist review outcome, and render status-specific banner copy. | Automated pass in deployed revision |
+| UAT-ISSUE-003 | UAT-020 | 3 | Idempotent retry retained duplicate lineage but reverted from attempt 2 to attempt 1 after completion. | Preserve client-owned recovery attempt and `retryOf`/`replayOf` lineage when reconciling the backend result. | Automated pass in deployed revision |
 | UAT-ISSUE-004 | UAT-012, UAT-020 | 2 | A PDF intake receipt remained `accepted` because background specialist execution never started; ordinary retry safely refused to duplicate work but could not recover it. | Orchestrator v1.3.4 resumes only same-scope stale `accepted` receipts after an explicit source-version retry and eight-minute safety window. | Automated and live pass; same key completed in 47,913 ms |
 
 ## Execution evidence
