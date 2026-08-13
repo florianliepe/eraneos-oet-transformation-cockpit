@@ -1,7 +1,7 @@
 {
   "releaseContract": "workflow-release-1.0",
   "releaseId": "2026-08-12-workbench-evidence-publisher-fix",
-  "createdAt": "2026-08-12T15:38:26.708Z",
+  "createdAt": "2026-08-13T08:49:01.043Z",
   "compatibility": {
     "n8nEdition": "cloud-compatible community feature set",
     "executionOrder": "v1",
@@ -23,7 +23,7 @@
     ]
   },
   "bindings": {
-    "orchestrator": "IEv54E2lBQyd57hY",
+    "orchestrator": "W3JzojVMwfHpqgFS",
     "publisher": "4czGSZtMjeGpKSFS",
     "errorHandler": "BkHWDRmPvXOepELU",
     "specialists": {
@@ -38,7 +38,7 @@
   "artifacts": [
     {
       "file": "docs/n8n-pmo-orchestrator.workflow.json",
-      "sha256": "17777c4bdbffe177d1551424348dbfb94c5e886cfa9099707305a8345ed38bc0"
+      "sha256": "ae2a0517bca78f8267b539ba150b3c288f8dc5a5f39c6c2a2a5725b4497b4e6a"
     },
     {
       "file": "docs/n8n/agents/governed-publisher.workflow.json",

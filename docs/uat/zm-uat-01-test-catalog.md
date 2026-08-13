@@ -31,9 +31,9 @@ Entry requires a green main-branch build, reachable GitHub Pages frontend, authe
 | UAT-007 | Accessibility | Validate keyboard navigation, visible focus, skip link, accessible names, reduced motion and WCAG AA status/brand contrast. | Automated + manual spot check | Pass |
 | UAT-008 | PMO registers | Create and edit an issue, action, decision, dependency, assumption and change request. Each update increments governance version and adds audit evidence. | Automated + live Chrome | Pass |
 | UAT-009 | Bulk controls | Preview and apply a version-checked bulk update and CSV import; export the governed register. Stale or invalid input fails closed. | Automated | Pass |
-| UAT-010 | XML intake | Upload valid XML. The browser extracts labelled element/attribute paths and n8n proposes only supported, meaningful PMO changes. Invalid XML produces an actionable error. | Automated + live n8n | Blocked: automated extraction passes; Chrome file permission required |
-| UAT-011 | PNG intake | Upload a readable PNG. English/German OCR returns non-empty text and confidence; unreadable images fail with guidance. No timestamp-only proposal is created. | OCR fixture + live n8n | Blocked: automated extraction passes; Chrome file permission required |
-| UAT-012 | PDF intake | Upload a text PDF. Page-labelled text reaches n8n and produces evidence-bound proposals; empty/scanned content is reported honestly. | Automated + live n8n | Blocked: automated extraction passes; Chrome file permission required |
+| UAT-010 | XML intake | Upload valid XML. The browser extracts labelled element/attribute paths and n8n proposes only supported, meaningful PMO changes. Invalid XML produces an actionable error. | Automated + live n8n | Pass |
+| UAT-011 | PNG intake | Upload a readable PNG. English/German OCR returns non-empty text and confidence; unreadable images fail with guidance. No timestamp-only proposal is created. | OCR fixture + live n8n | Pass |
+| UAT-012 | PDF intake | Upload a text PDF. Page-labelled text reaches n8n and produces evidence-bound proposals; empty/scanned content is reported honestly. | Automated + live n8n | Pass |
 | UAT-013 | Agent routing | Submit evidence relevant to a known PMO domain. Only justified specialists run within budget, with visible execution, correlation and evidence lineage. | Automated + live n8n | Pass |
 | UAT-014 | No-change handling | Submit readable evidence containing no supported PMO update. Run completes with `NO_MEANINGFUL_PMO_CHANGE`; no review item or canonical write is created. | Workflow contract + live n8n | Pass |
 | UAT-015 | Review validation | A proposal cannot be submitted without an explicit accept/reject decision. High-impact proposals additionally require at least 20 rationale characters. | Automated + live Chrome | Pass |
@@ -51,7 +51,7 @@ Entry requires a green main-branch build, reachable GitHub Pages frontend, authe
 
 - [x] Use only the disposable **UAT Validation Project** for destructive or canonical-write scenarios.
 - [x] Confirm the organisation and project name before every agent run and publication.
-- [ ] For XML/PNG/PDF, confirm the proposed fields reflect source facts rather than filenames or timestamps.
+- [x] For XML/PNG/PDF, confirm the proposed fields reflect source facts rather than filenames or timestamps.
 - [x] Inspect every proposal's evidence count, before/after values, object ID and expected version.
 - [x] Enter an accountable rationale that states what evidence was reviewed and why the decision is justified.
 - [x] After publication, confirm the intended cockpit view changed and unrelated views/projects did not.
@@ -67,6 +67,7 @@ Entry requires a green main-branch build, reachable GitHub Pages frontend, authe
 | UAT-ISSUE-001 | UAT-004, UAT-016 | 1 | Live n8n used global repository paths even though requests contained organisation/project scope. | Added project-rooted paths, first-use upsert, stored proposal/review scope and publisher scope validation. | Automated and live pass |
 | UAT-ISSUE-002 | UAT-016, UAT-020 | 3 | Published canonical records were correct, but execution status and banner remained `Needs Review`/pending. | Reconcile the matching run to `Completed`, persist review outcome, and render status-specific banner copy. | Automated pass; deployed retest pending |
 | UAT-ISSUE-003 | UAT-020 | 3 | Idempotent retry retained duplicate lineage but reverted from attempt 2 to attempt 1 after completion. | Preserve client-owned recovery attempt and `retryOf`/`replayOf` lineage when reconciling the backend result. | Automated pass; deployed retest pending |
+| UAT-ISSUE-004 | UAT-012, UAT-020 | 2 | A PDF intake receipt remained `accepted` because background specialist execution never started; ordinary retry safely refused to duplicate work but could not recover it. | Orchestrator v1.3.4 resumes only same-scope stale `accepted` receipts after an explicit source-version retry and eight-minute safety window. | Automated and live pass; same key completed in 47,913 ms |
 
 ## Execution evidence
 

@@ -4,6 +4,7 @@ import {
   buildPendingAgentRun,
   outcomeUnknownAgentRun,
 } from "../src/lib/agent-run-reconciliation";
+import manifest from "../docs/n8n/agents/manifest.json";
 
 const key = "3e62eae7-b23f-4aab-88e4-c371700a4b20";
 const requestedAt = "2026-08-12T10:00:00.000Z";
@@ -15,7 +16,12 @@ test("uses one stable correlation, idempotency and execution identity", () => {
     requested_at: requestedAt,
     agent_workflows: "evidence.verify,risk.analyse",
   });
-  expect(run).toMatchObject({ executionId: `agent:${key}`, correlationId: key, status: "waiting" });
+  expect(run).toMatchObject({
+    executionId: `agent:${key}`,
+    correlationId: key,
+    status: "waiting",
+    orchestrator: { workflowVersion: manifest.orchestrator.workflowVersion },
+  });
   expect(run.steps.every((step) => step.status === "queued")).toBe(true);
 });
 
