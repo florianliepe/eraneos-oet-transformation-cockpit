@@ -60,7 +60,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -240,
+        0,
         0
       ],
       "id": "validate-governed-publication",
@@ -94,7 +94,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        0,
+        240,
         0
       ],
       "id": "if-publisher-write",
@@ -128,7 +128,7 @@
       "type": "n8n-nodes-base.github",
       "typeVersion": 1.1,
       "position": [
-        240,
+        480,
         -96
       ],
       "id": "githubpublishcanonicalpmo",
@@ -142,12 +142,12 @@
     },
     {
       "parameters": {
-        "jsCode": "const result=$node['ValidateGovernedPublication'].json;return [{json:{...result,commit:{sha:$json.commit?.sha??$json.content?.sha,url:$json.commit?.html_url??$json.content?.html_url}}}];"
+        "jsCode": "const result=$node['ValidateGovernedPublication'].json;return [{json:{...result,publicationAttempt:$node['BuildFreshPublisherInput'].json.publicationAttempt,commit:{sha:$json.commit?.sha??$json.content?.sha,url:$json.commit?.html_url??$json.content?.html_url}}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        480,
+        720,
         -96
       ],
       "id": "format-publisher-write",
@@ -155,16 +155,78 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{json:$json}];"
+        "jsCode": "return [{json:{...$json,publicationAttempt:$node['BuildFreshPublisherInput'].json.publicationAttempt}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        240,
+        480,
         96
       ],
       "id": "format-publisher-no-write",
       "name": "FormatPublisherNoWrite"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input=$json??{};const scope=input.scope??{};const canonicalPath=String(input.canonicalPath||'');if(input.authorized!==true)throw new Error('Publisher authorization context is missing.');if(!/^org_[A-Za-z0-9_-]{6,80}$/.test(String(scope.organisationId||''))||!/^prj_[A-Za-z0-9_-]{6,80}$/.test(String(scope.projectId||''))||canonicalPath!=='knowledge/pmo/workspaces/'+scope.organisationId+'/'+scope.projectId+'/control-tower.json')throw new Error('Publisher workspace scope is invalid.');const attemptId=String($execution?.id||'unavailable');const retryOf=String($execution?.retryOf||'')||undefined;return [{json:{...input,publicationAttempt:{policyVersion:'publisher-retry-1.0',attempt:retryOf?2:1,maxAttempts:2,attemptId,retryOf}}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        0
+      ],
+      "id": "prepare-publisher-attempt",
+      "name": "PreparePublisherAttempt"
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "file",
+        "operation": "get",
+        "owner": {
+          "__rl": true,
+          "value": "florianliepe",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "eraneos-oet-transformation-cockpit-data",
+          "mode": "name"
+        },
+        "filePath": "={{ $json.canonicalPath }}",
+        "asBinaryProperty": false,
+        "additionalParameters": {
+          "reference": "main"
+        }
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        0
+      ],
+      "id": "github-read-current-canonical-for-publication",
+      "name": "GitHubReadCurrentCanonicalForPublication",
+      "credentials": {
+        "githubApi": {
+          "id": "3V46mglu7fpoPISX",
+          "name": "GitHub data"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "if(!$json.content)throw new Error('Current canonical PMO document is missing.');const original=$node['PreparePublisherAttempt'].json;const canonicalDocument=JSON.parse(Buffer.from($json.content,'base64').toString('utf8'));return [{json:{...original,canonicalDocument}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        0
+      ],
+      "id": "build-fresh-publisher-input",
+      "name": "BuildFreshPublisherInput"
     }
   ],
   "connections": {
@@ -172,7 +234,7 @@
       "main": [
         [
           {
-            "node": "ValidateGovernedPublication",
+            "node": "PreparePublisherAttempt",
             "type": "main",
             "index": 0
           }
@@ -218,12 +280,45 @@
           }
         ]
       ]
+    },
+    "PreparePublisherAttempt": {
+      "main": [
+        [
+          {
+            "node": "GitHubReadCurrentCanonicalForPublication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHubReadCurrentCanonicalForPublication": {
+      "main": [
+        [
+          {
+            "node": "BuildFreshPublisherInput",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BuildFreshPublisherInput": {
+      "main": [
+        [
+          {
+            "node": "ValidateGovernedPublication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "governed-publisher-workspace-isolation-v1-0-2",
+  "versionId": "governed-publisher-v1-1-0",
   "tags": []
 }

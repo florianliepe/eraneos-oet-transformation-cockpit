@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 const readJson = (path) => JSON.parse(readFileSync(resolve(path), "utf8"));
 const orchestrator = readJson("docs/n8n-pmo-orchestrator.workflow.json");
 const publisher = readJson("docs/n8n/agents/governed-publisher.workflow.json");
+const leanOrchestrator = readJson("docs/n8n/agents/lean-pmo-orchestrator.workflow.json");
 const manifest = readJson("docs/n8n/agents/manifest.json");
 const errors = [];
 const requireNode = (workflow, name) => {
@@ -56,6 +57,11 @@ for (const marker of [
 ]) {
   if (!validator.includes(marker)) errors.push(`Publisher validation marker missing: ${marker}`);
 }
+for (const name of ["PreparePublisherAttempt", "GitHubReadCurrentCanonicalForPublication", "BuildFreshPublisherInput"]) requireNode(publisher, name);
+if (publisher.connections["Called by PMO Orchestrator"]?.main?.[0]?.[0]?.node !== "PreparePublisherAttempt") errors.push("Publisher attempts do not start with bounded retry lineage.");
+if (publisher.connections.GitHubReadCurrentCanonicalForPublication?.main?.[0]?.[0]?.node !== "BuildFreshPublisherInput") errors.push("Publisher does not rebuild validation input from the latest canonical document.");
+if (!requireNode(publisher, "PreparePublisherAttempt")?.parameters?.jsCode?.includes("publisher-retry-1.0")) errors.push("Publisher retry lineage policy is missing.");
+if (publishNode?.retryOnFail || publishNode?.maxTries) errors.push("Canonical GitHub writes must not retry independently of the governed publisher attempt.");
 
 const agentWorkflows = [orchestrator, publisher, ...manifest.workflows.map((item) => readJson(`docs/n8n/agents/${item.file}`))];
 const canonicalWriters = agentWorkflows.flatMap((workflow) => workflow.nodes
@@ -84,6 +90,11 @@ if (process.env.REQUIRE_LIVE_WORKFLOW_IDS === "1") {
   if (!manifest.publisher?.liveWorkflowId) errors.push("Publisher live workflow ID is not recorded in the manifest.");
   if (boundId !== manifest.publisher?.liveWorkflowId) errors.push("Orchestrator publisher binding differs from the manifest.");
 }
+const leanExecutePublisher = requireNode(leanOrchestrator, "ExecuteGovernedPublisher");
+const preflight = requireNode(leanOrchestrator, "ValidatePublisherPreflight");
+if (leanOrchestrator.connections.BuildPublisherInput?.main?.[0]?.[0]?.node !== "ValidatePublisherPreflight" || leanOrchestrator.connections.ValidatePublisherPreflight?.main?.[0]?.[0]?.node !== "ExecuteGovernedPublisher") errors.push("Terminal publisher validation is not separated from the retrying boundary.");
+if (!preflight?.parameters?.jsCode?.includes("PUBLISH_VALIDATION_REJECTED") || !preflight?.parameters?.jsCode?.includes("PUBLISH_SCOPE_REJECTED")) errors.push("Publisher preflight does not fail closed for terminal validation and scope errors.");
+if (leanExecutePublisher?.maxTries !== 2 || leanExecutePublisher?.waitBetweenTries !== 2000) errors.push("Publisher integration must use at most two attempts with a two-second delay.");
 
 if (errors.length) {
   console.error(errors.map((error) => `- ${error}`).join("\n"));

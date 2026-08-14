@@ -65,6 +65,15 @@ test("duplicate idempotency key cannot create another revision", () => {
   expect(result).toMatchObject({ shouldWrite: false, duplicate: true, revision: document.revision });
 });
 
+test("each retry rereads canonical state and exposes bounded attempt lineage", () => {
+  expect(workflow.connections["Called by PMO Orchestrator"].main[0][0].node).toBe("PreparePublisherAttempt");
+  expect(workflow.connections.PreparePublisherAttempt.main[0][0].node).toBe("GitHubReadCurrentCanonicalForPublication");
+  expect(workflow.connections.GitHubReadCurrentCanonicalForPublication.main[0][0].node).toBe("BuildFreshPublisherInput");
+  const prepare = workflow.nodes.find((node: { name: string }) => node.name === "PreparePublisherAttempt");
+  expect(prepare.parameters.jsCode).toContain("publisher-retry-1.0");
+  expect(prepare.parameters.jsCode).toContain("maxAttempts:2");
+});
+
 test("rejects proposal and canonical artifacts from another project scope", () => {
   const crossScope = input("accept") as ReturnType<typeof input> & {
     proposalSet: { scope: { organisationId: string; projectId: string } };

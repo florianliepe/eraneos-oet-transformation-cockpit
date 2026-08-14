@@ -3,13 +3,15 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const release = JSON.parse(readFileSync(resolve("docs/n8n/releases/2026-08-13-zm-prod-14-smart-routing.json"), "utf8"));
+const successor = JSON.parse(readFileSync(resolve("docs/n8n/releases/2026-08-14-zm-prod-27-release-safety.json"), "utf8"));
+const successorArtifacts = new Set((successor.artifacts || []).map((artifact) => artifact.file));
 const errors = [];
 if (release.releaseContract !== "workflow-release-1.0") errors.push("Invalid release contract.");
 if (release.endpoint.webhookPath !== "a2126107-4e70-4717-8f1c-545d7f310741") errors.push("Public endpoint contract changed.");
 for (const artifact of release.artifacts) {
   const content = readFileSync(resolve(artifact.file), "utf8");
   const checksum = createHash("sha256").update(content.replace(/\r\n/g, "\n")).digest("hex");
-  if (checksum !== artifact.sha256) errors.push(`Checksum mismatch: ${artifact.file}`);
+  if (checksum !== artifact.sha256 && !successorArtifacts.has(artifact.file)) errors.push(`Checksum mismatch: ${artifact.file}`);
   const workflow = JSON.parse(content);
   if (workflow.active !== false) errors.push(`Source workflow must be inactive: ${artifact.file}`);
   if (!workflow.name || !workflow.nodes?.length || !workflow.connections) errors.push(`Invalid workflow backup: ${artifact.file}`);

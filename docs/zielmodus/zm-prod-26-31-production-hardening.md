@@ -51,7 +51,24 @@ governed live action after the candidate canary passes.
 
 ## ZM-PROD-28 — Publisher retry and exactly-once hardening
 
-Pending after ZM-PROD-27 deployment verification.
+Separate terminal authorization, scope, lineage and revision validation from
+the retrying integration boundary. Limit transient publisher execution to two
+attempts with a two-second delay, reread canonical state inside every attempt,
+and use the immutable publication idempotency audit to resolve an uncertain
+first write without a second revision. Never retry the GitHub canonical-write
+node independently.
+
+Acceptance gate:
+
+- terminal validation fails before the retrying subworkflow boundary;
+- every publisher attempt records `publisher-retry-1.0` lineage;
+- every retry validates against a freshly read canonical document;
+- the integration uses at most two attempts and the write node has no nested
+  retry policy;
+- accepted, rejected, duplicate and cross-project publication tests pass.
+
+Implementation status: implemented locally on 2026-08-14; LA-12 structural
+recovery evidence is reproducible without mutating production data.
 
 ## ZM-PROD-29 — Agent accuracy and evidence evaluation
 

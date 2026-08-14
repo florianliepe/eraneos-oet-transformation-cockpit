@@ -28,11 +28,11 @@
   "artifacts": [
     {
       "file": "docs/n8n/agents/lean-pmo-orchestrator.workflow.json",
-      "sha256": "dd2165c3e3099629044c61212321f1a90fc41f32c7ac2979269ad793aa2e693e"
+      "sha256": "9b895047595ed522911838daece248e972cbb493aeef296d30279480e38b19df"
     },
     {
       "file": "docs/n8n/agents/governed-publisher.workflow.json",
-      "sha256": "6ad51a5e1e6be8c388ec53d615fb61072c1ecd57de2b70243e0c65ea052890ae"
+      "sha256": "c69612256836da8761410fe35549fd28f9c15094926d0938d035c9780d3f2e12"
     },
     {
       "file": "docs/n8n/agents/error-handler.workflow.json",

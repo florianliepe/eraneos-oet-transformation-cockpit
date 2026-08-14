@@ -1738,6 +1738,19 @@
     },
     {
       "parameters": {
+        "jsCode": "const input=$json??{};const set=input.proposalSet;const review=input.reviewBundle;const document=input.canonicalDocument;const scope=input.scope??{};const key=String(input.idempotencyKey||'');if(input.authorized!==true)throw new Error('PUBLISH_AUTHORIZATION_REJECTED: Publisher authorization is required.');if(!set||set.contractVersion!=='proposal-set-1.0'||!review||review.contractVersion!=='review-decision-1.0'||review.proposalSetId!==set.id||review.sourceExecutionId!==set.sourceExecutionId)throw new Error('PUBLISH_VALIDATION_REJECTED: Proposal and review lineage is invalid.');if(!/^org_[A-Za-z0-9_-]{6,80}$/.test(String(scope.organisationId||''))||!/^prj_[A-Za-z0-9_-]{6,80}$/.test(String(scope.projectId||''))||document?.project?.id!==scope.projectId)throw new Error('PUBLISH_SCOPE_REJECTED: Publisher artifacts do not match the workspace.');if(!/^[A-Za-z0-9-]{8,80}$/.test(key)||!Number.isInteger(Number(input.expectedRevision))||Number(input.expectedRevision)!==Number(document?.revision)||Number(set.sourceRevision)!==Number(document?.revision))throw new Error('PUBLISH_VERSION_REJECTED: Publication identity or canonical revision is invalid.');if(!Array.isArray(review.decisions)||review.decisions.length!==set.proposals.length)throw new Error('PUBLISH_VALIDATION_REJECTED: Review decision coverage is incomplete.');return [{json:{...input,publicationAttempt:{policyVersion:'publisher-retry-1.0',attempt:1,maxAttempts:2}}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        512
+      ],
+      "id": "validate-publisher-preflight",
+      "name": "ValidatePublisherPreflight"
+    },
+    {
+      "parameters": {
         "jsCode": "let receipt=null;if($json.content){try{receipt=JSON.parse(Buffer.from($json.content,'base64').toString('utf8'));}catch{receipt=null;}}const request=$node['PrepareRunStatusRequest'].json;if(!receipt)return [{json:{stale:false,receipt:null}}];if(receipt.organisationId!==request.workspace.organisationId||receipt.projectId!==request.workspace.projectId)throw new Error('Run receipt does not match the requested workspace.');if(receipt.runId!==request.runId||receipt.idempotencyKey!==request.idempotencyKey)throw new Error('Run receipt identity does not match the status request.');const updatedAt=new Date(receipt.updatedAt).getTime();const stale=['accepted','running'].includes(receipt.state)&&Number.isFinite(updatedAt)&&Date.now()-updatedAt>=120000;if(!stale)return [{json:{stale:false,receipt}}];const now=new Date().toISOString();const reconciled={...receipt,state:'failed',updatedAt:now,completedAt:now,result:undefined,error:{code:'RUN_TERMINAL_TIMEOUT',safeMessage:'The accepted agent run did not reach a terminal state within the recovery window. Reconcile the original idempotency key before retrying.',retryable:true,reference:receipt.correlationId}};return [{json:{stale:true,receipt:reconciled,runPath:request.runPath,fileContent:JSON.stringify(reconciled,null,2)+'\\n',commitMessage:'pmo: reconcile stale governed agent run '+request.idempotencyKey}}];"
       },
       "type": "n8n-nodes-base.code",
@@ -2291,7 +2304,7 @@
       "main": [
         [
           {
-            "node": "ExecuteGovernedPublisher",
+            "node": "ValidatePublisherPreflight",
             "type": "main",
             "index": 0
           }
@@ -2558,6 +2571,17 @@
         [
           {
             "node": "BuildLeanRouting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidatePublisherPreflight": {
+      "main": [
+        [
+          {
+            "node": "ExecuteGovernedPublisher",
             "type": "main",
             "index": 0
           }

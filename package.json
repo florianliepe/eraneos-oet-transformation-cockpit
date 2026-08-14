@@ -29,6 +29,7 @@
     "build:agent-orchestrator": "node scripts/build-agent-orchestrator.mjs",
     "build:lean-agent-orchestrator": "node scripts/build-lean-agent-orchestrator.mjs",
     "build:governed-publisher": "node scripts/build-governed-publisher.mjs",
+    "harden:governed-publisher": "node scripts/harden-governed-publisher.mjs",
     "build:governed-smoke": "node scripts/build-governed-publisher-smoke.mjs",
     "build:agent-operations": "node scripts/build-agent-operations.mjs",
     "verify:governed-publisher": "node scripts/verify-governed-publisher.mjs",
