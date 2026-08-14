@@ -22,6 +22,7 @@ Environment: GitHub Pages lean-runtime opt-in, Chrome on Windows, n8n workflow `
 | LA-10 unknown register | Pass | Cockpit `c8a70603-9156-449a-81ef-f28b821859e7` | The agent used two exceptional guard calls, emitted no unsupported `readinessSignals` collection, proposed no canonical change and completed in 15,637 ms. |
 | LA-14 latency sample | Pass | Ten instrumented receipts; `docs/uat/evidence/zm-uat-02-la14-la15-2026-08-14.json` | The ten-run sample completed with P50 6,466 ms, P95 18,742 ms, mean 9,333 ms and no terminal failure. |
 | LA-15 reliability sample | Pass | Thirty fresh receipts; `docs/uat/evidence/zm-uat-02-la14-la15-2026-08-14.json` | The comparable no-change cohort reached 30/30 terminal completions (100%). Fresh-cohort P50 was 5,128 ms, P95 8,226 ms, mean 5,541 ms and maximum 9,889 ms. |
+| LA-16 hosted terminal-failure display | Pass | Cockpit `ae6f6614-e472-4432-ad36-27808e324728` | The deployed GitHub Pages build rendered the durable `failed` receipt with `PIPELINE_EXECUTION_FAILED`, 4,165 ms latency, the evidence verifier failed and only dependent specialists skipped. It did not synthesize `REQUEST_BOUNDARY_FAILED`. The n8n model temperature was immediately restored to `1` and the normal workflow version republished. |
 
 ## Findings and fixes
 
@@ -37,7 +38,7 @@ Environment: GitHub Pages lean-runtime opt-in, Chrome on Windows, n8n workflow `
 - Priority: P0
 - Cause: the asynchronous webhook returned an accepted receipt before agent execution, while the AI Agent error stopped the background branch before `BuildCompletedRunReceipt` could update it.
 - Fix: route the AI Agent error output through `BuildFailedRunReceipt` and `GitHubFailRunReceipt`, storing a scoped terminal failure with a safe message and correlation reference.
-- Verification: generator and structural verifier pass locally; the corrected candidate is published. The next controlled negative-path run must confirm the terminal failure receipt end to end.
+- Verification: generator and structural verifier pass locally; controlled correlations `2f3e56b9-c7ef-4ebc-b19c-1fd649b1e28a` and `ae6f6614-e472-4432-ad36-27808e324728` both reached scoped terminal `failed` receipts. The latter was also rendered truthfully by the hosted Cockpit.
 
 ### UAT-02-003 — accepted-to-running receipt consistency race
 
@@ -99,8 +100,10 @@ Environment: GitHub Pages lean-runtime opt-in, Chrome on Windows, n8n workflow `
 - Evidence: controlled n8n execution `18249`, correlation `2f3e56b9-c7ef-4ebc-b19c-1fd649b1e28a`, stored a scoped terminal `failed` receipt after 1,874 ms with `PIPELINE_EXECUTION_FAILED`.
 - Cause: `ingestEvidence` converted every durable failed receipt into a generic `Error`; the Cockpit catch handler consequently constructed a synthetic `REQUEST_BOUNDARY_FAILED` run and marked every specialist as skipped.
 - Fix: preserve the failed receipt in `AgentRunFailedError`, map it to a truthful lean-runtime envelope, retain its error code and latency, mark the upstream step failed, and skip only dependent steps.
-- Verification: unit regression added; hosted display retest remains required after the GitHub Pages deployment.
+- Verification: unit regression added and GitHub Pages deployment completed. Hosted correlation `ae6f6614-e472-4432-ad36-27808e324728` displayed `PIPELINE_EXECUTION_FAILED`, 4,165 ms latency, `evidence.verify` failed, and the three dependent steps skipped. The authoritative GitHub receipt is terminal `failed` with the same correlation and safe error payload; `REQUEST_BOUNDARY_FAILED` was absent.
 
 ## Promotion state
 
-Keep the candidate lean endpoint available for UAT, but do not archive any superseded Transformation Cockpit workflow yet. LA-06, LA-09, LA-10, LA-14 and LA-15 pass. The n8n controlled-failure branch stored a correct terminal receipt, and the discovered Cockpit classification defect is patched; archive remains blocked until the hosted display retest confirms that exact durable receipt is rendered truthfully.
+The lean endpoint and hosted Cockpit pass the scoped ZM-UAT-02 promotion gate: LA-06, LA-09, LA-10, LA-14, LA-15 and the hosted terminal-failure display all pass. Normal n8n operation was restored and republished immediately after the negative-path test.
+
+Do not archive superseded workflows yet. `docs/n8n/obsolete-workflow-candidates.json` explicitly sets `destructiveActionAllowed` to `false`, its authoritative orchestrator entry predates the promoted lean workflow `hE0z1J0iB6F71oSv`, and several candidate-specific retention checks remain open. Refresh and approve that governed inventory before any destructive cleanup.
