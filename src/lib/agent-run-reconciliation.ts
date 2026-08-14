@@ -3,6 +3,9 @@ import manifest from "../../docs/n8n/agents/manifest.json";
 import { AgentWorkflowIdSchema, AgentRunEnvelopeSchema, selectedAgentWorkflows, type AgentRunEnvelope } from "@/lib/agent-contracts";
 
 export const AGENT_RUN_RECEIPT_VERSION = "agent-run-receipt-1.0" as const;
+export const AGENT_RUN_POLL_INTERVAL_MS = 1_500;
+export const AGENT_RUN_MAX_NON_TERMINAL_MS = 120_000;
+export const AGENT_RUN_MAX_TRANSIENT_STATUS_FAILURES = 3;
 
 export const AgentRunReceiptSchema = z.object({
   contractVersion: z.literal(AGENT_RUN_RECEIPT_VERSION),
@@ -16,13 +19,37 @@ export const AgentRunReceiptSchema = z.object({
   updatedAt: z.string().datetime(),
   completedAt: z.string().datetime().optional(),
   result: z.unknown().optional(),
-  error: z.object({ code: z.string().min(1), safeMessage: z.string().min(1), retryable: z.boolean() }).optional(),
+  error: z.object({
+    code: z.string().min(1),
+    safeMessage: z.string().min(1),
+    retryable: z.boolean(),
+    reference: z.string().min(1).optional(),
+  }).optional(),
 }).superRefine((receipt, context) => {
   if (receipt.state === "completed" && receipt.result === undefined) context.addIssue({ code: "custom", message: "Completed run receipt requires a result." });
   if (receipt.state === "failed" && !receipt.error) context.addIssue({ code: "custom", message: "Failed run receipt requires a safe error." });
+  if (["completed", "failed"].includes(receipt.state) && !receipt.completedAt) context.addIssue({ code: "custom", message: "Terminal run receipts require completedAt." });
+  if (new Date(receipt.updatedAt).getTime() < new Date(receipt.requestedAt).getTime()) context.addIssue({ code: "custom", message: "Run receipt updatedAt cannot precede requestedAt." });
 });
 
 export type AgentRunReceipt = z.infer<typeof AgentRunReceiptSchema>;
+
+export function isTerminalAgentRunReceipt(receipt: AgentRunReceipt) {
+  return receipt.state === "completed" || receipt.state === "failed";
+}
+
+export function assertAgentRunReceiptIdentity(
+  receipt: AgentRunReceipt,
+  expected: { correlationId: string; idempotencyKey: string; organisationId: string; projectId: string },
+) {
+  if (receipt.runId !== `agent:${expected.idempotencyKey}` || receipt.correlationId !== expected.correlationId || receipt.idempotencyKey !== expected.idempotencyKey) {
+    throw new Error("Agent run receipt identity changed during reconciliation.");
+  }
+  if (receipt.organisationId !== expected.organisationId || receipt.projectId !== expected.projectId) {
+    throw new Error("Agent run receipt does not match the requested workspace scope.");
+  }
+  return receipt;
+}
 
 export class AgentOutcomeUnknownError extends Error {
   readonly receipt: AgentRunReceipt;

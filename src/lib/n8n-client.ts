@@ -13,7 +13,18 @@ import {
 } from "@/lib/governed-proposals";
 import type { WorkspaceScope } from "@/lib/project-data-repository";
 import { credentialRequired, newCorrelationId, readWorkflowResponse, workflowError } from "@/lib/operational-quality";
-import { AgentOutcomeUnknownError, AgentRunAcceptedResponseSchema, AgentRunFailedError, AgentRunStatusResponseSchema, type AgentRunReceipt } from "@/lib/agent-run-reconciliation";
+import {
+  AGENT_RUN_MAX_NON_TERMINAL_MS,
+  AGENT_RUN_MAX_TRANSIENT_STATUS_FAILURES,
+  AGENT_RUN_POLL_INTERVAL_MS,
+  AgentOutcomeUnknownError,
+  AgentRunAcceptedResponseSchema,
+  AgentRunFailedError,
+  AgentRunStatusResponseSchema,
+  assertAgentRunReceiptIdentity,
+  isTerminalAgentRunReceipt,
+  type AgentRunReceipt,
+} from "@/lib/agent-run-reconciliation";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".xml", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
@@ -265,20 +276,23 @@ export async function ingestEvidence(
   let raw: WorkflowIntakeResponse & { agentRun?: unknown };
   if (started.accepted && started.run) {
     let receipt = AgentRunAcceptedResponseSchema.parse({ ok: true, accepted: true, run: started.run }).run;
+    const expectedReceipt = { correlationId, idempotencyKey, organisationId: workspace.organisationId, projectId: workspace.projectId };
+    assertAgentRunReceiptIdentity(receipt, expectedReceipt);
     onProgress?.(receipt);
-    const deadline = Date.now() + 8 * 60 * 1000;
+    const deadline = Date.now() + AGENT_RUN_MAX_NON_TERMINAL_MS;
     let transientFailures = 0;
-    while (receipt.state === "accepted" || receipt.state === "running") {
+    while (!isTerminalAgentRunReceipt(receipt)) {
       if (Date.now() >= deadline) throw new AgentOutcomeUnknownError(receipt);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, AGENT_RUN_POLL_INTERVAL_MS));
       try {
         const status = await callWorkflow<unknown>(secret, { mode: "pmo.run.status", workspace, runId: receipt.runId, correlationId, idempotencyKey }, correlationId);
         receipt = AgentRunStatusResponseSchema.parse(status).run;
+        assertAgentRunReceiptIdentity(receipt, expectedReceipt);
         transientFailures = 0;
         onProgress?.(receipt);
       } catch (reason) {
         transientFailures += 1;
-        if (transientFailures >= 3) throw new AgentOutcomeUnknownError(receipt);
+        if (transientFailures >= AGENT_RUN_MAX_TRANSIENT_STATUS_FAILURES) throw new AgentOutcomeUnknownError(receipt);
         if (!(reason instanceof Error)) throw reason;
       }
     }

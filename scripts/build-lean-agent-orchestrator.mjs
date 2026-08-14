@@ -122,6 +122,45 @@ for (const name of terminalProtected) {
   workflow.connections[name] = connections;
 }
 
+// Reconcile a stale accepted/running receipt at the read boundary. This keeps
+// the browser from polling indefinitely and, crucially, persists the timeout
+// as the authoritative terminal receipt before it is returned.
+const classifyRunStatusCode = `let receipt=null;if($json.content){try{receipt=JSON.parse(Buffer.from($json.content,'base64').toString('utf8'));}catch{receipt=null;}}const request=$node['PrepareRunStatusRequest'].json;if(!receipt)return [{json:{stale:false,receipt:null}}];if(receipt.organisationId!==request.workspace.organisationId||receipt.projectId!==request.workspace.projectId)throw new Error('Run receipt does not match the requested workspace.');if(receipt.runId!==request.runId||receipt.idempotencyKey!==request.idempotencyKey)throw new Error('Run receipt identity does not match the status request.');const updatedAt=new Date(receipt.updatedAt).getTime();const stale=['accepted','running'].includes(receipt.state)&&Number.isFinite(updatedAt)&&Date.now()-updatedAt>=120000;if(!stale)return [{json:{stale:false,receipt}}];const now=new Date().toISOString();const reconciled={...receipt,state:'failed',updatedAt:now,completedAt:now,result:undefined,error:{code:'RUN_TERMINAL_TIMEOUT',safeMessage:'The accepted agent run did not reach a terminal state within the recovery window. Reconcile the original idempotency key before retrying.',retryable:true,reference:receipt.correlationId}};return [{json:{stale:true,receipt:reconciled,runPath:request.runPath,fileContent:JSON.stringify(reconciled,null,2)+'\\n',commitMessage:'pmo: reconcile stale governed agent run '+request.idempotencyKey}}];`;
+workflow.nodes.push({ parameters: { jsCode: classifyRunStatusCode }, type: "n8n-nodes-base.code", typeVersion: 2, position: [1440, 608], id: "classify-run-status", name: "ClassifyRunStatus" });
+
+const ifRunReceiptStale = structuredClone(getNode("IfStaleAcceptedRunCanResume"));
+ifRunReceiptStale.id = "if-run-receipt-stale";
+ifRunReceiptStale.name = "IfRunReceiptStale";
+ifRunReceiptStale.position = [1680, 608];
+ifRunReceiptStale.parameters.conditions.conditions[0].id = "IfRunReceiptStale-condition";
+ifRunReceiptStale.parameters.conditions.conditions[0].leftValue = "={{ $json.stale }}";
+workflow.nodes.push(ifRunReceiptStale);
+
+const reconcileStaleRunReceipt = structuredClone(getNode("GitHubCompleteRunReceipt"));
+reconcileStaleRunReceipt.id = "github-reconcile-stale-run-receipt";
+reconcileStaleRunReceipt.name = "GitHubReconcileStaleRunReceipt";
+reconcileStaleRunReceipt.position = [1920, 544];
+reconcileStaleRunReceipt.onError = "continueErrorOutput";
+reconcileStaleRunReceipt.retryOnFail = true;
+reconcileStaleRunReceipt.maxTries = 3;
+reconcileStaleRunReceipt.waitBetweenTries = 2000;
+workflow.nodes.push(reconcileStaleRunReceipt);
+
+workflow.nodes.push({ parameters: { jsCode: "return [{json:{ok:true,run:$node['ClassifyRunStatus'].json.receipt}}];" }, type: "n8n-nodes-base.code", typeVersion: 2, position: [2160, 544], id: "format-reconciled-run-status", name: "FormatReconciledRunStatus" });
+workflow.nodes.push({ parameters: { jsCode: "const run=$node['ClassifyRunStatus'].json.receipt;return [{json:{ok:false,retryable:true,error:'Run timeout reconciliation could not be persisted.',correlationId:run?.correlationId}}];" }, type: "n8n-nodes-base.code", typeVersion: 2, position: [2160, 688], id: "format-run-reconciliation-failure", name: "FormatRunReconciliationFailure" });
+
+const formatRunStatus = getNode("FormatRunStatus");
+formatRunStatus.position = [1920, 704];
+formatRunStatus.parameters.jsCode = "const receipt=$json.receipt;if(!receipt)return [{json:{ok:false,error:'Run receipt was not found.'}}];return [{json:{ok:true,run:receipt}}];";
+getNode("RespondRunStatus").position = [2400, 608];
+getNode("RespondRunStatus").parameters.options.responseCode = "={{ $json.ok ? 200 : ($json.retryable ? 503 : 404) }}";
+workflow.connections.GitHubReadRunStatus = { main: [[{ node: "ClassifyRunStatus", type: "main", index: 0 }]] };
+workflow.connections.ClassifyRunStatus = { main: [[{ node: "IfRunReceiptStale", type: "main", index: 0 }]] };
+workflow.connections.IfRunReceiptStale = { main: [[{ node: "GitHubReconcileStaleRunReceipt", type: "main", index: 0 }], [{ node: "FormatRunStatus", type: "main", index: 0 }]] };
+workflow.connections.GitHubReconcileStaleRunReceipt = { main: [[{ node: "FormatReconciledRunStatus", type: "main", index: 0 }], [{ node: "FormatRunReconciliationFailure", type: "main", index: 0 }]] };
+workflow.connections.FormatReconciledRunStatus = { main: [[{ node: "RespondRunStatus", type: "main", index: 0 }]] };
+workflow.connections.FormatRunReconciliationFailure = { main: [[{ node: "RespondRunStatus", type: "main", index: 0 }]] };
+
 for (const node of workflow.nodes) {
   if (node.parameters?.jsCode) node.parameters.jsCode = node.parameters.jsCode
     .replaceAll("$node['AggregateSpecialistResults']", "$node['BuildLeanRunContext']")

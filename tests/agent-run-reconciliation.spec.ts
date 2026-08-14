@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 import {
   AgentRunReceiptSchema,
+  assertAgentRunReceiptIdentity,
   buildPendingAgentRun,
   failedReceiptAgentRun,
+  isTerminalAgentRunReceipt,
   outcomeUnknownAgentRun,
 } from "../src/lib/agent-run-reconciliation";
 import manifest from "../docs/n8n/agents/manifest.json";
@@ -38,6 +40,20 @@ test("requires completed receipts to contain a result", () => {
   const receipt = { contractVersion: "agent-run-receipt-1.0", runId: `agent:${key}`, correlationId: key, idempotencyKey: key, state: "completed", organisationId: "org_test01", projectId: "prj_test01", requestedAt, updatedAt: requestedAt, completedAt: requestedAt };
   expect(AgentRunReceiptSchema.safeParse(receipt).success).toBe(false);
   expect(AgentRunReceiptSchema.parse({ ...receipt, result: { ok: true } }).state).toBe("completed");
+});
+
+test("requires terminal timestamps and exposes terminal-state classification", () => {
+  const base = { contractVersion: "agent-run-receipt-1.0", runId: `agent:${key}`, correlationId: key, idempotencyKey: key, organisationId: "org_test01", projectId: "prj_test01", requestedAt, updatedAt: requestedAt };
+  expect(AgentRunReceiptSchema.safeParse({ ...base, state: "failed", error: { code: "FAILED", safeMessage: "Failed safely.", retryable: true } }).success).toBe(false);
+  const failed = AgentRunReceiptSchema.parse({ ...base, state: "failed", completedAt: requestedAt, error: { code: "FAILED", safeMessage: "Failed safely.", retryable: true } });
+  expect(isTerminalAgentRunReceipt(failed)).toBe(true);
+  expect(isTerminalAgentRunReceipt(AgentRunReceiptSchema.parse({ ...base, state: "accepted" }))).toBe(false);
+});
+
+test("rejects receipt identity or workspace drift during reconciliation", () => {
+  const receipt = AgentRunReceiptSchema.parse({ contractVersion: "agent-run-receipt-1.0", runId: `agent:${key}`, correlationId: key, idempotencyKey: key, state: "accepted", organisationId: "org_test01", projectId: "prj_test01", requestedAt, updatedAt: requestedAt });
+  expect(() => assertAgentRunReceiptIdentity(receipt, { correlationId: key, idempotencyKey: key, organisationId: "org_test01", projectId: "prj_test01" })).not.toThrow();
+  expect(() => assertAgentRunReceiptIdentity(receipt, { correlationId: key, idempotencyKey: key, organisationId: "org_test01", projectId: "prj_other01" })).toThrow(/workspace scope/);
 });
 
 test("maps a durable failed receipt without misclassifying it as a request-boundary failure", () => {

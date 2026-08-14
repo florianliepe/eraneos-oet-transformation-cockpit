@@ -13,6 +13,7 @@ The active roadmap is delivered as small, independently verifiable work packages
 | 7 | [ZM-PROD-11–17](zm-prod-11-17-improvement-programme.md) | Local safety, portfolio steering, delivery workbench, agent control, reporting, design and operational quality | Each sequential package is merged, deployed and verified before the next begins |
 
 | 8 | [ZM-PROD-19–25](zm-prod-19-25-lean-agent-runtime.md) | Lean n8n agent runtime, exceptional workflow tools, resilience, observability and production UAT | Separate UAT workflow passes governance, quality, latency and hosted regression gates before promotion |
+| 9 | [ZM-PROD-26–31](zm-prod-26-31-production-hardening.md) | Terminal recovery, release safety, exactly-once publication, accuracy, latency and live operations | Each sequential hardening slice passes its verifier and Pages gate before the next begins |
 
 Azure production identity and persistence activation, SharePoint integration and Teams integration are explicitly deferred until they become relevant and the required platform access exists. ZM-PROD-10 prepares replaceable adapters without treating local browser identity as production security.
 

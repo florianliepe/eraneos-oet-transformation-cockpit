@@ -1393,13 +1393,13 @@
     },
     {
       "parameters": {
-        "jsCode": "let receipt=null;if($json.content){try{receipt=JSON.parse(Buffer.from($json.content,'base64').toString('utf8'));}catch{receipt=null;}}if(!receipt)return [{json:{ok:false,error:'Run receipt was not found.'}}];const request=$node['PrepareRunStatusRequest'].json;if(receipt.organisationId!==request.workspace.organisationId||receipt.projectId!==request.workspace.projectId)throw new Error('Run receipt does not match the requested workspace.');return [{json:{ok:true,run:receipt}}];"
+        "jsCode": "const receipt=$json.receipt;if(!receipt)return [{json:{ok:false,error:'Run receipt was not found.'}}];return [{json:{ok:true,run:receipt}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1440,
-        608
+        1920,
+        704
       ],
       "id": "formatrunstatus",
       "name": "FormatRunStatus"
@@ -1409,13 +1409,13 @@
         "respondWith": "json",
         "responseBody": "={{ $json }}",
         "options": {
-          "responseCode": "={{ $json.ok ? 200 : 404 }}"
+          "responseCode": "={{ $json.ok ? 200 : ($json.retryable ? 503 : 404) }}"
         }
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        1680,
+        2400,
         608
       ],
       "id": "respondrunstatus",
@@ -1752,6 +1752,123 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "let receipt=null;if($json.content){try{receipt=JSON.parse(Buffer.from($json.content,'base64').toString('utf8'));}catch{receipt=null;}}const request=$node['PrepareRunStatusRequest'].json;if(!receipt)return [{json:{stale:false,receipt:null}}];if(receipt.organisationId!==request.workspace.organisationId||receipt.projectId!==request.workspace.projectId)throw new Error('Run receipt does not match the requested workspace.');if(receipt.runId!==request.runId||receipt.idempotencyKey!==request.idempotencyKey)throw new Error('Run receipt identity does not match the status request.');const updatedAt=new Date(receipt.updatedAt).getTime();const stale=['accepted','running'].includes(receipt.state)&&Number.isFinite(updatedAt)&&Date.now()-updatedAt>=120000;if(!stale)return [{json:{stale:false,receipt}}];const now=new Date().toISOString();const reconciled={...receipt,state:'failed',updatedAt:now,completedAt:now,result:undefined,error:{code:'RUN_TERMINAL_TIMEOUT',safeMessage:'The accepted agent run did not reach a terminal state within the recovery window. Reconcile the original idempotency key before retrying.',retryable:true,reference:receipt.correlationId}};return [{json:{stale:true,receipt:reconciled,runPath:request.runPath,fileContent:JSON.stringify(reconciled,null,2)+'\\n',commitMessage:'pmo: reconcile stale governed agent run '+request.idempotencyKey}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        608
+      ],
+      "id": "classify-run-status",
+      "name": "ClassifyRunStatus"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "IfRunReceiptStale-condition",
+              "leftValue": "={{ $json.stale }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        608
+      ],
+      "id": "if-run-receipt-stale",
+      "name": "IfRunReceiptStale"
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "file",
+        "operation": "edit",
+        "owner": {
+          "__rl": true,
+          "value": "florianliepe",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "eraneos-oet-transformation-cockpit-data",
+          "mode": "name"
+        },
+        "filePath": "={{ $json.runPath }}",
+        "binaryData": false,
+        "additionalParameters": {
+          "branch": {
+            "branch": "main"
+          }
+        },
+        "fileContent": "={{ $json.fileContent }}",
+        "commitMessage": "={{ $json.commitMessage }}"
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1920,
+        544
+      ],
+      "id": "github-reconcile-stale-run-receipt",
+      "name": "GitHubReconcileStaleRunReceipt",
+      "credentials": {
+        "githubApi": {
+          "id": "3V46mglu7fpoPISX",
+          "name": "GitHub data"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{ok:true,run:$node['ClassifyRunStatus'].json.receipt}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        544
+      ],
+      "id": "format-reconciled-run-status",
+      "name": "FormatReconciledRunStatus"
+    },
+    {
+      "parameters": {
+        "jsCode": "const run=$node['ClassifyRunStatus'].json.receipt;return [{json:{ok:false,retryable:true,error:'Run timeout reconciliation could not be persisted.',correlationId:run?.correlationId}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        688
+      ],
+      "id": "format-run-reconciliation-failure",
+      "name": "FormatRunReconciliationFailure"
     }
   ],
   "connections": {
@@ -2366,7 +2483,7 @@
       "main": [
         [
           {
-            "node": "FormatRunStatus",
+            "node": "ClassifyRunStatus",
             "type": "main",
             "index": 0
           }
@@ -2572,6 +2689,75 @@
         [
           {
             "node": "BuildFailedRunReceipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ClassifyRunStatus": {
+      "main": [
+        [
+          {
+            "node": "IfRunReceiptStale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfRunReceiptStale": {
+      "main": [
+        [
+          {
+            "node": "GitHubReconcileStaleRunReceipt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FormatRunStatus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHubReconcileStaleRunReceipt": {
+      "main": [
+        [
+          {
+            "node": "FormatReconciledRunStatus",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FormatRunReconciliationFailure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatReconciledRunStatus": {
+      "main": [
+        [
+          {
+            "node": "RespondRunStatus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatRunReconciliationFailure": {
+      "main": [
+        [
+          {
+            "node": "RespondRunStatus",
             "type": "main",
             "index": 0
           }

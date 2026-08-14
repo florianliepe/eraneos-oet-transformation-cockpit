@@ -7,7 +7,7 @@ const fail = (message) => { throw new Error(message); };
 if (workflow.active) fail("Lean workflow must be imported as an inactive UAT candidate.");
 if (workflow.name !== "Eraneos Transformation Cockpit - Lean PMO Orchestrator v2") fail("Unexpected workflow name.");
 for (const obsolete of ["BuildSpecialistCalls", "ExecuteSelectedSpecialists", "AggregateSpecialistResults", "BuildRunningRunReceipt", "BuildResumedRunningRunReceipt", "GitHubMarkRunRunning", "PMO Assistant"]) if (byName.has(obsolete)) fail(`Obsolete runtime node remains: ${obsolete}`);
-for (const required of ["BuildLeanRouting", "Lean PMO Agent", "BuildLeanRunContext", "BuildFailedRunReceipt", "GitHubFailRunReceipt", "Evidence Consistency Guard", "High Impact Governance Guard", "PMO Schema Guard"]) if (!byName.has(required)) fail(`Missing lean node: ${required}`);
+for (const required of ["BuildLeanRouting", "Lean PMO Agent", "BuildLeanRunContext", "BuildFailedRunReceipt", "GitHubFailRunReceipt", "ClassifyRunStatus", "IfRunReceiptStale", "GitHubReconcileStaleRunReceipt", "FormatReconciledRunStatus", "Evidence Consistency Guard", "High Impact Governance Guard", "PMO Schema Guard"]) if (!byName.has(required)) fail(`Missing lean node: ${required}`);
 const tools = workflow.nodes.filter((node) => node.type === "@n8n/n8n-nodes-langchain.toolWorkflow");
 if (tools.length !== 3) fail(`Expected exactly 3 bounded workflow tools, found ${tools.length}.`);
 for (const tool of tools) {
@@ -43,6 +43,11 @@ for (const name of ["GitHubCompleteRunReceipt", "GitHubFailRunReceipt"]) {
   const receiptStore = byName.get(name);
   if (!receiptStore.retryOnFail || receiptStore.maxTries !== 3 || receiptStore.waitBetweenTries !== 2000) fail(`${name} must use three bounded retries with a two-second delay.`);
 }
+const staleClassifier = byName.get("ClassifyRunStatus");
+if (!staleClassifier.parameters.jsCode.includes("RUN_TERMINAL_TIMEOUT") || !staleClassifier.parameters.jsCode.includes(">=120000")) fail("Stale run receipts are not reconciled into a bounded terminal failure.");
+if (workflow.connections.GitHubReadRunStatus?.main?.[0]?.[0]?.node !== "ClassifyRunStatus") fail("Run status reads do not enter stale-run reconciliation.");
+if (workflow.connections.IfRunReceiptStale?.main?.[0]?.[0]?.node !== "GitHubReconcileStaleRunReceipt") fail("Stale run receipts are not persisted before response.");
+if (workflow.connections.GitHubReconcileStaleRunReceipt?.main?.[0]?.[0]?.node !== "FormatReconciledRunStatus") fail("Reconciled receipts do not return their authoritative terminal state.");
 for (const name of ["BuildLeanRunContext", "NormalizeCanonical", "GitHubCreateWorkPackageJson", "GitHubCreateWorkPackageMarkdown", "GitHubReadControlTowerForIngest", "MergeIntoControlTower", "BuildProposalSet", "GitHubStoreProposalSet", "FormatIngest", "BuildCompletedRunReceipt", "GitHubCompleteRunReceipt"]) {
   if (byName.get(name).onError !== "continueErrorOutput") fail(`${name} must continue into the terminal failure receipt.`);
   if (workflow.connections[name]?.main?.[1]?.[0]?.node !== "BuildFailedRunReceipt") fail(`${name} has no terminal failure-receipt edge.`);
