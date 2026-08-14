@@ -1,0 +1,25 @@
+{
+  "contractVersion": "agent-accuracy-hardening-report-1.0",
+  "caseCount": 10,
+  "formats": [
+    "text",
+    "xml",
+    "png_ocr",
+    "pdf",
+    "xlsx"
+  ],
+  "sanitization": {
+    "containsCredentials": false,
+    "containsPersonalData": false,
+    "source": "synthetic and sanitized UAT evidence"
+  },
+  "scores": {
+    "criticalFieldAccuracy": 1,
+    "evidenceAttribution": 1,
+    "noChangeAccuracy": 1,
+    "highImpactFailClosed": 1,
+    "unauthorizedCanonicalWrites": 0
+  },
+  "failures": [],
+  "releaseReady": true
+}

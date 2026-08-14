@@ -72,7 +72,14 @@ recovery evidence is reproducible without mutating production data.
 
 ## ZM-PROD-29 — Agent accuracy and evidence evaluation
 
-Pending after ZM-PROD-28 deployment verification.
+Completed in source and release gates. A sanitized ten-case evidence corpus now
+covers text, XML, PNG/OCR, PDF and XLSX plus no-change, contradiction, prompt
+injection and incomplete high-impact scenarios. The blocking evaluator requires
+at least 90% critical-field accuracy, 100% evidence attribution, at least 95%
+no-change accuracy, 100% fail-closed handling of incomplete high-impact input
+and zero unauthorized canonical writes. The lean prompt and bounded governance
+tool additionally require accountable owner roles and all five change-impact
+fields before a high-impact proposal may proceed to review.
 
 ## ZM-PROD-30 — Latency and runtime efficiency
 

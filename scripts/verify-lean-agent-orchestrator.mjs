@@ -18,6 +18,10 @@ for (const tool of tools) {
   if (workflow.connections[tool.name]?.ai_tool?.[0]?.[0]?.node !== "Lean PMO Agent") fail(`${tool.name} is not connected as an AI tool.`);
 }
 const agent = byName.get("Lean PMO Agent");
+if (!agent.parameters.options.systemMessage.includes("ownerRole") || !agent.parameters.options.systemMessage.includes("scopeImpact") || !agent.parameters.options.systemMessage.includes("omit the unsafe proposal")) fail("High-impact accuracy and fail-closed prompt rules are missing.");
+const impactInline = JSON.parse(byName.get("High Impact Governance Guard").parameters.workflowJson);
+const impactCode = impactInline.nodes.find((node) => node.name === "Validate")?.parameters?.jsCode || "";
+for (const field of ["ownerRole", "scopeImpact", "scheduleImpact", "costImpact", "benefitImpact", "riskImpact"]) if (!impactCode.includes(field)) fail(`High-impact guard does not validate ${field}.`);
 const assistant = byName.get("BuildAssistantInput");
 if (!assistant.parameters.jsCode.includes("metadata does not match the requested workspace scope")) fail("Cross-project intake metadata is not rejected before persistence.");
 const executeAssistant = new Function("$json", "$node", assistant.parameters.jsCode);
