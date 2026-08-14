@@ -5,7 +5,7 @@ const sourcePath = resolve("docs/n8n-pmo-orchestrator.workflow.json");
 const outputPath = resolve("docs/n8n/agents/lean-pmo-orchestrator.workflow.json");
 const workflow = JSON.parse(readFileSync(sourcePath, "utf8"));
 const webhookPath = "8d92d8ef-4267-4e67-88e8-8daab51c9361";
-const removed = new Set(["BuildSpecialistCalls", "ExecuteSelectedSpecialists", "AggregateSpecialistResults", "BuildRunningRunReceipt", "BuildResumedRunningRunReceipt", "GitHubMarkRunRunning"]);
+const removed = new Set(["BuildSpecialistCalls", "ExecuteSelectedSpecialists", "AggregateSpecialistResults", "BuildRunningRunReceipt", "BuildResumedRunningRunReceipt", "GitHubMarkRunRunning", "RespondIngest"]);
 
 workflow.name = "Eraneos Transformation Cockpit - Lean PMO Orchestrator v2";
 workflow.active = false;
@@ -188,6 +188,11 @@ formatIngest.parameters.jsCode = formatIngest.parameters.jsCode
     "persistence:{mode:'proposal_only',",
     "operations:{attempt:Number(aggregate.meta?.recovery_attempt||1),latencyMs:Number(aggregate.latencyMs||0),reviewOutcome:'pending'},persistence:{mode:'proposal_only',",
   );
+
+const generatedNodeNames = new Set(workflow.nodes.map((node) => node.name));
+for (const source of Object.keys(workflow.connections)) {
+  if (!generatedNodeNames.has(source)) delete workflow.connections[source];
+}
 
 writeFileSync(outputPath, `${JSON.stringify(workflow, null, 2)}\n`);
 console.log(`Built ${workflow.name} with ${workflow.nodes.length} nodes at ${outputPath}.`);

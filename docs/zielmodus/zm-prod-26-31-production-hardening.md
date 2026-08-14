@@ -32,7 +32,22 @@ the shared lifecycle policy.
 
 ## ZM-PROD-27 — Release-safe n8n promotion
 
-Pending after ZM-PROD-26 deployment verification.
+Require a deterministic checksummed candidate release, a versioned model
+capability contract, full graph validation, a recorded rollback workflow and a
+non-destructive canary before promotion. Reject duplicate identities, dangling
+edges, orphan runtime nodes, invalid Code nodes, unsupported model settings,
+credential-shaped values and obsolete runtime markers.
+
+Acceptance gate:
+
+- workflow source artifacts remain inactive and checksummed;
+- every connection resolves to a unique node identity;
+- isolated runtime nodes and stale legacy references fail verification;
+- the configured model and agent limits match the capability contract;
+- candidate, rollback, endpoint and canary requirements are explicit.
+
+Implementation status: implemented locally on 2026-08-14. Promotion remains a
+governed live action after the candidate canary passes.
 
 ## ZM-PROD-28 — Publisher retry and exactly-once hardening
 

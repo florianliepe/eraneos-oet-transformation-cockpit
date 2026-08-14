@@ -1,0 +1,16 @@
+{
+  "contractVersion": "model-capabilities-1.0",
+  "models": {
+    "claude-sonnet-5": {
+      "providerBinding": "Eraneos LLM Gateway",
+      "responsesApi": true,
+      "sampling": {
+        "temperature": {
+          "mode": "fixed",
+          "value": 1
+        }
+      },
+      "maxAgentIterations": 4
+    }
+  }
+}

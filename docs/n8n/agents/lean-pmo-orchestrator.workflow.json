@@ -514,23 +514,6 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
-        "options": {
-          "responseCode": 200
-        }
-      },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        2816,
-        176
-      ],
-      "id": "083ff0bd-d911-42b4-ae1c-c0e1027b5f6b",
-      "name": "RespondIngest"
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
         "responseBody": "={\"ok\":false,\"error\":\"Unsupported operation. Use pmo.read, pmo.save or pmo.ingest.\"}",
         "options": {
           "responseCode": 400
@@ -2098,17 +2081,6 @@
         [
           {
             "node": "BuildFailedRunReceipt",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GitHubSaveControlTowerForIngest": {
-      "main": [
-        [
-          {
-            "node": "FormatIngest",
             "type": "main",
             "index": 0
           }

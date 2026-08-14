@@ -1,0 +1,57 @@
+{
+  "releaseContract": "workflow-release-2.0",
+  "releaseId": "2026-08-14-zm-prod-27-release-safety",
+  "createdAt": "2026-08-14T08:00:00.000Z",
+  "status": "candidate",
+  "endpoint": {
+    "method": "POST",
+    "webhookPath": "8d92d8ef-4267-4e67-88e8-8daab51c9361",
+    "contractModes": [
+      "pmo.read",
+      "pmo.save",
+      "pmo.ingest",
+      "pmo.run.status",
+      "pmo.review",
+      "pmo.publish"
+    ]
+  },
+  "binding": {
+    "candidateWorkflowId": "hE0z1J0iB6F71oSv",
+    "rollbackWorkflowId": "KNwZZBkaTdAqwlyT",
+    "runtimeSelector": "lean",
+    "promotionRequiresCanary": true
+  },
+  "workflow": {
+    "name": "Eraneos Transformation Cockpit - Lean PMO Orchestrator v2",
+    "version": "2.0.0"
+  },
+  "artifacts": [
+    {
+      "file": "docs/n8n/agents/lean-pmo-orchestrator.workflow.json",
+      "sha256": "dd2165c3e3099629044c61212321f1a90fc41f32c7ac2979269ad793aa2e693e"
+    },
+    {
+      "file": "docs/n8n/agents/governed-publisher.workflow.json",
+      "sha256": "6ad51a5e1e6be8c388ec53d615fb61072c1ecd57de2b70243e0c65ea052890ae"
+    },
+    {
+      "file": "docs/n8n/agents/error-handler.workflow.json",
+      "sha256": "53760a4c394570a2c04bd58c4a0e20299688b1646d5a4f2a99f1c4ed0d7f419a"
+    },
+    {
+      "file": "docs/n8n/model-capabilities.json",
+      "sha256": "adf324592166159ee1db6fa912738bf259be9b96d90fca178901a5527c3e5c34"
+    }
+  ],
+  "modelCapabilityContract": "docs/n8n/model-capabilities.json",
+  "safetyGates": [
+    "checksums",
+    "unique-node-identities",
+    "no-dangling-edges",
+    "no-orphan-runtime-nodes",
+    "code-node-syntax",
+    "model-parameter-compatibility",
+    "credential-value-exclusion",
+    "non-destructive-canary-before-promotion"
+  ]
+}
