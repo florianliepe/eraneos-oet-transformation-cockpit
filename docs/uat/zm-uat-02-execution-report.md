@@ -20,8 +20,8 @@ Environment: GitHub Pages lean-runtime opt-in, Chrome on Windows, n8n workflow `
 | LA-08 high-impact governance | Pass | Cockpit `d5b5b4c8-f01b-4051-b62f-4b5749ee6dc0` | P1 change request remained proposal-only and required review. It was rejected because the proposed owner conflicted with the supplied Programme Sponsor and impact fields were incomplete; revision remained 2. |
 | LA-09 contradictory evidence | Pass after fix | Cockpit `03237508-c64b-4020-bca6-973700db2ff5`, retest `89e47cc6-7fae-49a5-a217-20c09ebfd9d6` | The first run used the evidence guard but incorrectly discarded the evidence-only review outcome. After terminal-state propagation was corrected, the retest used one exceptional guard call, proposed no changes and ended `needs_review` in 18,742 ms with `EVIDENCE_REQUIRES_REVIEW`. |
 | LA-10 unknown register | Pass | Cockpit `c8a70603-9156-449a-81ef-f28b821859e7` | The agent used two exceptional guard calls, emitted no unsupported `readinessSignals` collection, proposed no canonical change and completed in 15,637 ms. |
-| LA-14 latency sample | In progress (4/10) | Cockpit receipts `5ab44a0b…`, `03237508…`, `c8a70603…`, `89e47cc6…` | Instrumented terminal latencies are 6,466, 17,426, 15,637 and 18,742 ms. The minimum sample size is not yet satisfied. |
-| LA-15 reliability sample | In progress | GitHub run-receipt store | Historical receipts were inventoried, but pre-fix accepted/running records are not comparable with the corrected candidate. A fresh 30-run terminal cohort remains required. |
+| LA-14 latency sample | Pass | Ten instrumented receipts; `docs/uat/evidence/zm-uat-02-la14-la15-2026-08-14.json` | The ten-run sample completed with P50 6,466 ms, P95 18,742 ms, mean 9,333 ms and no terminal failure. |
+| LA-15 reliability sample | Pass | Thirty fresh receipts; `docs/uat/evidence/zm-uat-02-la14-la15-2026-08-14.json` | The comparable no-change cohort reached 30/30 terminal completions (100%). Fresh-cohort P50 was 5,128 ms, P95 8,226 ms, mean 5,541 ms and maximum 9,889 ms. |
 
 ## Findings and fixes
 
@@ -93,6 +93,14 @@ Environment: GitHub Pages lean-runtime opt-in, Chrome on Windows, n8n workflow `
 - Fix: merge normalized evidence-review reasons with proposal summaries, emit `EVIDENCE_REQUIRES_REVIEW`, set terminal state to `needs_review`, and retain `not_required` only for true no-change/no-review outcomes.
 - Verification: correlation `89e47cc6-7fae-49a5-a217-20c09ebfd9d6` ended `needs_review` with zero proposals and one evidence-guard call.
 
+### UAT-02-011 — durable failed receipt was misclassified in the Cockpit
+
+- Priority: P0
+- Evidence: controlled n8n execution `18249`, correlation `2f3e56b9-c7ef-4ebc-b19c-1fd649b1e28a`, stored a scoped terminal `failed` receipt after 1,874 ms with `PIPELINE_EXECUTION_FAILED`.
+- Cause: `ingestEvidence` converted every durable failed receipt into a generic `Error`; the Cockpit catch handler consequently constructed a synthetic `REQUEST_BOUNDARY_FAILED` run and marked every specialist as skipped.
+- Fix: preserve the failed receipt in `AgentRunFailedError`, map it to a truthful lean-runtime envelope, retain its error code and latency, mark the upstream step failed, and skip only dependent steps.
+- Verification: unit regression added; hosted display retest remains required after the GitHub Pages deployment.
+
 ## Promotion state
 
-Keep the candidate lean endpoint available for UAT, but do not archive any superseded Transformation Cockpit workflow yet. LA-06, LA-09 and LA-10 now pass. The corrected terminal failure path still needs controlled live verification, LA-14 has 4 of 10 instrumented samples, and a fresh 30-run LA-15 reliability cohort has not yet been collected.
+Keep the candidate lean endpoint available for UAT, but do not archive any superseded Transformation Cockpit workflow yet. LA-06, LA-09, LA-10, LA-14 and LA-15 pass. The n8n controlled-failure branch stored a correct terminal receipt, and the discovered Cockpit classification defect is patched; archive remains blocked until the hosted display retest confirms that exact durable receipt is rendered truthfully.

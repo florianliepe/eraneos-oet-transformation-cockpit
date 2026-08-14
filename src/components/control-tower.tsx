@@ -25,7 +25,7 @@ import type { WorkspaceScope } from "@/lib/project-data-repository";
 import { scopeDocument } from "@/lib/local-project-data-repository";
 import type { CockpitView } from "@/lib/cockpit-navigation";
 import { ContextualHelp, FirstUseGuide } from "./contextual-help";
-import { AgentOutcomeUnknownError, buildPendingAgentRun, outcomeUnknownAgentRun } from "@/lib/agent-run-reconciliation";
+import { AgentOutcomeUnknownError, AgentRunFailedError, buildPendingAgentRun, failedReceiptAgentRun, outcomeUnknownAgentRun } from "@/lib/agent-run-reconciliation";
 
 type View = CockpitView;
 type IntakeType = "risk" | "issue" | "action" | "decision" | "change_request" | "deliverable" | "meeting";
@@ -286,7 +286,10 @@ export default function ControlTower({ initialData, workspaceScope, accountableA
       const message = reason instanceof Error ? reason.message : "Workflow intake failed.";
       const timestamp = new Date().toISOString();
       const workflows = selectedAgentWorkflows(meta.agent_workflows);
-      if (reason instanceof AgentOutcomeUnknownError) {
+      if (reason instanceof AgentRunFailedError) {
+        const failedRun = failedReceiptAgentRun(meta, reason.receipt);
+        setWorkflowResult(failedRun); await persistAgentRun(failedRun, submission, recovery); setError(message);
+      } else if (reason instanceof AgentOutcomeUnknownError) {
         const unknownRun = outcomeUnknownAgentRun(pendingRun, message);
         setWorkflowResult(unknownRun); await persistAgentRun(unknownRun, submission, recovery);
         setError(`${message} Do not replay: reconcile the existing run first.`);

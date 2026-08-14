@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   AgentRunReceiptSchema,
   buildPendingAgentRun,
+  failedReceiptAgentRun,
   outcomeUnknownAgentRun,
 } from "../src/lib/agent-run-reconciliation";
 import manifest from "../docs/n8n/agents/manifest.json";
@@ -37,4 +38,34 @@ test("requires completed receipts to contain a result", () => {
   const receipt = { contractVersion: "agent-run-receipt-1.0", runId: `agent:${key}`, correlationId: key, idempotencyKey: key, state: "completed", organisationId: "org_test01", projectId: "prj_test01", requestedAt, updatedAt: requestedAt, completedAt: requestedAt };
   expect(AgentRunReceiptSchema.safeParse(receipt).success).toBe(false);
   expect(AgentRunReceiptSchema.parse({ ...receipt, result: { ok: true } }).state).toBe("completed");
+});
+
+test("maps a durable failed receipt without misclassifying it as a request-boundary failure", () => {
+  const receipt = AgentRunReceiptSchema.parse({
+    contractVersion: "agent-run-receipt-1.0",
+    runId: `agent:${key}`,
+    correlationId: key,
+    idempotencyKey: key,
+    state: "failed",
+    organisationId: "org_test01",
+    projectId: "prj_test01",
+    requestedAt,
+    updatedAt: "2026-08-12T10:00:05.000Z",
+    completedAt: "2026-08-12T10:00:05.000Z",
+    error: { code: "MODEL_PARAMETER_REJECTED", safeMessage: "The model rejected the controlled request.", retryable: true },
+  });
+  const run = failedReceiptAgentRun({
+    agent_workflows: "evidence.verify,risk.analyse",
+    routing: "auto",
+    routing_policy: "lean-routing-2.0.0",
+  }, receipt);
+  expect(run).toMatchObject({
+    executionId: `agent:${key}`,
+    status: "failed",
+    orchestrator: { workflowVersion: "2.0.0", model: "claude-sonnet-5" },
+    operations: { latencyMs: 5000 },
+    warnings: [{ code: "MODEL_PARAMETER_REJECTED" }],
+  });
+  expect(run.steps[0]).toMatchObject({ workflowId: "evidence.verify", status: "failed" });
+  expect(run.steps[1]).toMatchObject({ workflowId: "risk.analyse", status: "skipped" });
 });

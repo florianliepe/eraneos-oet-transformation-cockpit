@@ -13,7 +13,7 @@ import {
 } from "@/lib/governed-proposals";
 import type { WorkspaceScope } from "@/lib/project-data-repository";
 import { credentialRequired, newCorrelationId, readWorkflowResponse, workflowError } from "@/lib/operational-quality";
-import { AgentOutcomeUnknownError, AgentRunAcceptedResponseSchema, AgentRunStatusResponseSchema, type AgentRunReceipt } from "@/lib/agent-run-reconciliation";
+import { AgentOutcomeUnknownError, AgentRunAcceptedResponseSchema, AgentRunFailedError, AgentRunStatusResponseSchema, type AgentRunReceipt } from "@/lib/agent-run-reconciliation";
 
 const MAX_BATCH_BYTES = 29 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".json", ".xml", ".md", ".txt", ".csv", ".xlsx", ".png", ".jpg", ".jpeg"]);
@@ -282,7 +282,7 @@ export async function ingestEvidence(
         if (!(reason instanceof Error)) throw reason;
       }
     }
-    if (receipt.state === "failed") throw new Error(receipt.error?.safeMessage || "The governed workflow run failed.");
+    if (receipt.state === "failed") throw new AgentRunFailedError(receipt);
     raw = receipt.result as WorkflowIntakeResponse & { agentRun?: unknown };
   } else {
     raw = started;

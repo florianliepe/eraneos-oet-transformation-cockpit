@@ -33,6 +33,15 @@ export class AgentOutcomeUnknownError extends Error {
   }
 }
 
+export class AgentRunFailedError extends Error {
+  readonly receipt: AgentRunReceipt;
+  constructor(receipt: AgentRunReceipt) {
+    super(receipt.error?.safeMessage || `The governed workflow run ${receipt.runId} failed.`);
+    this.name = "AgentRunFailedError";
+    this.receipt = receipt;
+  }
+}
+
 export const AgentRunAcceptedResponseSchema = z.object({ ok: z.literal(true), accepted: z.literal(true), run: AgentRunReceiptSchema });
 export const AgentRunStatusResponseSchema = z.object({ ok: z.literal(true), run: AgentRunReceiptSchema });
 
@@ -70,6 +79,48 @@ export function outcomeUnknownAgentRun(run: AgentRunEnvelope, reason: string): A
     status: "waiting",
     steps: run.steps.map((step) => step.status === "completed" ? step : { ...step, status: "queued", summary: "Outcome not yet confirmed; backend processing may still be active." }),
     warnings: [...run.warnings, { code: "OUTCOME_UNKNOWN", message: reason, evidenceIds: [] }],
+  });
+}
+
+export function failedReceiptAgentRun(meta: Record<string, string>, receipt: AgentRunReceipt): AgentRunEnvelope {
+  const workflows = selectedAgentWorkflows(meta.agent_workflows);
+  const completedAt = receipt.completedAt || receipt.updatedAt;
+  const latencyMs = Math.max(0, new Date(completedAt).getTime() - new Date(receipt.requestedAt).getTime());
+  const safeMessage = receipt.error?.safeMessage || "The governed lean workflow failed.";
+  return AgentRunEnvelopeSchema.parse({
+    contractVersion: "agent-run-1.0",
+    executionId: receipt.runId,
+    correlationId: receipt.correlationId,
+    status: "failed",
+    requestedAt: receipt.requestedAt,
+    completedAt,
+    orchestrator: { workflowId: "pmo.orchestrate", workflowVersion: "2.0.0", promptVersion: "2.0.0", model: "claude-sonnet-5" },
+    routing: {
+      mode: meta.routing || "selected",
+      selectedWorkflows: workflows,
+      policyVersion: meta.routing_policy || "lean-routing-2.0.0",
+      explanation: parseRoutingExplanation(meta.routing_explanation),
+    },
+    steps: workflows.map((workflowId, index) => ({
+      workflowId,
+      workflowVersion: "2.0.0",
+      promptVersion: "2.0.0",
+      model: "claude-sonnet-5",
+      status: index === 0 ? "failed" : "skipped",
+      summary: index === 0 ? safeMessage : "Skipped because the upstream lean PMO execution failed.",
+      confidence: "not_assessed",
+      evidenceIds: [],
+      proposalIds: [],
+      completedAt,
+      latencyMs,
+      error: index === 0 ? receipt.error?.code : undefined,
+      safeRecovery: index === 0 && receipt.error?.retryable ? "Retry once using the immutable original input after checking the published workflow release." : undefined,
+    })),
+    evidence: [],
+    proposals: [],
+    warnings: [{ code: receipt.error?.code || "PIPELINE_EXECUTION_FAILED", message: safeMessage, evidenceIds: [] }],
+    persistence: { mode: "proposal_only" },
+    operations: { attempt: Number(meta.recovery_attempt || 1), latencyMs, retryOf: meta.retry_of, replayOf: meta.replay_of, reviewOutcome: "pending" },
   });
 }
 
