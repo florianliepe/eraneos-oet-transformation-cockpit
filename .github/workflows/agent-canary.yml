@@ -1,0 +1,37 @@
+name: Transformation Cockpit agent canary
+
+on:
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      OET_N8N_WEBHOOK: ${{ vars.OET_N8N_CANARY_WEBHOOK }}
+      OET_ORGANISATION_ID: ${{ vars.OET_N8N_CANARY_ORGANISATION_ID }}
+      OET_PROJECT_ID: ${{ vars.OET_N8N_CANARY_PROJECT_ID }}
+      OET_N8N_WEBHOOK_SECRET: ${{ secrets.OET_N8N_CANARY_WEBHOOK_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run verify:agent-canary
+      - name: Run governed no-change canary
+        if: ${{ env.OET_N8N_WEBHOOK_SECRET != '' && env.OET_N8N_WEBHOOK != '' && env.OET_PROJECT_ID != '' }}
+        run: npm run canary:agent
+      - name: Explain inactive live canary
+        if: ${{ env.OET_N8N_WEBHOOK_SECRET == '' || env.OET_N8N_WEBHOOK == '' || env.OET_PROJECT_ID == '' }}
+        run: echo "Live canary is safely inactive until the dedicated project variables and webhook secret are configured."
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('agent-canary-result.json') != '' }}
+        with:
+          name: agent-canary-result
+          path: agent-canary-result.json
+          retention-days: 30

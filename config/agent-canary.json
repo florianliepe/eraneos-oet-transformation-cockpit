@@ -1,0 +1,13 @@
+{
+  "contractVersion": "agent-canary-1.0",
+  "mode": "pmo.ingest",
+  "schedule": "every 30 minutes",
+  "fixture": "Controlled canary. This evidence contains no new PMO fact, decision, action, risk, milestone, or requested canonical update.",
+  "expectedTerminalStates": ["completed", "needs_review"],
+  "expectedProposalCount": 0,
+  "canonicalRevisionDelta": 0,
+  "maximumTerminalLatencyMs": 30000,
+  "requiresDedicatedProject": true,
+  "containsCredentials": false,
+  "destructiveActions": false
+}

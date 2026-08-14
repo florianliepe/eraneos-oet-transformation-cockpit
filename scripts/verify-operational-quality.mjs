@@ -11,7 +11,7 @@ for (const [name, workflow] of [["Pages", pages], ["App Service validation", app
 }
 const telemetry = read("src/lib/product-telemetry.ts");
 if (!telemetry.includes('NEXT_PUBLIC_PRODUCT_TELEMETRY_ENABLED !== "true"')) errors.push("Telemetry is not fail-closed by default.");
-for (const path of ["config/performance-budgets.json", "docs/operations/pilot-support-runbook.md", "docs/operations/recovery-rehearsal.json", "docs/releases/2026-08-11-zm-prod-11-17.md"]) {
+for (const path of ["config/performance-budgets.json", "config/agent-canary.json", "docs/operations/agent-canary-runbook.md", "docs/operations/pilot-support-runbook.md", "docs/operations/recovery-rehearsal.json", "docs/releases/2026-08-11-zm-prod-11-17.md"]) {
   try { read(path); } catch { errors.push(`Required operational evidence is missing: ${path}.`); }
 }
 const recovery = JSON.parse(read("docs/operations/recovery-rehearsal.json"));

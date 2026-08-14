@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
+import canary from "../config/agent-canary.json" with { type: "json" };
 
 const endpoint = process.env.OET_N8N_WEBHOOK || "https://eraneos-agentic-platform.azurewebsites.net/webhook/8d92d8ef-4267-4e67-88e8-8daab51c9361";
 const organisationId = process.env.OET_ORGANISATION_ID || "org_e01243088e4b2501a09f9efb52d1a16864c6";
@@ -24,6 +25,8 @@ const post = async (payload) => {
   try { body = JSON.parse(text); } catch { body = text; }
   return { status: response.status, body };
 };
+const revisionOf = (body) => Number(body?.document?.revision ?? body?.revision ?? body?.data?.revision);
+const readCanonical = async () => post({ mode: "pmo.read", workspace: { organisationId, projectId } });
 
 const evidenceByScenario = {
   baseline: "Controlled reliability sample. This evidence contains no new PMO fact, decision, action, risk, milestone, or requested canonical update.",
@@ -68,7 +71,23 @@ async function run({ scenario = "baseline", wpId, metaProjectId = projectId }) {
 }
 
 let results = [];
-if (command === "cross-project") {
+if (command === "canary") {
+  if (!webhookSecret) throw new Error("OET_N8N_WEBHOOK_SECRET is required for a governed live canary.");
+  const before = await readCanonical();
+  const canonicalRevisionBefore = revisionOf(before.body);
+  if (before.status >= 400 || !Number.isInteger(canonicalRevisionBefore)) throw new Error("CANARY_READ_FAILED: canonical revision could not be read before execution.");
+  const result = await run({ scenario: "baseline", wpId: `CANARY-${Date.now().toString(36).toUpperCase()}` });
+  const after = await readCanonical();
+  const canonicalRevisionAfter = revisionOf(after.body);
+  result.canonicalRevisionBefore = canonicalRevisionBefore;
+  result.canonicalRevisionAfter = canonicalRevisionAfter;
+  result.canaryContractVersion = canary.contractVersion;
+  if (!canary.expectedTerminalStates.includes(result.terminal?.state)) throw new Error(`CANARY_TERMINAL_FAILURE: ${result.terminal?.state || "missing"}`);
+  if (canonicalRevisionAfter - canonicalRevisionBefore !== canary.canonicalRevisionDelta) throw new Error(`CANARY_CANONICAL_WRITE: revision changed from ${canonicalRevisionBefore} to ${canonicalRevisionAfter}`);
+  const latency = Date.parse(result.terminal?.completedAt) - Date.parse(result.requestedAt);
+  if (!Number.isFinite(latency) || latency > canary.maximumTerminalLatencyMs) throw new Error(`CANARY_LATENCY_BREACH: ${latency} ms`);
+  results = [result];
+} else if (command === "cross-project") {
   results = [await run({ scenario: "baseline", wpId: "LA-06-CROSS-PROJECT", metaProjectId: "prj_wrongscope0000000000000000000000000000" })];
 } else if (command === "failure") {
   const wpId = `LA-FAIL-${Date.now().toString(36).toUpperCase()}`;

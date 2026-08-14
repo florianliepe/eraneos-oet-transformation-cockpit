@@ -94,4 +94,12 @@ future optimization can distinguish model/tool time from persistence time.
 
 ## ZM-PROD-31 — Operational observability and canaries
 
-Pending after ZM-PROD-30 deployment verification.
+Completed in source and release gates. Operational health now derives terminal
+success rate, P50/P95 latency, stale-run count, runtime classes, failure codes
+and workflow-version distribution from governed run envelopes, alongside the
+committed accuracy and runtime baselines. A scheduled/manual GitHub Actions
+canary validates a dedicated-project, no-change, zero-canonical-write contract
+and retains its sanitized result. Live calls remain safely inactive until the
+dedicated canary project variables and webhook secret are configured; contract
+verification still runs without credentials. No Azure activation or workflow
+archival is included.
