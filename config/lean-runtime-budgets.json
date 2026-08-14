@@ -1,0 +1,6 @@
+{
+  "contractVersion": "lean-runtime-budgets-1.0",
+  "routine": { "minimumRuns": 30, "minimumSuccessRate": 0.99, "p50Ms": 6000, "p95Ms": 10000, "maxMs": 12000 },
+  "mixed": { "minimumRuns": 10, "p50Ms": 7000, "p95Ms": 20000 },
+  "improvementTargets": { "routineP50Ms": 5000, "routineP95Ms": 8000, "exceptionalP95Ms": 15000 }
+}

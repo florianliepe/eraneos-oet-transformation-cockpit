@@ -83,7 +83,14 @@ fields before a high-impact proposal may proceed to review.
 
 ## ZM-PROD-30 — Latency and runtime efficiency
 
-Pending after ZM-PROD-29 deployment verification.
+Completed in source and release gates. The runtime gate separates a fresh
+30-run routine baseline from a mixed ten-run sample: releases require at least
+99% routine success, routine P50/P95 below 6/10 seconds and mixed P95 below
+20 seconds. The observed routine P50/P95 is 5.128/8.226 seconds with 100%
+success; the mixed P95 is 18.742 seconds. The stricter 5/8-second improvement
+targets remain visible as non-blocking gaps of 128/226 ms. Terminal envelopes
+now record runtime class, tool-call count, evidence size and phase timings so
+future optimization can distinguish model/tool time from persistence time.
 
 ## ZM-PROD-31 — Operational observability and canaries
 

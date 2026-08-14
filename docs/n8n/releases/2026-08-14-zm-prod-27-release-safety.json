@@ -28,7 +28,7 @@
   "artifacts": [
     {
       "file": "docs/n8n/agents/lean-pmo-orchestrator.workflow.json",
-      "sha256": "51b204f5c0d3ca31b04e7c9403ba00dab93a2ad1656800cad27bd6e075666c36"
+      "sha256": "74a87c44b7db000003bf21a8ca4b7eea018797e80bb7c2779f7af4d1545b991c"
     },
     {
       "file": "docs/n8n/agents/governed-publisher.workflow.json",

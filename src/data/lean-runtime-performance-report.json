@@ -1,0 +1,46 @@
+{
+  "contractVersion": "lean-runtime-performance-report-1.0",
+  "capturedAt": "2026-08-14T06:39:15.000Z",
+  "workflowId": "hE0z1J0iB6F71oSv",
+  "routine": {
+    "count": 30,
+    "successRate": 1,
+    "p50Ms": 5128,
+    "p95Ms": 8226,
+    "meanMs": 5541,
+    "maxMs": 9889
+  },
+  "mixed": {
+    "count": 10,
+    "p50Ms": 6466,
+    "p95Ms": 18742,
+    "meanMs": 9333
+  },
+  "controlledFailureReceiptMs": 1874,
+  "budgets": {
+    "contractVersion": "lean-runtime-budgets-1.0",
+    "routine": {
+      "minimumRuns": 30,
+      "minimumSuccessRate": 0.99,
+      "p50Ms": 6000,
+      "p95Ms": 10000,
+      "maxMs": 12000
+    },
+    "mixed": {
+      "minimumRuns": 10,
+      "p50Ms": 7000,
+      "p95Ms": 20000
+    },
+    "improvementTargets": {
+      "routineP50Ms": 5000,
+      "routineP95Ms": 8000,
+      "exceptionalP95Ms": 15000
+    }
+  },
+  "failures": [],
+  "warnings": [
+    "routine P50 improvement target missed by 128 ms",
+    "routine P95 improvement target missed by 226 ms"
+  ],
+  "releaseReady": true
+}

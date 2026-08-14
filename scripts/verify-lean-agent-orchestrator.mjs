@@ -65,9 +65,11 @@ if (!routingCode.includes("work package") || !routingCode.includes("percent comp
 const runContextCode = byName.get("BuildLeanRunContext").parameters.jsCode;
 if (runContextCode.includes("workflowId:'pmo.orchestrate'") || runContextCode.includes("workflowId:'tool.")) fail("Lean run steps must remain compatible with the specialist workflow-id contract.");
 if (!runContextCode.includes("latencyMs") || !runContextCode.includes("completedAt")) fail("Lean run context must measure terminal latency.");
+for (const metric of ["runtimeClass", "toolCallCount", "evidenceCharacters", "phaseTimingsMs"]) if (!runContextCode.includes(metric)) fail(`Lean run context does not expose ${metric}.`);
 const formatIngestCode = byName.get("FormatIngest").parameters.jsCode;
 if (!formatIngestCode.includes("model:'claude-sonnet-5'") || !formatIngestCode.includes("promptVersion:'2.0.0'")) fail("Lean run metadata must identify the configured model and prompt version.");
 if (!formatIngestCode.includes("operations:{") || !formatIngestCode.includes("latencyMs:Number(aggregate.latencyMs||0)")) fail("Lean terminal envelopes must expose measured latency through the operations contract.");
+if (!formatIngestCode.includes("toolCallCount:Number") || !formatIngestCode.includes("phaseTimingsMs")) fail("Lean terminal envelope is missing runtime efficiency telemetry.");
 if (!formatIngestCode.includes("EVIDENCE_REQUIRES_REVIEW") || !formatIngestCode.includes("status:requiresReview?'needs_review':'completed'")) fail("Evidence-only review requirements are not propagated to the terminal run.");
 const publisher = byName.get("ExecuteGovernedPublisher");
 if (publisher.maxTries !== 2 || publisher.waitBetweenTries !== 2000) fail("Publisher retry policy is not bounded.");

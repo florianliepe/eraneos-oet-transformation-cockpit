@@ -111,6 +111,14 @@ export const AgentRunEnvelopeSchema = z.object({
     replayOf: z.string().optional(),
     supersededBy: z.string().optional(),
     reviewOutcome: z.enum(["pending", "accepted", "rejected", "mixed", "not_required"]).default("pending"),
+    runtimeClass: z.enum(["routine", "exceptional"]).optional(),
+    toolCallCount: z.number().int().nonnegative().optional(),
+    evidenceCharacters: z.number().int().nonnegative().optional(),
+    phaseTimingsMs: z.object({
+      total: z.number().int().nonnegative(),
+      modelAndTools: z.number().int().nonnegative().optional(),
+      persistence: z.number().int().nonnegative().optional(),
+    }).optional(),
   }).default({ attempt: 1, reviewOutcome: "pending" }),
 });
 
